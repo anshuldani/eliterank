@@ -1,0 +1,94 @@
+import React from 'react';
+import { Crown, Eye } from 'lucide-react';
+import { Button, Badge } from '../../../components/ui';
+import { colors, spacing, borderRadius, typography, shadows } from '../../../styles/theme';
+import { formatNumber } from '../../../utils/formatters';
+
+export default function CompetitionOverview({ competition, onViewPublicSite }) {
+  const panelStyle = {
+    background: colors.background.card,
+    border: `1px solid rgba(212,175,55,0.25)`,
+    borderRadius: borderRadius.xxl,
+    overflow: 'hidden',
+    marginBottom: spacing.xxl,
+    boxShadow: shadows.card,
+  };
+
+  const cardStyle = {
+    background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))',
+    border: `1px solid ${colors.border.gold}`,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xl,
+  };
+
+  const stats = [
+    { label: 'Contestants', value: competition.contestants },
+    { label: 'Total Votes', value: formatNumber(competition.votes) },
+    { label: 'Nominations', value: 156 }, // Hardcoded for demo
+  ];
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ padding: spacing.xl }}>
+        <div style={cardStyle}>
+          {/* Header */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.lg,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontWeight: typography.fontWeight.semibold }}>
+              <Crown size={18} style={{ color: colors.gold.primary }} />
+              New York Most Eligible
+            </div>
+            <Badge variant="success" pill uppercase>
+              {competition.status}
+            </Badge>
+          </div>
+
+          {/* Stats */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: spacing.lg,
+              marginBottom: spacing.xl,
+              textAlign: 'center',
+            }}
+          >
+            {stats.map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  padding: spacing.lg,
+                  borderRadius: borderRadius.lg,
+                }}
+              >
+                <div style={{ fontSize: typography.fontSize.display, fontWeight: typography.fontWeight.semibold, color: '#fff' }}>
+                  {stat.value}
+                </div>
+                <div style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Action Button */}
+          <Button
+            onClick={onViewPublicSite}
+            icon={Eye}
+            fullWidth
+            size="lg"
+          >
+            View Public Site
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
