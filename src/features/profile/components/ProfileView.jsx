@@ -1,0 +1,230 @@
+import React from 'react';
+import { Edit, MapPin, Star, FileText, Heart, Camera, Globe, Trophy } from 'lucide-react';
+import { Panel, Button, Badge, InterestTag } from '../../../components/ui';
+import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
+
+export default function ProfileView({ hostProfile, onEdit }) {
+  const initials = `${hostProfile.firstName[0]}${hostProfile.lastName[0]}`;
+
+  const socialLinks = [
+    { platform: 'Instagram', handle: hostProfile.instagram, icon: '📷', gradient: 'linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45)' },
+    { platform: 'Twitter / X', handle: hostProfile.twitter, icon: '𝕏', background: '#000' },
+    { platform: 'LinkedIn', handle: hostProfile.linkedin, icon: 'in', background: '#0A66C2' },
+    { platform: 'TikTok', handle: hostProfile.tiktok, icon: '♪', gradient: 'linear-gradient(135deg, #00f2ea, #ff0050)' },
+  ].filter(link => link.handle);
+
+  return (
+    <div>
+      {/* Hero Section */}
+      <Panel style={{ marginBottom: spacing.xxl }}>
+        <div
+          style={{
+            height: '200px',
+            background: gradients.cover,
+            position: 'relative',
+          }}
+        >
+          <div style={{ position: 'absolute', top: spacing.lg, right: spacing.lg }}>
+            <Button
+              onClick={onEdit}
+              icon={Edit}
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(8px)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.2)',
+              }}
+            >
+              Edit Profile
+            </Button>
+          </div>
+        </div>
+        <div style={{ padding: `0 ${spacing.xxxl} ${spacing.xxxl}`, marginTop: '-60px' }}>
+          <div style={{ display: 'flex', gap: spacing.xxl, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: '140px',
+                height: '140px',
+                borderRadius: borderRadius.xxl,
+                background: 'linear-gradient(135deg, rgba(212,175,55,0.4), rgba(212,175,55,0.1))',
+                border: '4px solid #1a1a24',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '42px',
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.gold.primary,
+              }}
+            >
+              {initials}
+            </div>
+            <div style={{ flex: 1, paddingBottom: spacing.sm }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
+                <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, color: '#fff' }}>
+                  {hostProfile.firstName} {hostProfile.lastName}
+                </h1>
+                <Badge
+                  variant="gold"
+                  size="lg"
+                  icon={Star}
+                  style={{
+                    background: 'transparent',
+                    border: `1px solid rgba(212,175,55,0.5)`,
+                  }}
+                >
+                  Verified Host
+                </Badge>
+              </div>
+              <p style={{ color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm, fontSize: typography.fontSize.lg }}>
+                <MapPin size={18} /> {hostProfile.city}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: spacing.xxl }}>
+        {/* Left Column */}
+        <div>
+          {/* Bio Section */}
+          <Panel style={{ marginBottom: spacing.xl }}>
+            <div style={{ padding: spacing.xxl }}>
+              <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <FileText size={20} style={{ color: colors.gold.primary }} /> About
+              </h3>
+              <p style={{ color: colors.text.light, fontSize: typography.fontSize.lg, lineHeight: '1.7' }}>
+                {hostProfile.bio}
+              </p>
+            </div>
+          </Panel>
+
+          {/* Hobbies Section */}
+          <Panel style={{ marginBottom: spacing.xl }}>
+            <div style={{ padding: spacing.xxl }}>
+              <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <Heart size={20} style={{ color: colors.gold.primary }} /> Interests
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.md }}>
+                {hostProfile.hobbies.map((hobby) => (
+                  <InterestTag key={hobby} size="lg">
+                    {hobby}
+                  </InterestTag>
+                ))}
+              </div>
+            </div>
+          </Panel>
+
+          {/* Photo Gallery */}
+          <Panel>
+            <div style={{ padding: spacing.xxl }}>
+              <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <Camera size={20} style={{ color: colors.gold.primary }} /> Gallery
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.md }}>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      aspectRatio: '1',
+                      background: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(139,92,246,0.1))',
+                      borderRadius: borderRadius.lg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Camera size={24} style={{ color: 'rgba(255,255,255,0.2)' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        {/* Right Column */}
+        <div>
+          {/* Social Links */}
+          <Panel style={{ marginBottom: spacing.xl }}>
+            <div style={{ padding: spacing.xxl }}>
+              <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <Globe size={20} style={{ color: colors.gold.primary }} /> Connect
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                {socialLinks.map((link) => (
+                  <a
+                    key={link.platform}
+                    href="#"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      padding: spacing.md,
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: borderRadius.lg,
+                      textDecoration: 'none',
+                      color: colors.text.primary,
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        background: link.gradient || link.background,
+                        borderRadius: borderRadius.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: link.icon === 'in' ? '16px' : '18px',
+                        fontWeight: typography.fontWeight.bold,
+                        color: '#fff',
+                      }}
+                    >
+                      {link.icon}
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: typography.fontWeight.medium, fontSize: typography.fontSize.md }}>
+                        {link.platform}
+                      </p>
+                      <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.base }}>
+                        {link.handle}
+                      </p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </Panel>
+
+          {/* Current Competition */}
+          <Panel>
+            <div style={{ padding: spacing.xxl }}>
+              <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <Trophy size={20} style={{ color: colors.gold.primary }} /> Currently Hosting
+              </h3>
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))',
+                  border: `1px solid rgba(212,175,55,0.2)`,
+                  borderRadius: borderRadius.lg,
+                  padding: spacing.lg,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm }}>
+                  <MapPin size={16} style={{ color: colors.gold.primary }} />
+                  <span style={{ fontWeight: typography.fontWeight.semibold }}>New York Most Eligible</span>
+                </div>
+                <p style={{ fontSize: typography.fontSize.base, color: colors.text.secondary, marginBottom: spacing.md }}>
+                  Season 2025 • Voting Phase
+                </p>
+                <Badge variant="success" size="md" pill>
+                  ● ACTIVE
+                </Badge>
+              </div>
+            </div>
+          </Panel>
+        </div>
+      </div>
+    </div>
+  );
+}
