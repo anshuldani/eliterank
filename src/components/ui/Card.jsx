@@ -1,42 +1,42 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { colors, borderRadius, spacing, typography, gradients } from '../../styles/theme';
 
-export default function Card({
+const PADDING_MAP = {
+  none: 0,
+  sm: spacing.md,
+  md: spacing.lg,
+  lg: spacing.xl,
+  xl: spacing.xxl,
+};
+
+const VARIANT_STYLES = {
+  default: {
+    background: colors.background.card,
+    border: `1px solid ${colors.border.light}`,
+  },
+  gold: {
+    background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(30,30,40,0.6))',
+    border: `1px solid ${colors.border.gold}`,
+  },
+  highlighted: {
+    background: colors.background.cardHover,
+    border: `1px solid ${colors.border.lighter}`,
+  },
+};
+
+function Card({
   children,
   variant = 'default',
   padding = 'lg',
   style = {},
   ...props
 }) {
-  const paddingMap = {
-    none: 0,
-    sm: spacing.md,
-    md: spacing.lg,
-    lg: spacing.xl,
-    xl: spacing.xxl,
-  };
-
-  const variantStyles = {
-    default: {
-      background: colors.background.card,
-      border: `1px solid ${colors.border.light}`,
-    },
-    gold: {
-      background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(30,30,40,0.6))',
-      border: `1px solid ${colors.border.gold}`,
-    },
-    highlighted: {
-      background: colors.background.cardHover,
-      border: `1px solid ${colors.border.lighter}`,
-    },
-  };
-
-  const cardStyle = {
-    ...variantStyles[variant],
+  const cardStyle = useMemo(() => ({
+    ...VARIANT_STYLES[variant],
     borderRadius: borderRadius.xl,
-    padding: paddingMap[padding],
+    padding: PADDING_MAP[padding],
     ...style,
-  };
+  }), [variant, padding, style]);
 
   return (
     <div style={cardStyle} {...props}>
@@ -45,38 +45,44 @@ export default function Card({
   );
 }
 
+export default memo(Card);
+
 // Panel component with header
-export function Panel({ title, icon: Icon, action, children, style = {} }) {
-  const panelStyle = {
-    background: colors.background.card,
-    border: `1px solid ${colors.border.light}`,
-    borderRadius: borderRadius.xxl,
-    overflow: 'hidden',
-    marginBottom: spacing.xxl,
+const panelBaseStyle = {
+  background: colors.background.card,
+  border: `1px solid ${colors.border.light}`,
+  borderRadius: borderRadius.xxl,
+  overflow: 'hidden',
+  marginBottom: spacing.xxl,
+};
+
+const headerBaseStyle = {
+  padding: spacing.xl,
+  borderBottom: `1px solid ${colors.border.lighter}`,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+};
+
+const titleBaseStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: spacing.md,
+  fontSize: typography.fontSize.xl,
+  fontWeight: typography.fontWeight.semibold,
+};
+
+export const Panel = memo(function Panel({ title, icon: Icon, action, children, style = {} }) {
+  const panelStyle = useMemo(() => ({
+    ...panelBaseStyle,
     ...style,
-  };
-
-  const headerStyle = {
-    padding: spacing.xl,
-    borderBottom: `1px solid ${colors.border.lighter}`,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  };
-
-  const titleStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: spacing.md,
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.semibold,
-  };
+  }), [style]);
 
   return (
     <div style={panelStyle}>
       {title && (
-        <div style={headerStyle}>
-          <div style={titleStyle}>
+        <div style={headerBaseStyle}>
+          <div style={titleBaseStyle}>
             {Icon && <Icon size={22} style={{ color: colors.gold.primary }} />}
             {title}
           </div>
@@ -86,10 +92,17 @@ export function Panel({ title, icon: Icon, action, children, style = {} }) {
       {children}
     </div>
   );
-}
+});
 
 // Stat card component
-export function StatCard({
+const ICON_COLOR_MAP = {
+  gold: { bg: 'rgba(212,175,55,0.15)', color: colors.gold.primary },
+  blue: { bg: 'rgba(59,130,246,0.15)', color: colors.status.info },
+  purple: { bg: 'rgba(139,92,246,0.15)', color: colors.status.purple },
+  green: { bg: 'rgba(34,197,94,0.15)', color: colors.status.success },
+};
+
+export const StatCard = memo(function StatCard({
   label,
   value,
   icon: Icon,
@@ -101,16 +114,9 @@ export function StatCard({
   onClick,
   style = {},
 }) {
-  const iconColorMap = {
-    gold: { bg: 'rgba(212,175,55,0.15)', color: colors.gold.primary },
-    blue: { bg: 'rgba(59,130,246,0.15)', color: colors.status.info },
-    purple: { bg: 'rgba(139,92,246,0.15)', color: colors.status.purple },
-    green: { bg: 'rgba(34,197,94,0.15)', color: colors.status.success },
-  };
+  const iconStyle = ICON_COLOR_MAP[iconColor] || ICON_COLOR_MAP.gold;
 
-  const iconStyle = iconColorMap[iconColor] || iconColorMap.gold;
-
-  const cardStyle = {
+  const cardStyle = useMemo(() => ({
     padding: spacing.xl,
     borderRadius: borderRadius.xl,
     border: '1px solid',
@@ -122,9 +128,9 @@ export function StatCard({
     cursor: onClick ? 'pointer' : 'default',
     transition: 'all 0.3s',
     ...style,
-  };
+  }), [variant, onClick, style]);
 
-  const iconBoxStyle = {
+  const iconBoxStyle = useMemo(() => ({
     width: '52px',
     height: '52px',
     borderRadius: borderRadius.lg,
@@ -133,7 +139,7 @@ export function StatCard({
     justifyContent: 'center',
     background: iconStyle.bg,
     color: iconStyle.color,
-  };
+  }), [iconStyle]);
 
   return (
     <div style={cardStyle} onClick={onClick}>
@@ -161,4 +167,4 @@ export function StatCard({
       {children}
     </div>
   );
-}
+});

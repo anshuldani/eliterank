@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 
 // Layout components
 import { MainLayout, PageHeader } from './components/layout';
@@ -23,6 +23,9 @@ import {
   EliteRankCityModal,
 } from './components/modals';
 
+// Hooks
+import { useModals, useAuth } from './hooks';
+
 // Constants and mock data
 import {
   ADMIN_TABS,
@@ -38,9 +41,33 @@ import {
 } from './constants';
 
 export default function App() {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
+  // Authentication (custom hook)
+  const { isAuthenticated, user, login, logout } = useAuth();
+
+  // Modal management (custom hook)
+  const {
+    judgeModal,
+    sponsorModal,
+    eventModal,
+    announcementModal,
+    convertModal,
+    approveModal,
+    eliteRankCityOpen,
+    openJudgeModal,
+    closeJudgeModal,
+    openSponsorModal,
+    closeSponsorModal,
+    openEventModal,
+    closeEventModal,
+    openAnnouncementModal,
+    closeAnnouncementModal,
+    openConvertModal,
+    closeConvertModal,
+    openApproveModal,
+    closeApproveModal,
+    openEliteRankCity,
+    closeEliteRankCity,
+  } = useModals();
 
   // Navigation state
   const [activeTab, setActiveTab] = useState('overview');
@@ -56,23 +83,10 @@ export default function App() {
   const [hostProfile, setHostProfile] = useState(DEFAULT_HOST_PROFILE);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-  // Modal state
-  const [judgeModal, setJudgeModal] = useState({ isOpen: false, judge: null });
-  const [sponsorModal, setSponsorModal] = useState({ isOpen: false, sponsor: null });
-  const [eliteRankCityOpen, setEliteRankCityOpen] = useState(false);
-  const [eventModal, setEventModal] = useState({ isOpen: false, event: null });
-  const [announcementModal, setAnnouncementModal] = useState({ isOpen: false, announcement: null });
-  const [convertModal, setConvertModal] = useState({ isOpen: false, nominee: null });
-  const [approveModal, setApproveModal] = useState({ isOpen: false, nominee: null });
-
   // ============================================
   // Nominee Handlers
   // ============================================
-  const handleConvertNominee = (nominee) => {
-    setConvertModal({ isOpen: true, nominee });
-  };
-
-  const handleConfirmConvert = () => {
+  const handleConfirmConvert = useCallback(() => {
     const nominee = convertModal.nominee;
     if (!nominee) return;
 
@@ -84,9 +98,10 @@ export default function App() {
     );
 
     // Add to contestants if not already there
-    const existingContestant = contestants.find((c) => c.name === nominee.name);
-    if (!existingContestant) {
-      setContestants((prev) => [
+    setContestants((prev) => {
+      const existingContestant = prev.find((c) => c.name === nominee.name);
+      if (existingContestant) return prev;
+      return [
         ...prev,
         {
           id: `c${Date.now()}`,
@@ -97,17 +112,13 @@ export default function App() {
           votes: 0,
           interests: nominee.interests || [],
         },
-      ]);
-    }
+      ];
+    });
 
-    setConvertModal({ isOpen: false, nominee: null });
-  };
+    closeConvertModal();
+  }, [convertModal.nominee, closeConvertModal]);
 
-  const handleApproveNominee = (nominee) => {
-    setApproveModal({ isOpen: true, nominee });
-  };
-
-  const handleConfirmApprove = () => {
+  const handleConfirmApprove = useCallback(() => {
     const nominee = approveModal.nominee;
     if (!nominee) return;
 
@@ -118,38 +129,30 @@ export default function App() {
       )
     );
 
-    setApproveModal({ isOpen: false, nominee: null });
-  };
+    closeApproveModal();
+  }, [approveModal.nominee, closeApproveModal]);
 
-  const handleRejectNominee = (nomineeId) => {
+  const handleRejectNominee = useCallback((nomineeId) => {
     setNominees((prev) => prev.filter((n) => n.id !== nomineeId));
-  };
+  }, []);
 
-  const handleSimulateComplete = (nomineeId) => {
+  const handleSimulateComplete = useCallback((nomineeId) => {
     setNominees((prev) =>
       prev.map((n) =>
         n.id === nomineeId ? { ...n, status: 'profile-complete' } : n
       )
     );
-  };
+  }, []);
 
-  const handleResendInvite = (nomineeId) => {
+  const handleResendInvite = useCallback((nomineeId) => {
     // In a real app, this would trigger an email resend
     console.log('Resending invite to nominee:', nomineeId);
-  };
+  }, []);
 
   // ============================================
   // Judge Handlers
   // ============================================
-  const handleAddJudge = () => {
-    setJudgeModal({ isOpen: true, judge: null });
-  };
-
-  const handleEditJudge = (judge) => {
-    setJudgeModal({ isOpen: true, judge });
-  };
-
-  const handleSaveJudge = (judgeData) => {
+  const handleSaveJudge = useCallback((judgeData) => {
     if (judgeModal.judge) {
       // Edit existing
       setJudges((prev) =>
@@ -164,25 +167,17 @@ export default function App() {
         { id: `j${Date.now()}`, ...judgeData },
       ]);
     }
-    setJudgeModal({ isOpen: false, judge: null });
-  };
+    closeJudgeModal();
+  }, [judgeModal.judge, closeJudgeModal]);
 
-  const handleDeleteJudge = (judgeId) => {
+  const handleDeleteJudge = useCallback((judgeId) => {
     setJudges((prev) => prev.filter((j) => j.id !== judgeId));
-  };
+  }, []);
 
   // ============================================
   // Sponsor Handlers
   // ============================================
-  const handleAddSponsor = () => {
-    setSponsorModal({ isOpen: true, sponsor: null });
-  };
-
-  const handleEditSponsor = (sponsor) => {
-    setSponsorModal({ isOpen: true, sponsor });
-  };
-
-  const handleSaveSponsor = (sponsorData) => {
+  const handleSaveSponsor = useCallback((sponsorData) => {
     if (sponsorModal.sponsor) {
       // Edit existing
       setSponsors((prev) =>
@@ -197,41 +192,29 @@ export default function App() {
         { id: `s${Date.now()}`, ...sponsorData },
       ]);
     }
-    setSponsorModal({ isOpen: false, sponsor: null });
-  };
+    closeSponsorModal();
+  }, [sponsorModal.sponsor, closeSponsorModal]);
 
-  const handleDeleteSponsor = (sponsorId) => {
+  const handleDeleteSponsor = useCallback((sponsorId) => {
     setSponsors((prev) => prev.filter((s) => s.id !== sponsorId));
-  };
+  }, []);
 
   // ============================================
   // Event Handlers
   // ============================================
-  const handleEditEvent = (event) => {
-    setEventModal({ isOpen: true, event });
-  };
-
-  const handleSaveEvent = (eventData) => {
+  const handleSaveEvent = useCallback((eventData) => {
     setEvents((prev) =>
       prev.map((e) =>
         e.id === eventModal.event.id ? { ...e, ...eventData } : e
       )
     );
-    setEventModal({ isOpen: false, event: null });
-  };
+    closeEventModal();
+  }, [eventModal.event, closeEventModal]);
 
   // ============================================
   // Announcement Handlers
   // ============================================
-  const handleCreateAnnouncement = () => {
-    setAnnouncementModal({ isOpen: true, announcement: null });
-  };
-
-  const handleEditAnnouncement = (announcement) => {
-    setAnnouncementModal({ isOpen: true, announcement });
-  };
-
-  const handleSaveAnnouncement = (announcementData) => {
+  const handleSaveAnnouncement = useCallback((announcementData) => {
     if (announcementModal.announcement) {
       // Edit existing
       setAnnouncements((prev) =>
@@ -252,53 +235,47 @@ export default function App() {
         },
       ]);
     }
-    setAnnouncementModal({ isOpen: false, announcement: null });
-  };
+    closeAnnouncementModal();
+  }, [announcementModal.announcement, closeAnnouncementModal]);
 
-  const handleDeleteAnnouncement = (announcementId) => {
+  const handleDeleteAnnouncement = useCallback((announcementId) => {
     setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
-  };
+  }, []);
 
-  const handleTogglePin = (announcementId) => {
+  const handleTogglePin = useCallback((announcementId) => {
     setAnnouncements((prev) =>
       prev.map((a) =>
         a.id === announcementId ? { ...a, pinned: !a.pinned } : a
       )
     );
-  };
+  }, []);
 
   // ============================================
   // Profile Handlers
   // ============================================
-  const handleEditProfile = () => {
+  const handleEditProfile = useCallback(() => {
     setIsEditingProfile(true);
-  };
+  }, []);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = useCallback(() => {
     setIsEditingProfile(false);
-  };
+  }, []);
 
-  const handleCancelProfile = () => {
+  const handleCancelProfile = useCallback(() => {
     setIsEditingProfile(false);
-  };
+  }, []);
 
-  const handleProfileChange = (updates) => {
+  const handleProfileChange = useCallback((updates) => {
     setHostProfile((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
   // ============================================
-  // Authentication Handlers
+  // Authentication Handler
   // ============================================
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setIsAuthenticated(true);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+  const handleLogout = useCallback(() => {
+    logout();
     setActiveTab('overview');
-  };
+  }, [logout]);
 
   // ============================================
   // Render Content
@@ -314,7 +291,7 @@ export default function App() {
             events={events}
             competitionRankings={COMPETITION_RANKINGS}
             onViewPublicSite={() => setShowPublicSite(true)}
-            onViewEliteRankCity={() => setEliteRankCityOpen(true)}
+            onViewEliteRankCity={openEliteRankCity}
           />
         );
 
@@ -322,8 +299,8 @@ export default function App() {
         return (
           <NominationsPage
             nominees={nominees}
-            onConvert={handleConvertNominee}
-            onApprove={handleApproveNominee}
+            onConvert={openConvertModal}
+            onApprove={openApproveModal}
             onReject={handleRejectNominee}
             onSimulateComplete={handleSimulateComplete}
             onResend={handleResendInvite}
@@ -335,8 +312,8 @@ export default function App() {
           <CommunityPage
             announcements={announcements}
             hostProfile={hostProfile}
-            onCreateAnnouncement={handleCreateAnnouncement}
-            onEditAnnouncement={handleEditAnnouncement}
+            onCreateAnnouncement={() => openAnnouncementModal(null)}
+            onEditAnnouncement={openAnnouncementModal}
             onDeleteAnnouncement={handleDeleteAnnouncement}
             onTogglePin={handleTogglePin}
           />
@@ -348,13 +325,13 @@ export default function App() {
             judges={judges}
             sponsors={sponsors}
             events={events}
-            onAddJudge={handleAddJudge}
-            onEditJudge={handleEditJudge}
+            onAddJudge={() => openJudgeModal(null)}
+            onEditJudge={openJudgeModal}
             onDeleteJudge={handleDeleteJudge}
-            onAddSponsor={handleAddSponsor}
-            onEditSponsor={handleEditSponsor}
+            onAddSponsor={() => openSponsorModal(null)}
+            onEditSponsor={openSponsorModal}
             onDeleteSponsor={handleDeleteSponsor}
-            onEditEvent={handleEditEvent}
+            onEditEvent={openEventModal}
           />
         );
 
@@ -382,7 +359,7 @@ export default function App() {
 
   // Show login page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={login} />;
   }
 
   return (
@@ -411,52 +388,52 @@ export default function App() {
       {/* Modals */}
       <JudgeModal
         isOpen={judgeModal.isOpen}
-        onClose={() => setJudgeModal({ isOpen: false, judge: null })}
+        onClose={closeJudgeModal}
         judge={judgeModal.judge}
         onSave={handleSaveJudge}
       />
 
       <SponsorModal
         isOpen={sponsorModal.isOpen}
-        onClose={() => setSponsorModal({ isOpen: false, sponsor: null })}
+        onClose={closeSponsorModal}
         sponsor={sponsorModal.sponsor}
         onSave={handleSaveSponsor}
       />
 
       <EventModal
         isOpen={eventModal.isOpen}
-        onClose={() => setEventModal({ isOpen: false, event: null })}
+        onClose={closeEventModal}
         event={eventModal.event}
         onSave={handleSaveEvent}
       />
 
       <AnnouncementModal
         isOpen={announcementModal.isOpen}
-        onClose={() => setAnnouncementModal({ isOpen: false, announcement: null })}
+        onClose={closeAnnouncementModal}
         announcement={announcementModal.announcement}
         onSave={handleSaveAnnouncement}
       />
 
       <ConvertNomineeModal
         isOpen={convertModal.isOpen}
-        onClose={() => setConvertModal({ isOpen: false, nominee: null })}
+        onClose={closeConvertModal}
         nominee={convertModal.nominee}
         onConfirm={handleConfirmConvert}
       />
 
       <ApproveNomineeModal
         isOpen={approveModal.isOpen}
-        onClose={() => setApproveModal({ isOpen: false, nominee: null })}
+        onClose={closeApproveModal}
         nominee={approveModal.nominee}
         onConfirm={handleConfirmApprove}
       />
 
       <EliteRankCityModal
         isOpen={eliteRankCityOpen}
-        onClose={() => setEliteRankCityOpen(false)}
+        onClose={closeEliteRankCity}
         onOpenCompetition={(competition) => {
           // Close Elite Rank City and open the competition's public site
-          setEliteRankCityOpen(false);
+          closeEliteRankCity();
           if (competition.city === 'New York') {
             setShowPublicSite(true);
           }
