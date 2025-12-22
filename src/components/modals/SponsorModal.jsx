@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { Modal, Button, Input } from '../ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import { SPONSOR_TIERS } from '../../constants';
+import { useModalForm } from '../../hooks';
+
+const INITIAL_STATE = { name: '', tier: 'Gold', amount: '' };
 
 export default function SponsorModal({
   isOpen,
@@ -10,27 +13,21 @@ export default function SponsorModal({
   sponsor,
   onSave,
 }) {
-  const [form, setForm] = useState({ name: '', tier: 'Gold', amount: '' });
+  // Transform sponsor data for form (amount as string)
+  const sponsorData = useMemo(() => {
+    if (!sponsor) return null;
+    return { ...sponsor, amount: sponsor.amount?.toString() || '' };
+  }, [sponsor]);
+
+  const { form, updateField, getFormData } = useModalForm(INITIAL_STATE, sponsorData, isOpen);
   const isEditing = !!sponsor;
 
-  useEffect(() => {
-    if (sponsor) {
-      setForm({
-        name: sponsor.name || '',
-        tier: sponsor.tier || 'Gold',
-        amount: sponsor.amount?.toString() || '',
-      });
-    } else {
-      setForm({ name: '', tier: 'Gold', amount: '' });
-    }
-  }, [sponsor, isOpen]);
-
   const handleSave = () => {
+    const data = getFormData();
     onSave({
-      ...form,
-      amount: parseInt(form.amount, 10) || 0,
+      ...data,
+      amount: parseInt(data.amount, 10) || 0,
     });
-    setForm({ name: '', tier: 'Gold', amount: '' });
   };
 
   const tierButtonStyle = (tier, isSelected) => ({
@@ -81,7 +78,7 @@ export default function SponsorModal({
       <Input
         label="Company Name"
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={(e) => updateField('name', e.target.value)}
         placeholder="e.g., Luxe Hotels"
       />
       <div style={{ marginBottom: spacing.lg }}>
@@ -92,7 +89,7 @@ export default function SponsorModal({
           {SPONSOR_TIERS.map((tier) => (
             <button
               key={tier}
-              onClick={() => setForm({ ...form, tier })}
+              onClick={() => updateField('tier', tier)}
               style={tierButtonStyle(tier, form.tier === tier)}
             >
               {tier}
@@ -104,7 +101,7 @@ export default function SponsorModal({
         label="Sponsorship Amount ($)"
         type="number"
         value={form.amount}
-        onChange={(e) => setForm({ ...form, amount: e.target.value })}
+        onChange={(e) => updateField('amount', e.target.value)}
         placeholder="e.g., 25000"
       />
     </Modal>

@@ -1,21 +1,23 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { colors, borderRadius, typography } from '../../styles/theme';
 
-export default function Avatar({
+function Avatar({
   name,
   size = 44,
   src,
   style = {},
 }) {
-  const initials = name
-    ? name
-        .split(' ')
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-    : '?';
+  const initials = useMemo(() => {
+    return name
+      ? name
+          .split(' ')
+          .slice(0, 2)
+          .map((n) => n[0])
+          .join('')
+      : '?';
+  }, [name]);
 
-  const avatarStyle = {
+  const avatarStyle = useMemo(() => ({
     width: `${size}px`,
     height: `${size}px`,
     borderRadius: borderRadius.full,
@@ -29,7 +31,7 @@ export default function Avatar({
     overflow: 'hidden',
     flexShrink: 0,
     ...style,
-  };
+  }), [size, style]);
 
   if (src) {
     return (
@@ -48,3 +50,5 @@ export default function Avatar({
 
   return <div style={avatarStyle}>{initials}</div>;
 }
+
+export default memo(Avatar);

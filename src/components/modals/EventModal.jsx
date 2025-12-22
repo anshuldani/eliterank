@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Check } from 'lucide-react';
 import { Modal, Button, Input, Select, FormGrid } from '../ui';
+import { useModalForm } from '../../hooks';
+
+const INITIAL_STATE = { name: '', date: '', endDate: '', time: '', status: 'upcoming', location: '' };
 
 export default function EventModal({
   isOpen,
@@ -8,25 +11,10 @@ export default function EventModal({
   event,
   onSave,
 }) {
-  const [form, setForm] = useState({ name: '', date: '', endDate: '', time: '', status: 'upcoming', location: '' });
-
-  useEffect(() => {
-    if (event) {
-      setForm({
-        name: event.name || '',
-        date: event.date || '',
-        endDate: event.endDate || '',
-        time: event.time || '',
-        status: event.status || 'upcoming',
-        location: event.location || '',
-      });
-    } else {
-      setForm({ name: '', date: '', endDate: '', time: '', status: 'upcoming', location: '' });
-    }
-  }, [event, isOpen]);
+  const { form, updateField, getFormData } = useModalForm(INITIAL_STATE, event, isOpen);
 
   const handleSave = () => {
-    onSave(form);
+    onSave(getFormData());
   };
 
   const statusOptions = [
@@ -55,7 +43,7 @@ export default function EventModal({
       <Input
         label="Event Name"
         value={form.name}
-        onChange={(e) => setForm({ ...form, name: e.target.value })}
+        onChange={(e) => updateField('name', e.target.value)}
         placeholder="e.g., Voting Round 1"
       />
       <FormGrid>
@@ -63,13 +51,13 @@ export default function EventModal({
           label="Start Date"
           type="date"
           value={form.date}
-          onChange={(e) => setForm({ ...form, date: e.target.value })}
+          onChange={(e) => updateField('date', e.target.value)}
         />
         <Input
           label="End Date (Optional)"
           type="date"
           value={form.endDate}
-          onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+          onChange={(e) => updateField('endDate', e.target.value)}
         />
       </FormGrid>
       <FormGrid>
@@ -77,19 +65,19 @@ export default function EventModal({
           label="Time (Optional)"
           type="time"
           value={form.time}
-          onChange={(e) => setForm({ ...form, time: e.target.value })}
+          onChange={(e) => updateField('time', e.target.value)}
         />
         <Select
           label="Status"
           value={form.status}
-          onChange={(e) => setForm({ ...form, status: e.target.value })}
+          onChange={(e) => updateField('status', e.target.value)}
           options={statusOptions}
         />
       </FormGrid>
       <Input
         label="Location (Optional)"
         value={form.location}
-        onChange={(e) => setForm({ ...form, location: e.target.value })}
+        onChange={(e) => updateField('location', e.target.value)}
         placeholder="e.g., The Plaza Hotel"
       />
     </Modal>
