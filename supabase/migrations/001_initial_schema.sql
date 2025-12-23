@@ -1,11 +1,10 @@
--- EliteRank Database Schema
--- Simple, scalable, cost-effective design for Supabase
+-- EliteRank Database Schema v2
+-- Flexible user roles: host, fan, contestant, nominee (not mutually exclusive)
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ============================================
--- PROFILES (extends auth.users)
+-- PROFILES (base user - role determined by context)
 -- ============================================
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -15,54 +14,53 @@ CREATE TABLE profiles (
   bio TEXT,
   city TEXT,
   avatar_url TEXT,
-  role TEXT DEFAULT 'host' CHECK (role IN ('host', 'admin', 'contestant')),
   -- Social links
   instagram TEXT,
   twitter TEXT,
   linkedin TEXT,
   tiktok TEXT,
-  -- Host-specific
-  hobbies TEXT[], -- Array of hobbies
-  payout_percentage DECIMAL(5,2) DEFAULT 20.00,
+  -- Preferences
+  hobbies TEXT[],
+  interests TEXT[],
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================
--- COMPETITIONS
+-- COMPETITIONS (user becomes HOST by creating one)
 -- ============================================
 CREATE TABLE competitions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  host_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  host_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   city TEXT NOT NULL,
   season INTEGER DEFAULT EXTRACT(YEAR FROM NOW()),
   status TEXT DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'nomination', 'voting', 'finals', 'completed')),
   phase TEXT DEFAULT 'setup' CHECK (phase IN ('setup', 'nomination', 'voting', 'finals', 'ended')),
-  -- Stats (denormalized for performance)
+  -- Stats
   total_contestants INTEGER DEFAULT 0,
   total_votes INTEGER DEFAULT 0,
   total_revenue DECIMAL(12,2) DEFAULT 0,
   -- Settings
   vote_price DECIMAL(6,2) DEFAULT 1.00,
+  host_payout_percentage DECIMAL(5,2) DEFAULT 20.00,
   nomination_start TIMESTAMPTZ,
   nomination_end TIMESTAMPTZ,
   voting_start TIMESTAMPTZ,
   voting_end TIMESTAMPTZ,
   finals_date TIMESTAMPTZ,
-  -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================
--- CONTESTANTS
+-- CONTESTANTS (user becomes CONTESTANT when approved)
 -- ============================================
 CREATE TABLE contestants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  -- Profile info (can be independent of user account)
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Links to user account (optional)
+  -- Profile info (can exist without user account)
   name TEXT NOT NULL,
   email TEXT,
   age INTEGER,
@@ -76,17 +74,19 @@ CREATE TABLE contestants (
   votes INTEGER DEFAULT 0,
   rank INTEGER,
   trend TEXT DEFAULT 'same' CHECK (trend IN ('up', 'down', 'same')),
-  -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- A user can only be contestant once per competition
+  UNIQUE(competition_id, user_id)
 );
 
 -- ============================================
--- NOMINEES (before becoming contestants)
+-- NOMINEES (user becomes NOMINEE when nominated)
 -- ============================================
 CREATE TABLE nominees (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Links to user account (optional)
   -- Nominee info
   name TEXT NOT NULL,
   email TEXT NOT NULL,
@@ -98,17 +98,36 @@ CREATE TABLE nominees (
   interests TEXT[],
   -- Nomination source
   nominated_by TEXT DEFAULT 'self' CHECK (nominated_by IN ('self', 'third_party')),
+  nominator_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Who nominated them
   nominator_name TEXT,
   nominator_email TEXT,
-  -- Status flow: pending-approval -> awaiting-profile -> profile-complete -> approved -> (becomes contestant)
+  -- Status flow
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'pending-approval', 'awaiting-profile', 'profile-complete', 'approved', 'rejected')),
   profile_complete BOOLEAN DEFAULT FALSE,
   -- Invite tracking
   invite_token UUID DEFAULT uuid_generate_v4(),
   invite_sent_at TIMESTAMPTZ,
-  -- Timestamps
+  converted_to_contestant_id UUID REFERENCES contestants(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- A user can only be nominated once per competition
+  UNIQUE(competition_id, email)
+);
+
+-- ============================================
+-- VOTES (user becomes FAN by voting)
+-- ============================================
+CREATE TABLE votes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  contestant_id UUID NOT NULL REFERENCES contestants(id) ON DELETE CASCADE,
+  voter_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Logged in voter (optional)
+  voter_email TEXT, -- For anonymous/guest voting
+  vote_count INTEGER DEFAULT 1,
+  amount_paid DECIMAL(10,2) DEFAULT 0,
+  payment_intent_id TEXT,
+  is_double_vote BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================
@@ -117,6 +136,7 @@ CREATE TABLE nominees (
 CREATE TABLE judges (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE SET NULL, -- Can link to user account
   name TEXT NOT NULL,
   title TEXT,
   bio TEXT,
@@ -141,7 +161,7 @@ CREATE TABLE sponsors (
 );
 
 -- ============================================
--- EVENTS (competition timeline)
+-- EVENTS
 -- ============================================
 CREATE TABLE events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -173,51 +193,47 @@ CREATE TABLE announcements (
 );
 
 -- ============================================
--- VOTES (transaction log)
--- ============================================
-CREATE TABLE votes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  competition_id UUID NOT NULL REFERENCES competitions(id) ON DELETE CASCADE,
-  contestant_id UUID NOT NULL REFERENCES contestants(id) ON DELETE CASCADE,
-  voter_email TEXT,
-  vote_count INTEGER DEFAULT 1,
-  amount_paid DECIMAL(10,2) DEFAULT 0,
-  payment_intent_id TEXT, -- Stripe payment intent
-  is_double_vote BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- ============================================
--- INDEXES for performance
+-- INDEXES
 -- ============================================
 CREATE INDEX idx_competitions_host ON competitions(host_id);
 CREATE INDEX idx_competitions_status ON competitions(status);
 CREATE INDEX idx_competitions_city_season ON competitions(city, season);
 
 CREATE INDEX idx_contestants_competition ON contestants(competition_id);
+CREATE INDEX idx_contestants_user ON contestants(user_id);
 CREATE INDEX idx_contestants_votes ON contestants(competition_id, votes DESC);
-CREATE INDEX idx_contestants_status ON contestants(status);
 
 CREATE INDEX idx_nominees_competition ON nominees(competition_id);
-CREATE INDEX idx_nominees_status ON nominees(status);
+CREATE INDEX idx_nominees_user ON nominees(user_id);
 CREATE INDEX idx_nominees_email ON nominees(email);
+
+CREATE INDEX idx_votes_competition ON votes(competition_id);
+CREATE INDEX idx_votes_contestant ON votes(contestant_id);
+CREATE INDEX idx_votes_voter ON votes(voter_id);
 
 CREATE INDEX idx_judges_competition ON judges(competition_id);
 CREATE INDEX idx_sponsors_competition ON sponsors(competition_id);
 CREATE INDEX idx_events_competition ON events(competition_id);
-CREATE INDEX idx_events_date ON events(date);
 CREATE INDEX idx_announcements_competition ON announcements(competition_id);
-CREATE INDEX idx_announcements_pinned ON announcements(pinned, published_at DESC);
-
-CREATE INDEX idx_votes_competition ON votes(competition_id);
-CREATE INDEX idx_votes_contestant ON votes(contestant_id);
-CREATE INDEX idx_votes_created ON votes(created_at);
 
 -- ============================================
--- FUNCTIONS
+-- HELPER VIEWS (get user roles)
 -- ============================================
+CREATE OR REPLACE VIEW user_roles AS
+SELECT
+  p.id as user_id,
+  p.email,
+  EXISTS(SELECT 1 FROM competitions c WHERE c.host_id = p.id) as is_host,
+  EXISTS(SELECT 1 FROM contestants ct WHERE ct.user_id = p.id AND ct.status = 'active') as is_contestant,
+  EXISTS(SELECT 1 FROM nominees n WHERE n.user_id = p.id AND n.status NOT IN ('approved', 'rejected')) as is_nominee,
+  EXISTS(SELECT 1 FROM votes v WHERE v.voter_id = p.id) as is_fan,
+  (SELECT array_agg(DISTINCT c.city) FROM competitions c WHERE c.host_id = p.id) as hosting_cities,
+  (SELECT array_agg(DISTINCT c.city) FROM contestants ct JOIN competitions c ON ct.competition_id = c.id WHERE ct.user_id = p.id) as competing_cities
+FROM profiles p;
 
--- Auto-update updated_at timestamp
+-- ============================================
+-- FUNCTIONS & TRIGGERS
+-- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -226,70 +242,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers for updated_at
-CREATE TRIGGER update_profiles_updated_at
-  BEFORE UPDATE ON profiles
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_competitions_updated_at BEFORE UPDATE ON competitions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_contestants_updated_at BEFORE UPDATE ON contestants FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_nominees_updated_at BEFORE UPDATE ON nominees FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE TRIGGER update_competitions_updated_at
-  BEFORE UPDATE ON competitions
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER update_contestants_updated_at
-  BEFORE UPDATE ON contestants
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER update_nominees_updated_at
-  BEFORE UPDATE ON nominees
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
--- Function to increment vote count and update stats
+-- Auto-update vote counts
 CREATE OR REPLACE FUNCTION process_vote()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Update contestant vote count
-  UPDATE contestants
-  SET votes = votes + NEW.vote_count
-  WHERE id = NEW.contestant_id;
-
-  -- Update competition stats
-  UPDATE competitions
-  SET
-    total_votes = total_votes + NEW.vote_count,
-    total_revenue = total_revenue + NEW.amount_paid
-  WHERE id = NEW.competition_id;
-
+  UPDATE contestants SET votes = votes + NEW.vote_count WHERE id = NEW.contestant_id;
+  UPDATE competitions SET total_votes = total_votes + NEW.vote_count, total_revenue = total_revenue + NEW.amount_paid WHERE id = NEW.competition_id;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER on_vote_insert
-  AFTER INSERT ON votes
-  FOR EACH ROW EXECUTE FUNCTION process_vote();
+CREATE TRIGGER on_vote_insert AFTER INSERT ON votes FOR EACH ROW EXECUTE FUNCTION process_vote();
 
--- Function to update contestant rankings
-CREATE OR REPLACE FUNCTION update_contestant_rankings(comp_id UUID)
-RETURNS VOID AS $$
+-- Auto-create profile on signup
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
 BEGIN
-  WITH ranked AS (
-    SELECT
-      id,
-      votes,
-      ROW_NUMBER() OVER (ORDER BY votes DESC) as new_rank,
-      rank as old_rank
-    FROM contestants
-    WHERE competition_id = comp_id AND status = 'active'
-  )
-  UPDATE contestants c
-  SET
-    rank = r.new_rank,
-    trend = CASE
-      WHEN r.old_rank IS NULL THEN 'same'
-      WHEN r.new_rank < r.old_rank THEN 'up'
-      WHEN r.new_rank > r.old_rank THEN 'down'
-      ELSE 'same'
-    END
-  FROM ranked r
-  WHERE c.id = r.id;
+  INSERT INTO profiles (id, email, first_name, last_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    NEW.raw_user_meta_data->>'first_name',
+    NEW.raw_user_meta_data->>'last_name'
+  );
+  RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();

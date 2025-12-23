@@ -1,7 +1,7 @@
--- Row Level Security Policies
--- Simple, secure access control
+-- Row Level Security Policies v2
+-- Flexible roles: user can be host, fan, contestant, nominee simultaneously
 
--- Enable RLS on all tables
+-- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contestants ENABLE ROW LEVEL SECURITY;
@@ -13,285 +13,109 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- PROFILES POLICIES
+-- PROFILES
 -- ============================================
--- Users can read their own profile
-CREATE POLICY "Users can view own profile"
-  ON profiles FOR SELECT
-  USING (auth.uid() = id);
-
--- Users can update their own profile
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE
-  USING (auth.uid() = id);
-
--- Public can view host profiles (for public site)
-CREATE POLICY "Public can view host profiles"
-  ON profiles FOR SELECT
-  USING (role = 'host');
+CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Public profiles are viewable" ON profiles FOR SELECT USING (true);
 
 -- ============================================
--- COMPETITIONS POLICIES
+-- COMPETITIONS
 -- ============================================
--- Anyone can view competitions
-CREATE POLICY "Anyone can view competitions"
-  ON competitions FOR SELECT
-  USING (true);
-
--- Hosts can create competitions
-CREATE POLICY "Hosts can create competitions"
-  ON competitions FOR INSERT
-  WITH CHECK (auth.uid() = host_id);
-
--- Hosts can update their own competitions
-CREATE POLICY "Hosts can update own competitions"
-  ON competitions FOR UPDATE
-  USING (auth.uid() = host_id);
-
--- Hosts can delete their own competitions
-CREATE POLICY "Hosts can delete own competitions"
-  ON competitions FOR DELETE
-  USING (auth.uid() = host_id);
+CREATE POLICY "Anyone can view competitions" ON competitions FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create competitions" ON competitions FOR INSERT WITH CHECK (auth.uid() = host_id);
+CREATE POLICY "Hosts can update own competitions" ON competitions FOR UPDATE USING (auth.uid() = host_id);
+CREATE POLICY "Hosts can delete own competitions" ON competitions FOR DELETE USING (auth.uid() = host_id);
 
 -- ============================================
--- CONTESTANTS POLICIES
+-- CONTESTANTS
 -- ============================================
--- Anyone can view contestants (public voting)
-CREATE POLICY "Anyone can view contestants"
-  ON contestants FOR SELECT
-  USING (true);
+CREATE POLICY "Anyone can view contestants" ON contestants FOR SELECT USING (true);
 
 -- Hosts can manage contestants in their competitions
-CREATE POLICY "Hosts can insert contestants"
-  ON contestants FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+CREATE POLICY "Hosts can insert contestants" ON contestants FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can update contestants" ON contestants FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete contestants" ON contestants FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
-CREATE POLICY "Hosts can update contestants"
-  ON contestants FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete contestants"
-  ON contestants FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+-- Contestants can update their own profile
+CREATE POLICY "Contestants can update own record" ON contestants FOR UPDATE
+  USING (auth.uid() = user_id);
 
 -- ============================================
--- NOMINEES POLICIES
+-- NOMINEES
 -- ============================================
--- Anyone can submit nominations (public nomination form)
-CREATE POLICY "Anyone can submit nominations"
-  ON nominees FOR INSERT
-  WITH CHECK (true);
+-- Anyone can submit nominations
+CREATE POLICY "Anyone can submit nominations" ON nominees FOR INSERT WITH CHECK (true);
+CREATE POLICY "Anyone can view nominations" ON nominees FOR SELECT USING (true);
 
--- Nominees can view their own nomination (via invite token)
-CREATE POLICY "Nominees can view own nomination"
-  ON nominees FOR SELECT
-  USING (true); -- Simplified for now, can add token check
+-- Hosts can manage nominees
+CREATE POLICY "Hosts can update nominees" ON nominees FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete nominees" ON nominees FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
--- Hosts can manage nominees in their competitions
-CREATE POLICY "Hosts can update nominees"
-  ON nominees FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete nominees"
-  ON nominees FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+-- Nominees can update their own profile (via invite token or user_id)
+CREATE POLICY "Nominees can update own record" ON nominees FOR UPDATE
+  USING (auth.uid() = user_id);
 
 -- ============================================
--- JUDGES POLICIES
+-- VOTES
 -- ============================================
--- Anyone can view judges
-CREATE POLICY "Anyone can view judges"
-  ON judges FOR SELECT
-  USING (true);
+-- Anyone can vote (logged in or guest)
+CREATE POLICY "Anyone can vote" ON votes FOR INSERT WITH CHECK (true);
 
--- Hosts can manage judges in their competitions
-CREATE POLICY "Hosts can insert judges"
-  ON judges FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+-- Users can view their own votes
+CREATE POLICY "Users can view own votes" ON votes FOR SELECT USING (auth.uid() = voter_id);
 
-CREATE POLICY "Hosts can update judges"
-  ON judges FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete judges"
-  ON judges FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+-- Hosts can view all votes in their competitions
+CREATE POLICY "Hosts can view competition votes" ON votes FOR SELECT
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
 -- ============================================
--- SPONSORS POLICIES
+-- JUDGES
 -- ============================================
--- Anyone can view sponsors
-CREATE POLICY "Anyone can view sponsors"
-  ON sponsors FOR SELECT
-  USING (true);
-
--- Hosts can manage sponsors in their competitions
-CREATE POLICY "Hosts can insert sponsors"
-  ON sponsors FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can update sponsors"
-  ON sponsors FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete sponsors"
-  ON sponsors FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+CREATE POLICY "Anyone can view judges" ON judges FOR SELECT USING (true);
+CREATE POLICY "Hosts can insert judges" ON judges FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can update judges" ON judges FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete judges" ON judges FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
 -- ============================================
--- EVENTS POLICIES
+-- SPONSORS
 -- ============================================
--- Anyone can view public events
-CREATE POLICY "Anyone can view public events"
-  ON events FOR SELECT
-  USING (public_visible = true);
-
--- Hosts can view all events in their competitions
-CREATE POLICY "Hosts can view all events"
-  ON events FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
--- Hosts can manage events in their competitions
-CREATE POLICY "Hosts can insert events"
-  ON events FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can update events"
-  ON events FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete events"
-  ON events FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+CREATE POLICY "Anyone can view sponsors" ON sponsors FOR SELECT USING (true);
+CREATE POLICY "Hosts can insert sponsors" ON sponsors FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can update sponsors" ON sponsors FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete sponsors" ON sponsors FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
 -- ============================================
--- ANNOUNCEMENTS POLICIES
+-- EVENTS
 -- ============================================
--- Anyone can view announcements
-CREATE POLICY "Anyone can view announcements"
-  ON announcements FOR SELECT
-  USING (true);
-
--- Hosts can manage announcements in their competitions
-CREATE POLICY "Hosts can insert announcements"
-  ON announcements FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can update announcements"
-  ON announcements FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
-CREATE POLICY "Hosts can delete announcements"
-  ON announcements FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
+CREATE POLICY "Anyone can view public events" ON events FOR SELECT USING (public_visible = true);
+CREATE POLICY "Hosts can view all events" ON events FOR SELECT
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can insert events" ON events FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can update events" ON events FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete events" ON events FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
 
 -- ============================================
--- VOTES POLICIES
+-- ANNOUNCEMENTS
 -- ============================================
--- Anyone can insert votes (public voting)
-CREATE POLICY "Anyone can vote"
-  ON votes FOR INSERT
-  WITH CHECK (true);
-
--- Hosts can view votes in their competitions
-CREATE POLICY "Hosts can view votes"
-  ON votes FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM competitions
-      WHERE id = competition_id AND host_id = auth.uid()
-    )
-  );
-
--- Votes cannot be updated or deleted (immutable)
--- No UPDATE or DELETE policies
+CREATE POLICY "Anyone can view announcements" ON announcements FOR SELECT USING (true);
+CREATE POLICY "Hosts can insert announcements" ON announcements FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can update announcements" ON announcements FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
+CREATE POLICY "Hosts can delete announcements" ON announcements FOR DELETE
+  USING (EXISTS (SELECT 1 FROM competitions WHERE id = competition_id AND host_id = auth.uid()));
