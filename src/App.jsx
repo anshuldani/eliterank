@@ -87,7 +87,7 @@ export default function App() {
   // Navigation state
   const [activeTab, setActiveTab] = useState('overview');
   const [showPublicSite, setShowPublicSite] = useState(false);
-  const [selectedCompetition, setSelectedCompetition] = useState({ city: 'New York', phase: 'voting' });
+  const [selectedCompetition, setSelectedCompetition] = useState({ city: 'New York', season: '2026', phase: 'voting', winners: [] });
 
   // Data state
   const [nominees, setNominees] = useState(INITIAL_NOMINEES);
@@ -455,12 +455,14 @@ export default function App() {
         isOpen={showPublicSite}
         onClose={() => setShowPublicSite(false)}
         city={selectedCompetition.city}
+        season={selectedCompetition.season}
         phase={selectedCompetition.phase}
         contestants={contestants}
         events={events}
         announcements={announcements}
         judges={judges}
         sponsors={sponsors}
+        winners={selectedCompetition.winners}
       />
 
       {/* Modals */}
@@ -514,7 +516,9 @@ export default function App() {
           closeEliteRankCity();
           setSelectedCompetition({
             city: competition.city,
+            season: competition.season || '2026',
             phase: competition.phase || 'voting',
+            winners: competition.winners || [],
           });
           setShowPublicSite(true);
         }}
