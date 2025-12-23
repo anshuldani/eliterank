@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Crown, Users, Calendar, Sparkles, Award, UserPlus } from 'lucide-react';
+import { X, Crown, Users, Calendar, Sparkles, Award, UserPlus, Trophy } from 'lucide-react';
 import { Button, Badge } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import ContestantsTab from './components/ContestantsTab';
@@ -7,6 +7,7 @@ import EventsTab from './components/EventsTab';
 import AnnouncementsTab from './components/AnnouncementsTab';
 import AboutTab from './components/AboutTab';
 import NominationTab from './components/NominationTab';
+import WinnersTab from './components/WinnersTab';
 import VoteModal from './components/VoteModal';
 
 const VOTING_TABS = [
@@ -23,21 +24,32 @@ const NOMINATION_TABS = [
   { id: 'about', label: 'About', icon: Award },
 ];
 
+const COMPLETED_TABS = [
+  { id: 'winners', label: 'Winners', icon: Trophy },
+  { id: 'events', label: 'Events', icon: Calendar },
+  { id: 'announcements', label: 'Announcements', icon: Sparkles },
+  { id: 'about', label: 'About', icon: Award },
+];
+
 export default function PublicSitePage({
   isOpen,
   onClose,
   city = 'New York',
-  phase = 'voting', // 'nomination' or 'voting'
+  season = '2026',
+  phase = 'voting', // 'nomination', 'voting', or 'completed'
   contestants,
   events,
   announcements,
   judges,
   sponsors,
+  winners = [],
   forceDoubleVoteDay = true,
 }) {
   const isNominationPhase = phase === 'nomination';
-  const TABS = isNominationPhase ? NOMINATION_TABS : VOTING_TABS;
-  const [activeTab, setActiveTab] = useState(isNominationPhase ? 'nominate' : 'contestants');
+  const isCompletedPhase = phase === 'completed';
+  const TABS = isCompletedPhase ? COMPLETED_TABS : (isNominationPhase ? NOMINATION_TABS : VOTING_TABS);
+  const defaultTab = isCompletedPhase ? 'winners' : (isNominationPhase ? 'nominate' : 'contestants');
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [selectedContestant, setSelectedContestant] = useState(null);
   const [voteCount, setVoteCount] = useState(1);
 
@@ -127,7 +139,11 @@ export default function PublicSitePage({
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-            {isNominationPhase ? (
+            {isCompletedPhase ? (
+              <Badge variant="default" size="md" pill>
+                <Trophy size={12} /> SEASON {season} COMPLETE
+              </Badge>
+            ) : isNominationPhase ? (
               <Badge variant="warning" size="md" pill>
                 <Sparkles size={12} /> NOMINATIONS OPEN
               </Badge>
@@ -159,6 +175,13 @@ export default function PublicSitePage({
 
       {/* Content */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: `${spacing.xxxl} ${spacing.xxl}` }}>
+        {activeTab === 'winners' && (
+          <WinnersTab
+            city={city}
+            season={season}
+            winners={winners}
+          />
+        )}
         {activeTab === 'nominate' && (
           <NominationTab
             city={city}

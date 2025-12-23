@@ -75,12 +75,20 @@ const ENDED_COMPETITIONS = [
     city: 'Chicago',
     season: '2025',
     status: 'ended',
+    phase: 'completed',
     endDate: 'December 2025',
     winner: 'Sarah Mitchell',
     contestants: 18,
     votes: 89420,
     image: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&h=600&fit=crop',
-    available: false,
+    available: true,
+    winners: [
+      { rank: 1, name: 'Sarah Mitchell', votes: 28450, occupation: 'Marketing Executive', instagram: '@sarahmitchell' },
+      { rank: 2, name: 'James Rodriguez', votes: 24320, occupation: 'Tech Entrepreneur', instagram: '@jamesrodriguez' },
+      { rank: 3, name: 'Emily Chen', votes: 21890, occupation: 'Fashion Designer', instagram: '@emilychen' },
+      { rank: 4, name: 'Michael Thompson', votes: 19750, occupation: 'Investment Banker', instagram: '@michaelthompson' },
+      { rank: 5, name: 'Olivia Williams', votes: 18420, occupation: 'Attorney', instagram: '@oliviawilliams' },
+    ],
   },
 ];
 
@@ -309,7 +317,7 @@ export default function EliteRankCityModal({ isOpen, onClose, onOpenCompetition 
 
           {isAvailable && (
             <div style={{ marginTop: spacing.lg, display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.gold.primary, fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.semibold, opacity: isHovered ? 1 : 0.7, transition: 'opacity 0.2s' }}>
-              {competition.status === 'nomination' ? 'Nominate Now' : 'View Competition'}
+              {competition.status === 'ended' ? 'View Winners' : competition.status === 'nomination' ? 'Nominate Now' : 'View Competition'}
               <ChevronRight size={18} style={{ transform: isHovered ? 'translateX(4px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
             </div>
           )}
