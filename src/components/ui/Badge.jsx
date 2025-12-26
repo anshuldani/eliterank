@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { colors, borderRadius, spacing, typography } from '../../styles/theme';
 
 const variants = {
@@ -55,7 +55,7 @@ const sizes = {
   },
 };
 
-export default function Badge({
+function Badge({
   children,
   variant = 'default',
   size = 'md',
@@ -64,21 +64,23 @@ export default function Badge({
   icon: Icon,
   style = {},
 }) {
-  const variantStyles = variants[variant] || variants.default;
-  const sizeStyles = sizes[size] || sizes.md;
+  const badgeStyle = useMemo(() => {
+    const variantStyles = variants[variant] || variants.default;
+    const sizeStyles = sizes[size] || sizes.md;
 
-  const badgeStyle = {
-    ...variantStyles,
-    ...sizeStyles,
-    borderRadius: pill ? borderRadius.pill : borderRadius.sm,
-    fontWeight: typography.fontWeight.semibold,
-    textTransform: uppercase ? 'uppercase' : 'none',
-    letterSpacing: uppercase ? '0.5px' : 'normal',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: spacing.xs,
-    ...style,
-  };
+    return {
+      ...variantStyles,
+      ...sizeStyles,
+      borderRadius: pill ? borderRadius.pill : borderRadius.sm,
+      fontWeight: typography.fontWeight.semibold,
+      textTransform: uppercase ? 'uppercase' : 'none',
+      letterSpacing: uppercase ? '0.5px' : 'normal',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: spacing.xs,
+      ...style,
+    };
+  }, [variant, size, pill, uppercase, style]);
 
   return (
     <span style={badgeStyle}>
@@ -88,25 +90,27 @@ export default function Badge({
   );
 }
 
-// Status badge component for common status values
-export function StatusBadge({ status }) {
-  const statusMap = {
-    active: { variant: 'success', label: 'Active' },
-    approved: { variant: 'success', label: 'Contestant' },
-    completed: { variant: 'success', label: 'Completed' },
-    nomination: { variant: 'info', label: 'Nomination' },
-    'profile-complete': { variant: 'info', label: 'Ready to Convert' },
-    pending: { variant: 'warning', label: 'Pending Review' },
-    'pending-approval': { variant: 'warning', label: 'Needs Approval' },
-    'awaiting-profile': { variant: 'purple', label: 'Awaiting Profile' },
-    upcoming: { variant: 'purple', label: 'Upcoming' },
-  };
+export default memo(Badge);
 
-  const config = statusMap[status] || { variant: 'default', label: status };
+// Status badge component for common status values
+const STATUS_MAP = {
+  active: { variant: 'success', label: 'Active' },
+  approved: { variant: 'success', label: 'Contestant' },
+  completed: { variant: 'success', label: 'Completed' },
+  nomination: { variant: 'info', label: 'Nomination' },
+  'profile-complete': { variant: 'info', label: 'Ready to Convert' },
+  pending: { variant: 'warning', label: 'Pending Review' },
+  'pending-approval': { variant: 'warning', label: 'Needs Approval' },
+  'awaiting-profile': { variant: 'purple', label: 'Awaiting Profile' },
+  upcoming: { variant: 'purple', label: 'Upcoming' },
+};
+
+export const StatusBadge = memo(function StatusBadge({ status }) {
+  const config = STATUS_MAP[status] || { variant: 'default', label: status };
 
   return (
     <Badge variant={config.variant} pill uppercase>
       {config.label}
     </Badge>
   );
-}
+});

@@ -1,24 +1,169 @@
-import React from 'react';
-import { Award, Calendar, FileText, Trophy, Building, Crown, Check, Star, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Calendar, FileText, Trophy, Building, Crown, Check, Star, Instagram, Linkedin, Twitter, User } from 'lucide-react';
 import { Avatar, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
 import { formatEventDateRange } from '../../../utils/formatters';
+import ProfileModal from './ProfileModal';
 
-export default function AboutTab({ judges, sponsors, events }) {
+export default function AboutTab({ judges, sponsors, events, host, city = 'New York' }) {
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [profileType, setProfileType] = useState('host');
+
   const platinumSponsor = sponsors.find((s) => s.tier === 'Platinum');
   const otherSponsors = sponsors.filter((s) => s.tier !== 'Platinum');
   const publicEvents = events.filter((e) => e.publicVisible !== false);
+
+  const handleViewProfile = (profile, type) => {
+    setSelectedProfile(profile);
+    setProfileType(type);
+  };
 
   return (
     <div>
       <div style={{ textAlign: 'center', marginBottom: spacing.xxxl }}>
         <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
-          About Most Eligible NYC
+          About Most Eligible {city}
         </h1>
         <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg, maxWidth: '600px', margin: '0 auto' }}>
-          The premier competition celebrating New York's most outstanding singles
+          The premier competition celebrating {city}'s most outstanding singles
         </p>
       </div>
+
+      {/* Host Section */}
+      {host && (
+        <div style={{ marginBottom: spacing.xxxl }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xxl }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.1))',
+                borderRadius: borderRadius.lg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Crown size={24} style={{ color: '#8b5cf6' }} />
+            </div>
+            <h2 style={{ fontSize: typography.fontSize.xxxl, fontWeight: typography.fontWeight.bold }}>Your Host</h2>
+          </div>
+
+          <div
+            onClick={() => handleViewProfile(host, 'host')}
+            style={{
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(212,175,55,0.05))',
+              border: `1px solid rgba(139,92,246,0.3)`,
+              borderRadius: borderRadius.xxl,
+              padding: spacing.xxl,
+              display: 'flex',
+              gap: spacing.xxl,
+              alignItems: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+            }}
+          >
+            {/* Host Avatar */}
+            <div style={{
+              width: '140px',
+              height: '140px',
+              borderRadius: borderRadius.xl,
+              background: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 8px 32px rgba(139,92,246,0.3)',
+              overflow: 'hidden',
+            }}>
+              {host.avatar ? (
+                <img src={host.avatar} alt={host.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <span style={{ fontSize: '48px', fontWeight: typography.fontWeight.bold, color: '#fff' }}>
+                  {host.name?.charAt(0) || 'H'}
+                </span>
+              )}
+            </div>
+
+            {/* Host Info */}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <h3 style={{ fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.bold }}>
+                  {host.name}
+                </h3>
+                <Badge variant="warning" size="sm">HOST</Badge>
+              </div>
+
+              {host.title && (
+                <p style={{ color: '#8b5cf6', fontSize: typography.fontSize.md, marginBottom: spacing.sm }}>
+                  {host.title}
+                </p>
+              )}
+
+              {host.bio && (
+                <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.md, lineHeight: 1.6, marginBottom: spacing.lg, maxWidth: '500px' }}>
+                  {host.bio}
+                </p>
+              )}
+
+              {/* Social Links */}
+              <div style={{ display: 'flex', gap: spacing.sm }}>
+                {host.instagram && (
+                  <a
+                    href={`https://instagram.com/${host.instagram.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: spacing.sm,
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: borderRadius.md,
+                      color: colors.text.light,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.xs,
+                      textDecoration: 'none',
+                      fontSize: typography.fontSize.sm,
+                    }}
+                  >
+                    <Instagram size={16} />
+                    <span>{host.instagram}</span>
+                  </a>
+                )}
+                {host.twitter && (
+                  <a
+                    href={`https://twitter.com/${host.twitter.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: spacing.sm,
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: borderRadius.md,
+                      color: colors.text.light,
+                    }}
+                  >
+                    <Twitter size={16} />
+                  </a>
+                )}
+                {host.linkedin && (
+                  <a
+                    href={`https://linkedin.com/in/${host.linkedin}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      padding: spacing.sm,
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: borderRadius.md,
+                      color: colors.text.light,
+                    }}
+                  >
+                    <Linkedin size={16} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Judges Section */}
       <div style={{ marginBottom: spacing.xxxl }}>
@@ -42,12 +187,15 @@ export default function AboutTab({ judges, sponsors, events }) {
           {judges.map((judge) => (
             <div
               key={judge.id}
+              onClick={() => handleViewProfile(judge, 'judge')}
               style={{
                 background: colors.background.card,
                 border: `1px solid ${colors.border.light}`,
                 borderRadius: borderRadius.xxl,
                 padding: spacing.xxl,
                 textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
               }}
             >
               <Avatar name={judge.name} size={100} style={{ margin: '0 auto 16px' }} />
@@ -179,145 +327,54 @@ export default function AboutTab({ judges, sponsors, events }) {
         </div>
 
         {platinumSponsor && (
-          <a
-            href={platinumSponsor.websiteUrl || '#'}
-            target="_blank"
-            rel="noopener noreferrer"
+          <div
             style={{
-              display: 'block',
               background: 'linear-gradient(135deg, rgba(200,200,200,0.1), rgba(200,200,200,0.02))',
               border: '1px solid rgba(200,200,200,0.2)',
               borderRadius: borderRadius.xxl,
               padding: spacing.xxxl,
               marginBottom: spacing.xl,
               textAlign: 'center',
-              textDecoration: 'none',
-              transition: 'all 0.3s',
-              cursor: platinumSponsor.websiteUrl ? 'pointer' : 'default',
             }}
           >
-            <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: spacing.lg }}>
+            <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: spacing.md }}>
               Presenting Sponsor
             </p>
-            {platinumSponsor.logoUrl ? (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  marginBottom: spacing.lg,
-                }}
-              >
-                <div
-                  style={{
-                    padding: `${spacing.lg} ${spacing.xxxl}`,
-                    background: '#fff',
-                    borderRadius: borderRadius.lg,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <img
-                    src={platinumSponsor.logoUrl}
-                    alt={platinumSponsor.name}
-                    style={{ maxHeight: '60px', maxWidth: '200px', objectFit: 'contain' }}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <h3 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, color: colors.tier.platinum, marginBottom: spacing.lg }}>
-                {platinumSponsor.name}
-              </h3>
-            )}
-            {platinumSponsor.websiteUrl && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-                <ExternalLink size={14} />
-                <span>Visit Website</span>
-              </div>
-            )}
-            <div style={{ width: '60px', height: '3px', background: 'linear-gradient(90deg, transparent, #e0e0e0, transparent)', margin: `${spacing.lg} auto 0` }} />
-          </a>
+            <h3 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, color: colors.tier.platinum, marginBottom: spacing.sm }}>
+              {platinumSponsor.name}
+            </h3>
+            <div style={{ width: '60px', height: '3px', background: 'linear-gradient(90deg, transparent, #e0e0e0, transparent)', margin: '0 auto' }} />
+          </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: spacing.lg }}>
-          {otherSponsors.map((sponsor) => {
-            const SponsorWrapper = sponsor.websiteUrl ? 'a' : 'div';
-            const wrapperProps = sponsor.websiteUrl ? {
-              href: sponsor.websiteUrl,
-              target: '_blank',
-              rel: 'noopener noreferrer',
-            } : {};
-
-            return (
-              <SponsorWrapper
-                key={sponsor.id}
-                {...wrapperProps}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: spacing.lg }}>
+          {otherSponsors.map((sponsor) => (
+            <div
+              key={sponsor.id}
+              style={{
+                background: colors.background.card,
+                border: `1px solid ${sponsor.tier === 'Gold' ? 'rgba(212,175,55,0.2)' : 'rgba(139,92,246,0.2)'}`,
+                borderRadius: borderRadius.xl,
+                padding: spacing.xxl,
+                textAlign: 'center',
+              }}
+            >
+              <span
                 style={{
-                  display: 'block',
-                  background: colors.background.card,
-                  border: `1px solid ${sponsor.tier === 'Gold' ? 'rgba(212,175,55,0.2)' : 'rgba(139,92,246,0.2)'}`,
-                  borderRadius: borderRadius.xl,
-                  padding: spacing.xxl,
-                  textAlign: 'center',
-                  textDecoration: 'none',
-                  transition: 'all 0.3s',
-                  cursor: sponsor.websiteUrl ? 'pointer' : 'default',
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  color: sponsor.tier === 'Gold' ? colors.tier.gold : colors.tier.silver,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: typography.fontSize.xs,
-                    fontWeight: typography.fontWeight.semibold,
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    color: sponsor.tier === 'Gold' ? colors.tier.gold : colors.tier.silver,
-                  }}
-                >
-                  {sponsor.tier} Sponsor
-                </span>
-
-                {sponsor.logoUrl ? (
-                  <div
-                    style={{
-                      margin: `${spacing.lg} auto`,
-                      padding: spacing.md,
-                      background: '#fff',
-                      borderRadius: borderRadius.md,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '100%',
-                      maxWidth: '150px',
-                      height: '50px',
-                    }}
-                  >
-                    <img
-                      src={sponsor.logoUrl}
-                      alt={sponsor.name}
-                      style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }}
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  </div>
-                ) : (
-                  <h4 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginTop: spacing.lg, color: '#fff' }}>
-                    {sponsor.name}
-                  </h4>
-                )}
-
-                <p style={{ color: '#fff', fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.medium, marginTop: sponsor.logoUrl ? 0 : spacing.sm }}>
-                  {sponsor.name}
-                </p>
-
-                {sponsor.websiteUrl && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.xs, marginTop: spacing.sm }}>
-                    <ExternalLink size={10} />
-                    <span>Visit</span>
-                  </div>
-                )}
-              </SponsorWrapper>
-            );
-          })}
+                {sponsor.tier} Sponsor
+              </span>
+              <h4 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginTop: spacing.sm, color: '#fff' }}>
+                {sponsor.name}
+              </h4>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -353,9 +410,9 @@ export default function AboutTab({ judges, sponsors, events }) {
           The <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>Top 5 finalists</span> from New York Most Eligible will automatically qualify to compete in the national <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>Most Eligible USA</span> competition for the <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>$100,000 grand prize</span>.
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: spacing.lg, flexWrap: 'wrap' }}>
-          {['New York', 'Los Angeles', 'Miami', 'Chicago', 'Houston'].map((city, i) => (
+          {['New York', 'Los Angeles', 'Miami', 'Chicago', 'Houston'].map((cityName, i) => (
             <span
-              key={city}
+              key={cityName}
               style={{
                 padding: `${spacing.md} ${spacing.xl}`,
                 background: i === 0 ? 'rgba(212,175,55,0.2)' : 'rgba(255,255,255,0.05)',
@@ -365,11 +422,19 @@ export default function AboutTab({ judges, sponsors, events }) {
                 color: i === 0 ? colors.gold.primary : colors.text.secondary,
               }}
             >
-              {city}
+              {cityName}
             </span>
           ))}
         </div>
       </div>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        isOpen={!!selectedProfile}
+        onClose={() => setSelectedProfile(null)}
+        profile={selectedProfile}
+        type={profileType}
+      />
     </div>
   );
 }

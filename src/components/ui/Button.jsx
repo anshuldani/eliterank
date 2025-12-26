@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { gradients, colors, borderRadius, spacing, typography, shadows, transitions } from '../../styles/theme';
 
 const variants = {
@@ -54,7 +54,7 @@ const sizes = {
   },
 };
 
-export default function Button({
+function Button({
   children,
   variant = 'primary',
   size = 'md',
@@ -66,35 +66,47 @@ export default function Button({
   style = {},
   ...props
 }) {
-  const variantStyles = variants[variant] || variants.primary;
-  const sizeStyles = sizes[size] || sizes.md;
+  const buttonStyle = useMemo(() => {
+    const variantStyles = variants[variant] || variants.primary;
+    const sizeStyles = sizes[size] || sizes.md;
 
-  const buttonStyle = {
-    ...variantStyles,
-    ...sizeStyles,
-    borderRadius: borderRadius.md,
-    fontWeight: typography.fontWeight.semibold,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    transition: `all ${transitions.fast}`,
-    opacity: disabled ? 0.5 : 1,
-    width: fullWidth ? '100%' : 'auto',
-    ...style,
-  };
+    return {
+      ...variantStyles,
+      ...sizeStyles,
+      borderRadius: borderRadius.md,
+      fontWeight: typography.fontWeight.semibold,
+      cursor: disabled ? 'not-allowed' : 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      transition: `all ${transitions.fast}`,
+      opacity: disabled ? 0.5 : 1,
+      width: fullWidth ? '100%' : 'auto',
+      ...style,
+    };
+  }, [variant, size, disabled, fullWidth, style]);
+
+  const handleClick = useCallback((e) => {
+    if (!disabled && onClick) {
+      onClick(e);
+    }
+  }, [disabled, onClick]);
+
+  const iconSize = size === 'sm' ? 14 : size === 'lg' ? 18 : 16;
 
   return (
     <button
       style={buttonStyle}
-      onClick={disabled ? undefined : onClick}
+      onClick={handleClick}
       disabled={disabled}
       {...props}
     >
-      {Icon && iconPosition === 'left' && <Icon size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />}
+      {Icon && iconPosition === 'left' && <Icon size={iconSize} />}
       {children}
-      {Icon && iconPosition === 'right' && <Icon size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />}
+      {Icon && iconPosition === 'right' && <Icon size={iconSize} />}
     </button>
   );
 }
+
+export default memo(Button);

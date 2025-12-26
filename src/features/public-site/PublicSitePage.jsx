@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
-import { X, Crown, Users, Calendar, Sparkles, Award } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Crown, Users, Calendar, Sparkles, Award, UserPlus, Trophy } from 'lucide-react';
 import { Button, Badge } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import ContestantsTab from './components/ContestantsTab';
 import EventsTab from './components/EventsTab';
 import AnnouncementsTab from './components/AnnouncementsTab';
 import AboutTab from './components/AboutTab';
+import NominationTab from './components/NominationTab';
+import WinnersTab from './components/WinnersTab';
 import VoteModal from './components/VoteModal';
 
-const TABS = [
+const VOTING_TABS = [
   { id: 'contestants', label: 'Contestants', icon: Users },
+  { id: 'events', label: 'Events', icon: Calendar },
+  { id: 'announcements', label: 'Announcements', icon: Sparkles },
+  { id: 'about', label: 'About', icon: Award },
+];
+
+const NOMINATION_TABS = [
+  { id: 'nominate', label: 'Nominate', icon: UserPlus },
+  { id: 'events', label: 'Events', icon: Calendar },
+  { id: 'announcements', label: 'Announcements', icon: Sparkles },
+  { id: 'about', label: 'About', icon: Award },
+];
+
+const COMPLETED_TABS = [
+  { id: 'winners', label: 'Winners', icon: Trophy },
   { id: 'events', label: 'Events', icon: Calendar },
   { id: 'announcements', label: 'Announcements', icon: Sparkles },
   { id: 'about', label: 'About', icon: Award },
@@ -18,16 +34,30 @@ const TABS = [
 export default function PublicSitePage({
   isOpen,
   onClose,
+  city = 'New York',
+  season = '2026',
+  phase = 'voting', // 'nomination', 'voting', or 'completed'
   contestants,
   events,
   announcements,
   judges,
   sponsors,
+  host,
+  winners = [],
   forceDoubleVoteDay = true,
 }) {
-  const [activeTab, setActiveTab] = useState('contestants');
+  const isNominationPhase = phase === 'nomination';
+  const isCompletedPhase = phase === 'completed';
+  const TABS = isCompletedPhase ? COMPLETED_TABS : (isNominationPhase ? NOMINATION_TABS : VOTING_TABS);
+  const defaultTab = isCompletedPhase ? 'winners' : (isNominationPhase ? 'nominate' : 'contestants');
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [selectedContestant, setSelectedContestant] = useState(null);
   const [voteCount, setVoteCount] = useState(1);
+
+  // Reset active tab when phase or city changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [phase, city, defaultTab]);
 
   if (!isOpen) return null;
 
@@ -99,7 +129,7 @@ export default function PublicSitePage({
                   Most Eligible
                 </p>
                 <p style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: '#fff' }}>
-                  New York
+                  {city}
                 </p>
               </div>
             </div>
@@ -150,9 +180,19 @@ export default function PublicSitePage({
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-            <Badge variant="success" size="md" pill>
-              ● LIVE
-            </Badge>
+            {isCompletedPhase ? (
+              <Badge variant="default" size="md" pill>
+                <Trophy size={12} /> SEASON {season} COMPLETE
+              </Badge>
+            ) : isNominationPhase ? (
+              <Badge variant="warning" size="md" pill>
+                <Sparkles size={12} /> NOMINATIONS OPEN
+              </Badge>
+            ) : (
+              <Badge variant="success" size="md" pill>
+                ● LIVE
+              </Badge>
+            )}
             <Button variant="secondary" onClick={onClose} icon={X} style={{ width: 'auto', padding: `${spacing.sm} ${spacing.lg}` }}>
               Exit Preview
             </Button>
@@ -176,6 +216,19 @@ export default function PublicSitePage({
 
       {/* Content */}
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: `${spacing.xxxl} ${spacing.xxl}` }}>
+        {activeTab === 'winners' && (
+          <WinnersTab
+            city={city}
+            season={season}
+            winners={winners}
+          />
+        )}
+        {activeTab === 'nominate' && (
+          <NominationTab
+            city={city}
+            onNominationSubmit={(data) => console.log('Nomination submitted:', data)}
+          />
+        )}
         {activeTab === 'contestants' && (
           <ContestantsTab
             contestants={contestants}
@@ -184,13 +237,15 @@ export default function PublicSitePage({
             onVote={setSelectedContestant}
           />
         )}
-        {activeTab === 'events' && <EventsTab events={events} />}
+        {activeTab === 'events' && <EventsTab events={events} city={city} season={season} phase={phase} />}
         {activeTab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
         {activeTab === 'about' && (
           <AboutTab
             judges={judges}
             sponsors={sponsors}
             events={events}
+            host={host}
+            city={city}
           />
         )}
       </main>
