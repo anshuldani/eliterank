@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Crown, MapPin, Users, Plus, Settings, FileText, UserCheck, Building2, Calendar } from 'lucide-react';
+import { Crown, MapPin, Users, Settings, ArrowLeft, Shield } from 'lucide-react';
 import { Button, Badge } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import CompetitionsManager from './components/CompetitionsManager';
 import HostsManager from './components/HostsManager';
 import CitiesManager from './components/CitiesManager';
+import SuperAdminCompetitionDashboard from './components/SuperAdminCompetitionDashboard';
 
 const TABS = [
   { id: 'competitions', label: 'Competitions', icon: Crown },
@@ -15,11 +16,31 @@ const TABS = [
 
 export default function SuperAdminPage({ onLogout }) {
   const [activeTab, setActiveTab] = useState('competitions');
+  const [viewingCompetition, setViewingCompetition] = useState(null);
+
+  const handleViewCompetition = (competition) => {
+    setViewingCompetition(competition);
+  };
+
+  const handleBackToCompetitions = () => {
+    setViewingCompetition(null);
+  };
+
+  // If viewing a competition, show the competition dashboard
+  if (viewingCompetition) {
+    return (
+      <SuperAdminCompetitionDashboard
+        competition={viewingCompetition}
+        onBack={handleBackToCompetitions}
+        onLogout={onLogout}
+      />
+    );
+  }
 
   const renderContent = () => {
     switch (activeTab) {
       case 'competitions':
-        return <CompetitionsManager />;
+        return <CompetitionsManager onViewDashboard={handleViewCompetition} />;
       case 'hosts':
         return <HostsManager />;
       case 'cities':
