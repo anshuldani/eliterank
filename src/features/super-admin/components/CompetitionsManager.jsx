@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import {
   Crown, Plus, MapPin, Calendar, Users, Edit2, Trash2, UserPlus,
   ChevronDown, Check, X, Eye, Building2, Trophy, Vote, Scale,
-  Heart, Dumbbell, Star, Sparkles, ChevronRight, ChevronLeft, DollarSign
+  Heart, Dumbbell, Star, Sparkles, ChevronRight, ChevronLeft, DollarSign,
+  Settings, Shield, Lock, Unlock, AlertTriangle, Save, RotateCcw,
+  Image, FileText, Award, Gavel, CalendarDays, BarChart3
 } from 'lucide-react';
 import { Button, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
@@ -135,6 +137,50 @@ const statusStyles = {
   completed: { bg: 'rgba(139,92,246,0.2)', color: '#8b5cf6', label: 'Completed' },
 };
 
+// Mock data for dashboard view - contestants, events, judges
+const MOCK_DASHBOARD_DATA = {
+  '1': { // NY Competition
+    contestants: [
+      { id: 'c1', name: 'Marcus Thompson', status: 'approved', votes: 847, hostApproved: true, photo: null },
+      { id: 'c2', name: 'James Wilson', status: 'approved', votes: 623, hostApproved: true, photo: null },
+      { id: 'c3', name: 'Michael Chen', status: 'pending', votes: 0, hostApproved: false, photo: null },
+      { id: 'c4', name: 'David Rodriguez', status: 'approved', votes: 512, hostApproved: true, photo: null },
+    ],
+    events: [
+      { id: 'e1', name: 'Opening Gala', date: '2026-02-14', status: 'scheduled', hostCreated: true },
+      { id: 'e2', name: 'Talent Showcase', date: '2026-02-28', status: 'scheduled', hostCreated: true },
+    ],
+    judges: [
+      { id: 'j1', name: 'Sarah Mitchell', role: 'Head Judge', hostAppointed: true },
+      { id: 'j2', name: 'Robert Chen', role: 'Judge', hostAppointed: true },
+    ],
+    nominations: 156,
+    totalVotes: 1982,
+    revenue: 1982.00,
+  },
+  '2': { // Chicago Competition
+    contestants: [
+      { id: 'c1', name: 'Alex Rivera', status: 'approved', votes: 234, hostApproved: true, photo: null },
+      { id: 'c2', name: 'Chris Taylor', status: 'pending', votes: 0, hostApproved: false, photo: null },
+    ],
+    events: [
+      { id: 'e1', name: 'Launch Party', date: '2026-03-01', status: 'draft', hostCreated: true },
+    ],
+    judges: [],
+    nominations: 89,
+    totalVotes: 234,
+    revenue: 234.00,
+  },
+  '3': { // Miami Competition
+    contestants: [],
+    events: [],
+    judges: [],
+    nominations: 0,
+    totalVotes: 0,
+    revenue: 0,
+  },
+};
+
 const WIZARD_STEPS = [
   { id: 1, name: 'Organization', description: 'Select owner organization' },
   { id: 2, name: 'Location', description: 'Choose city and year' },
@@ -154,6 +200,17 @@ export default function CompetitionsManager() {
   const [currentStep, setCurrentStep] = useState(1);
   const [showNewOrgForm, setShowNewOrgForm] = useState(false);
   const [newOrg, setNewOrg] = useState({ name: '', logo: '🏆', description: '' });
+
+  // Edit mode state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [editStep, setEditStep] = useState(1);
+
+  // Dashboard view state
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [dashboardTemplate, setDashboardTemplate] = useState(null);
+  const [dashboardTab, setDashboardTab] = useState('overview');
+  const [dashboardData, setDashboardData] = useState(null);
 
   const [newTemplate, setNewTemplate] = useState({
     organization: null,
@@ -239,6 +296,74 @@ export default function CompetitionsManager() {
 
   const handleDelete = (templateId) => {
     setTemplates(templates.filter(t => t.id !== templateId));
+  };
+
+  // Open edit modal with pre-populated data
+  const handleOpenEdit = (template) => {
+    setEditingTemplate({ ...template });
+    setEditStep(1);
+    setShowEditModal(true);
+  };
+
+  // Save edited template
+  const handleSaveEdit = () => {
+    setTemplates(templates.map(t =>
+      t.id === editingTemplate.id
+        ? { ...editingTemplate, name: `${editingTemplate.organization?.name} ${editingTemplate.city}` }
+        : t
+    ));
+    setShowEditModal(false);
+    setEditingTemplate(null);
+    setEditStep(1);
+  };
+
+  // Open dashboard view
+  const handleOpenDashboard = (template) => {
+    setDashboardTemplate(template);
+    setDashboardData(MOCK_DASHBOARD_DATA[template.id] || {
+      contestants: [],
+      events: [],
+      judges: [],
+      nominations: 0,
+      totalVotes: 0,
+      revenue: 0,
+    });
+    setDashboardTab('overview');
+    setShowDashboard(true);
+  };
+
+  // Update dashboard data (for overrides)
+  const handleUpdateDashboardData = (field, value) => {
+    setDashboardData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Override contestant status
+  const handleOverrideContestant = (contestantId, updates) => {
+    setDashboardData(prev => ({
+      ...prev,
+      contestants: prev.contestants.map(c =>
+        c.id === contestantId ? { ...c, ...updates } : c
+      )
+    }));
+  };
+
+  // Override event
+  const handleOverrideEvent = (eventId, updates) => {
+    setDashboardData(prev => ({
+      ...prev,
+      events: prev.events.map(e =>
+        e.id === eventId ? { ...e, ...updates } : e
+      )
+    }));
+  };
+
+  // Update competition settings from dashboard
+  const handleUpdateCompetitionSettings = (updates) => {
+    setDashboardTemplate(prev => ({ ...prev, ...updates }));
+    // Also update in the main templates list
+    setTemplates(templates.map(t =>
+      t.id === dashboardTemplate.id ? { ...t, ...updates } : t
+    ));
   };
 
   const canProceed = () => {
@@ -1304,6 +1429,7 @@ export default function CompetitionsManager() {
                       variant="secondary"
                       size="sm"
                       icon={Eye}
+                      onClick={() => handleOpenDashboard(template)}
                       style={{ flex: 1 }}
                     >
                       View Dashboard
@@ -1313,6 +1439,7 @@ export default function CompetitionsManager() {
                     variant="secondary"
                     size="sm"
                     icon={Edit2}
+                    onClick={() => handleOpenEdit(template)}
                     style={{ width: '40px', padding: spacing.sm }}
                   />
                   <Button
@@ -1562,6 +1689,1084 @@ export default function CompetitionsManager() {
                 Cancel
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Competition Modal */}
+      {showEditModal && editingTemplate && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: spacing.xl,
+        }}>
+          <div style={{
+            background: colors.background.card,
+            borderRadius: borderRadius.xxl,
+            width: '100%',
+            maxWidth: '700px',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            border: `1px solid ${colors.border.light}`,
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: spacing.xl,
+              borderBottom: `1px solid ${colors.border.light}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'linear-gradient(135deg, rgba(139,92,246,0.1), transparent)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  background: 'rgba(139,92,246,0.2)',
+                  borderRadius: borderRadius.lg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Edit2 size={20} style={{ color: '#8b5cf6' }} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
+                    Edit Competition
+                  </h2>
+                  <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
+                    {editingTemplate.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingTemplate(null);
+                }}
+                style={{ background: 'none', border: 'none', color: colors.text.secondary, cursor: 'pointer' }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Edit Content */}
+            <div style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
+              {/* Organization */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Organization
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: spacing.sm }}>
+                  {organizations.map((org) => (
+                    <div
+                      key={org.id}
+                      onClick={() => setEditingTemplate({ ...editingTemplate, organization: org })}
+                      style={{
+                        padding: spacing.md,
+                        background: editingTemplate.organization?.id === org.id ? 'rgba(139,92,246,0.2)' : colors.background.secondary,
+                        border: `2px solid ${editingTemplate.organization?.id === org.id ? '#8b5cf6' : colors.border.light}`,
+                        borderRadius: borderRadius.lg,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                      }}
+                    >
+                      <span style={{ fontSize: '24px' }}>{org.logo}</span>
+                      <span style={{ fontWeight: typography.fontWeight.medium }}>{org.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* City & Season */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg, marginBottom: spacing.xl }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    City
+                  </label>
+                  <select
+                    value={editingTemplate.city}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, city: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: spacing.md,
+                      background: colors.background.secondary,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.md,
+                      color: '#fff',
+                    }}
+                  >
+                    {AVAILABLE_CITIES.map((city) => (
+                      <option key={city.name} value={city.name}>{city.name}, {city.state}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    Season (Year)
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTemplate.season}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, season: parseInt(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: spacing.md,
+                      background: colors.background.secondary,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.md,
+                      color: '#fff',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Category */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Category
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.sm }}>
+                  {CATEGORY_TYPES.map((cat) => {
+                    const IconComponent = cat.icon;
+                    return (
+                      <div
+                        key={cat.id}
+                        onClick={() => setEditingTemplate({ ...editingTemplate, category: cat.id })}
+                        style={{
+                          padding: spacing.md,
+                          background: editingTemplate.category === cat.id ? `${cat.color}20` : colors.background.secondary,
+                          border: `2px solid ${editingTemplate.category === cat.id ? cat.color : colors.border.light}`,
+                          borderRadius: borderRadius.lg,
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        <IconComponent size={20} style={{ color: cat.color, marginBottom: spacing.xs }} />
+                        <p style={{ fontSize: typography.fontSize.sm }}>{cat.name}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Contestant Type */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Contestant Entry Type
+                </label>
+                <div style={{ display: 'flex', gap: spacing.sm }}>
+                  {CONTESTANT_TYPES.map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => setEditingTemplate({ ...editingTemplate, contestantType: type.id })}
+                      style={{
+                        flex: 1,
+                        padding: spacing.md,
+                        background: editingTemplate.contestantType === type.id ? 'rgba(139,92,246,0.2)' : colors.background.secondary,
+                        border: `2px solid ${editingTemplate.contestantType === type.id ? '#8b5cf6' : colors.border.light}`,
+                        borderRadius: borderRadius.md,
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {type.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Settings Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.lg, marginBottom: spacing.xl }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    Has Host
+                  </label>
+                  <button
+                    onClick={() => setEditingTemplate({ ...editingTemplate, hasHost: !editingTemplate.hasHost })}
+                    style={{
+                      width: '56px',
+                      height: '32px',
+                      borderRadius: borderRadius.pill,
+                      background: editingTemplate.hasHost ? '#8b5cf6' : colors.background.card,
+                      border: `1px solid ${editingTemplate.hasHost ? '#8b5cf6' : colors.border.light}`,
+                      cursor: 'pointer',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: borderRadius.full,
+                      background: '#fff',
+                      position: 'absolute',
+                      top: '3px',
+                      left: editingTemplate.hasHost ? '28px' : '3px',
+                      transition: 'all 0.2s',
+                    }} />
+                  </button>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    Has Events
+                  </label>
+                  <button
+                    onClick={() => setEditingTemplate({ ...editingTemplate, hasEvents: !editingTemplate.hasEvents })}
+                    style={{
+                      width: '56px',
+                      height: '32px',
+                      borderRadius: borderRadius.pill,
+                      background: editingTemplate.hasEvents ? '#8b5cf6' : colors.background.card,
+                      border: `1px solid ${editingTemplate.hasEvents ? '#8b5cf6' : colors.border.light}`,
+                      cursor: 'pointer',
+                      position: 'relative',
+                    }}
+                  >
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: borderRadius.full,
+                      background: '#fff',
+                      position: 'absolute',
+                      top: '3px',
+                      left: editingTemplate.hasEvents ? '28px' : '3px',
+                      transition: 'all 0.2s',
+                    }} />
+                  </button>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    Max Contestants
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTemplate.maxContestants}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, maxContestants: parseInt(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: spacing.sm,
+                      background: colors.background.secondary,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.md,
+                      color: '#fff',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Winner Selection */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Winner Selection Criteria
+                </label>
+                <div style={{ display: 'flex', gap: spacing.sm, marginBottom: spacing.md }}>
+                  {SELECTION_CRITERIA.map((criteria) => (
+                    <button
+                      key={criteria.id}
+                      onClick={() => {
+                        const weights = criteria.id === 'votes'
+                          ? { voteWeight: 100, judgeWeight: 0 }
+                          : criteria.id === 'judges'
+                            ? { voteWeight: 0, judgeWeight: 100 }
+                            : { voteWeight: 50, judgeWeight: 50 };
+                        setEditingTemplate({ ...editingTemplate, selectionCriteria: criteria.id, ...weights });
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: spacing.md,
+                        background: editingTemplate.selectionCriteria === criteria.id ? 'rgba(139,92,246,0.2)' : colors.background.secondary,
+                        border: `2px solid ${editingTemplate.selectionCriteria === criteria.id ? '#8b5cf6' : colors.border.light}`,
+                        borderRadius: borderRadius.md,
+                        color: '#fff',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {criteria.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Hybrid Weight Slider */}
+                {editingTemplate.selectionCriteria === 'hybrid' && (
+                  <div style={{ padding: spacing.lg, background: colors.background.secondary, borderRadius: borderRadius.lg }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                      <span style={{ fontSize: typography.fontSize.sm, color: '#22c55e' }}>Votes: {editingTemplate.voteWeight}%</span>
+                      <span style={{ fontSize: typography.fontSize.sm, color: '#d4af37' }}>Judges: {editingTemplate.judgeWeight}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={editingTemplate.voteWeight}
+                      onChange={(e) => {
+                        const voteWeight = parseInt(e.target.value);
+                        setEditingTemplate({ ...editingTemplate, voteWeight, judgeWeight: 100 - voteWeight });
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Vote Price & Winners */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                    Number of Winners
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTemplate.numberOfWinners}
+                    onChange={(e) => setEditingTemplate({ ...editingTemplate, numberOfWinners: parseInt(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: spacing.md,
+                      background: colors.background.secondary,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.md,
+                      color: '#fff',
+                    }}
+                  />
+                </div>
+                {(editingTemplate.selectionCriteria === 'votes' || editingTemplate.selectionCriteria === 'hybrid') && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                      Vote Price ($)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.25"
+                      value={editingTemplate.votePrice}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, votePrice: parseFloat(e.target.value) })}
+                      style={{
+                        width: '100%',
+                        padding: spacing.md,
+                        background: colors.background.secondary,
+                        border: `1px solid ${colors.border.light}`,
+                        borderRadius: borderRadius.md,
+                        color: '#fff',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: spacing.xl,
+              borderTop: `1px solid ${colors.border.light}`,
+              display: 'flex',
+              gap: spacing.md,
+            }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingTemplate(null);
+                }}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </Button>
+              <Button
+                icon={Save}
+                onClick={handleSaveEdit}
+                style={{ flex: 1 }}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Super Admin Dashboard Modal */}
+      {showDashboard && dashboardTemplate && dashboardData && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.95)',
+          display: 'flex',
+          flexDirection: 'column',
+          zIndex: 1000,
+        }}>
+          {/* Dashboard Header */}
+          <div style={{
+            padding: spacing.xl,
+            borderBottom: `1px solid ${colors.border.light}`,
+            background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05))',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                background: 'rgba(139,92,246,0.2)',
+                borderRadius: borderRadius.xl,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '28px',
+              }}>
+                {dashboardTemplate.organization?.logo}
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                  <h1 style={{ fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.bold }}>
+                    {dashboardTemplate.name}
+                  </h1>
+                  <Badge variant="purple" size="sm">
+                    <Shield size={12} /> Super Admin View
+                  </Badge>
+                </div>
+                <p style={{ color: colors.text.secondary }}>
+                  Season {dashboardTemplate.season} • Full administrative control
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <Button
+                variant="secondary"
+                icon={Edit2}
+                onClick={() => {
+                  setShowDashboard(false);
+                  handleOpenEdit(dashboardTemplate);
+                }}
+              >
+                Edit Settings
+              </Button>
+              <button
+                onClick={() => {
+                  setShowDashboard(false);
+                  setDashboardTemplate(null);
+                  setDashboardData(null);
+                }}
+                style={{ background: 'none', border: 'none', color: colors.text.secondary, cursor: 'pointer', padding: spacing.sm }}
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
+
+          {/* Dashboard Navigation */}
+          <div style={{
+            padding: `${spacing.md} ${spacing.xl}`,
+            borderBottom: `1px solid ${colors.border.light}`,
+            display: 'flex',
+            gap: spacing.sm,
+          }}>
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'contestants', label: 'Contestants', icon: Users },
+              { id: 'events', label: 'Events', icon: CalendarDays },
+              { id: 'judges', label: 'Judges', icon: Gavel },
+              { id: 'settings', label: 'Settings', icon: Settings },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setDashboardTab(tab.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  padding: `${spacing.sm} ${spacing.lg}`,
+                  background: dashboardTab === tab.id ? 'rgba(139,92,246,0.2)' : 'transparent',
+                  border: dashboardTab === tab.id ? '1px solid rgba(139,92,246,0.5)' : '1px solid transparent',
+                  borderRadius: borderRadius.md,
+                  color: dashboardTab === tab.id ? '#8b5cf6' : colors.text.secondary,
+                  cursor: 'pointer',
+                  fontWeight: dashboardTab === tab.id ? typography.fontWeight.medium : typography.fontWeight.normal,
+                }}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Dashboard Content */}
+          <div style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
+            {/* Overview Tab */}
+            {dashboardTab === 'overview' && (
+              <div>
+                {/* Stats Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.lg, marginBottom: spacing.xxl }}>
+                  {[
+                    { label: 'Contestants', value: dashboardData.contestants?.length || 0, icon: Users, color: '#8b5cf6' },
+                    { label: 'Total Votes', value: dashboardData.totalVotes || 0, icon: Vote, color: '#22c55e' },
+                    { label: 'Revenue', value: `$${(dashboardData.revenue || 0).toFixed(2)}`, icon: DollarSign, color: '#22c55e' },
+                    { label: 'Events', value: dashboardData.events?.length || 0, icon: CalendarDays, color: '#3b82f6' },
+                  ].map((stat, i) => (
+                    <div key={i} style={{
+                      background: colors.background.card,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.xl,
+                      padding: spacing.xl,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                        <stat.icon size={20} style={{ color: stat.color }} />
+                        <span style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>{stat.label}</span>
+                      </div>
+                      <p style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold }}>{stat.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Competition Settings Summary */}
+                <div style={{
+                  background: colors.background.card,
+                  border: `1px solid ${colors.border.light}`,
+                  borderRadius: borderRadius.xl,
+                  padding: spacing.xl,
+                  marginBottom: spacing.xl,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+                    <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
+                      Competition Settings
+                    </h3>
+                    <Button variant="secondary" size="sm" icon={Edit2} onClick={() => setDashboardTab('settings')}>
+                      Modify
+                    </Button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: spacing.lg }}>
+                    {[
+                      { label: 'Category', value: CATEGORY_TYPES.find(c => c.id === dashboardTemplate.category)?.name },
+                      { label: 'Selection', value: SELECTION_CRITERIA.find(c => c.id === dashboardTemplate.selectionCriteria)?.name },
+                      { label: 'Vote Price', value: `$${dashboardTemplate.votePrice?.toFixed(2)}` },
+                      { label: 'Winners', value: dashboardTemplate.numberOfWinners },
+                    ].map((item, i) => (
+                      <div key={i}>
+                        <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>{item.label}</p>
+                        <p style={{ fontWeight: typography.fontWeight.medium }}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Host Info */}
+                {dashboardTemplate.assignedHost && (
+                  <div style={{
+                    background: colors.background.card,
+                    border: `1px solid ${colors.border.light}`,
+                    borderRadius: borderRadius.xl,
+                    padding: spacing.xl,
+                  }}>
+                    <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.lg }}>
+                      Assigned Host
+                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
+                      <div style={{
+                        width: '56px',
+                        height: '56px',
+                        background: 'linear-gradient(135deg, #d4af37, #f4d03f)',
+                        borderRadius: borderRadius.full,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: typography.fontSize.xl,
+                        fontWeight: typography.fontWeight.bold,
+                        color: '#000',
+                      }}>
+                        {dashboardTemplate.assignedHost.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>{dashboardTemplate.assignedHost.name}</p>
+                        <p style={{ color: colors.text.secondary }}>{dashboardTemplate.assignedHost.email}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Contestants Tab */}
+            {dashboardTab === 'contestants' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
+                  <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
+                    Contestants ({dashboardData.contestants?.length || 0})
+                  </h2>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    padding: spacing.sm,
+                    background: 'rgba(245,158,11,0.1)',
+                    borderRadius: borderRadius.md,
+                    border: '1px solid rgba(245,158,11,0.3)',
+                  }}>
+                    <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
+                    <span style={{ fontSize: typography.fontSize.sm, color: '#f59e0b' }}>
+                      Super Admin Override Mode
+                    </span>
+                  </div>
+                </div>
+
+                {dashboardData.contestants?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                    {dashboardData.contestants.map((contestant) => (
+                      <div
+                        key={contestant.id}
+                        style={{
+                          background: colors.background.card,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.xl,
+                          padding: spacing.lg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.lg,
+                        }}
+                      >
+                        <div style={{
+                          width: '56px',
+                          height: '56px',
+                          background: colors.background.secondary,
+                          borderRadius: borderRadius.lg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: colors.text.muted,
+                        }}>
+                          <Image size={24} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>{contestant.name}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                            <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                              {contestant.votes} votes
+                            </span>
+                            {contestant.hostApproved && (
+                              <Badge variant="success" size="sm">Host Approved</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Override Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                          <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>Status:</span>
+                          <select
+                            value={contestant.status}
+                            onChange={(e) => handleOverrideContestant(contestant.id, { status: e.target.value })}
+                            style={{
+                              padding: spacing.sm,
+                              background: colors.background.secondary,
+                              border: `1px solid ${colors.border.light}`,
+                              borderRadius: borderRadius.md,
+                              color: '#fff',
+                              fontSize: typography.fontSize.sm,
+                            }}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                          <button
+                            onClick={() => handleOverrideContestant(contestant.id, { hostApproved: !contestant.hostApproved })}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: spacing.xs,
+                              padding: `${spacing.xs} ${spacing.sm}`,
+                              background: contestant.hostApproved ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
+                              border: `1px solid ${contestant.hostApproved ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'}`,
+                              borderRadius: borderRadius.md,
+                              color: contestant.hostApproved ? '#22c55e' : '#ef4444',
+                              cursor: 'pointer',
+                              fontSize: typography.fontSize.sm,
+                            }}
+                          >
+                            {contestant.hostApproved ? <Unlock size={14} /> : <Lock size={14} />}
+                            {contestant.hostApproved ? 'Unapprove' : 'Force Approve'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: spacing.xxl,
+                    background: colors.background.card,
+                    borderRadius: borderRadius.xl,
+                    border: `1px solid ${colors.border.light}`,
+                  }}>
+                    <Users size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
+                    <p style={{ color: colors.text.secondary }}>No contestants yet</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Events Tab */}
+            {dashboardTab === 'events' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
+                  <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
+                    Events ({dashboardData.events?.length || 0})
+                  </h2>
+                  <Button variant="primary" size="sm" icon={Plus}>
+                    Create Event (Override)
+                  </Button>
+                </div>
+
+                {dashboardData.events?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                    {dashboardData.events.map((event) => (
+                      <div
+                        key={event.id}
+                        style={{
+                          background: colors.background.card,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.xl,
+                          padding: spacing.lg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.lg,
+                        }}
+                      >
+                        <div style={{
+                          width: '56px',
+                          height: '56px',
+                          background: 'rgba(59,130,246,0.2)',
+                          borderRadius: borderRadius.lg,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <CalendarDays size={24} style={{ color: '#3b82f6' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>{event.name}</h4>
+                          <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                            {new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+
+                        {event.hostCreated && (
+                          <Badge variant="gold" size="sm">Host Created</Badge>
+                        )}
+
+                        {/* Override Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                          <select
+                            value={event.status}
+                            onChange={(e) => handleOverrideEvent(event.id, { status: e.target.value })}
+                            style={{
+                              padding: spacing.sm,
+                              background: colors.background.secondary,
+                              border: `1px solid ${colors.border.light}`,
+                              borderRadius: borderRadius.md,
+                              color: '#fff',
+                              fontSize: typography.fontSize.sm,
+                            }}
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                          <Button variant="secondary" size="sm" icon={Edit2}>
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: spacing.xxl,
+                    background: colors.background.card,
+                    borderRadius: borderRadius.xl,
+                    border: `1px solid ${colors.border.light}`,
+                  }}>
+                    <CalendarDays size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
+                    <p style={{ color: colors.text.secondary }}>No events scheduled</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Judges Tab */}
+            {dashboardTab === 'judges' && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
+                  <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
+                    Judges ({dashboardData.judges?.length || 0})
+                  </h2>
+                  <Button variant="primary" size="sm" icon={Plus}>
+                    Add Judge (Override)
+                  </Button>
+                </div>
+
+                {dashboardData.judges?.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: spacing.lg }}>
+                    {dashboardData.judges.map((judge) => (
+                      <div
+                        key={judge.id}
+                        style={{
+                          background: colors.background.card,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.xl,
+                          padding: spacing.xl,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            background: 'linear-gradient(135deg, #d4af37, #f4d03f)',
+                            borderRadius: borderRadius.full,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: typography.fontSize.lg,
+                            fontWeight: typography.fontWeight.bold,
+                            color: '#000',
+                          }}>
+                            {judge.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h4 style={{ fontWeight: typography.fontWeight.semibold }}>{judge.name}</h4>
+                            <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>{judge.role}</p>
+                          </div>
+                        </div>
+                        {judge.hostAppointed && (
+                          <Badge variant="gold" size="sm">Host Appointed</Badge>
+                        )}
+                        <div style={{ marginTop: spacing.md }}>
+                          <Button variant="secondary" size="sm" fullWidth icon={Trash2}>
+                            Remove (Override)
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: spacing.xxl,
+                    background: colors.background.card,
+                    borderRadius: borderRadius.xl,
+                    border: `1px solid ${colors.border.light}`,
+                  }}>
+                    <Gavel size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
+                    <p style={{ color: colors.text.secondary }}>No judges assigned</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Settings Tab */}
+            {dashboardTab === 'settings' && (
+              <div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  padding: spacing.md,
+                  background: 'rgba(139,92,246,0.1)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  marginBottom: spacing.xl,
+                }}>
+                  <Shield size={20} style={{ color: '#8b5cf6' }} />
+                  <span style={{ color: '#8b5cf6' }}>
+                    Super Admin Mode: Changes here will override host settings immediately
+                  </span>
+                </div>
+
+                <div style={{
+                  background: colors.background.card,
+                  border: `1px solid ${colors.border.light}`,
+                  borderRadius: borderRadius.xl,
+                  padding: spacing.xl,
+                }}>
+                  <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xl }}>
+                    Competition Settings
+                  </h3>
+
+                  {/* Status Override */}
+                  <div style={{ marginBottom: spacing.xl }}>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                      Competition Status
+                    </label>
+                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                      {['draft', 'assigned', 'active', 'completed'].map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => handleUpdateCompetitionSettings({ status })}
+                          style={{
+                            flex: 1,
+                            padding: spacing.md,
+                            background: dashboardTemplate.status === status ? statusStyles[status].bg : colors.background.secondary,
+                            border: `2px solid ${dashboardTemplate.status === status ? statusStyles[status].color : colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: dashboardTemplate.status === status ? statusStyles[status].color : colors.text.secondary,
+                            cursor: 'pointer',
+                            fontWeight: typography.fontWeight.medium,
+                          }}
+                        >
+                          {statusStyles[status].label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Vote Price Override */}
+                  <div style={{ marginBottom: spacing.xl }}>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                      Vote Price Override
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                      <span style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: '#22c55e' }}>$</span>
+                      <input
+                        type="number"
+                        step="0.25"
+                        value={dashboardTemplate.votePrice}
+                        onChange={(e) => handleUpdateCompetitionSettings({ votePrice: parseFloat(e.target.value) })}
+                        style={{
+                          width: '120px',
+                          padding: spacing.md,
+                          background: colors.background.secondary,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.lg,
+                        }}
+                      />
+                      <span style={{ color: colors.text.secondary }}>per vote</span>
+                    </div>
+                  </div>
+
+                  {/* Max Contestants Override */}
+                  <div style={{ marginBottom: spacing.xl }}>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                      Max Contestants Override
+                    </label>
+                    <input
+                      type="number"
+                      value={dashboardTemplate.maxContestants}
+                      onChange={(e) => handleUpdateCompetitionSettings({ maxContestants: parseInt(e.target.value) })}
+                      style={{
+                        width: '120px',
+                        padding: spacing.md,
+                        background: colors.background.secondary,
+                        border: `1px solid ${colors.border.light}`,
+                        borderRadius: borderRadius.md,
+                        color: '#fff',
+                        fontSize: typography.fontSize.lg,
+                      }}
+                    />
+                  </div>
+
+                  {/* Selection Criteria Override */}
+                  <div style={{ marginBottom: spacing.xl }}>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                      Winner Selection Override
+                    </label>
+                    <div style={{ display: 'flex', gap: spacing.sm }}>
+                      {SELECTION_CRITERIA.map((criteria) => (
+                        <button
+                          key={criteria.id}
+                          onClick={() => {
+                            const weights = criteria.id === 'votes'
+                              ? { voteWeight: 100, judgeWeight: 0 }
+                              : criteria.id === 'judges'
+                                ? { voteWeight: 0, judgeWeight: 100 }
+                                : { voteWeight: 50, judgeWeight: 50 };
+                            handleUpdateCompetitionSettings({ selectionCriteria: criteria.id, ...weights });
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: spacing.md,
+                            background: dashboardTemplate.selectionCriteria === criteria.id ? 'rgba(139,92,246,0.2)' : colors.background.secondary,
+                            border: `2px solid ${dashboardTemplate.selectionCriteria === criteria.id ? '#8b5cf6' : colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {criteria.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {dashboardTemplate.selectionCriteria === 'hybrid' && (
+                      <div style={{ marginTop: spacing.lg, padding: spacing.lg, background: colors.background.secondary, borderRadius: borderRadius.lg }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                          <span style={{ color: '#22c55e' }}>Votes: {dashboardTemplate.voteWeight}%</span>
+                          <span style={{ color: '#d4af37' }}>Judges: {dashboardTemplate.judgeWeight}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={dashboardTemplate.voteWeight}
+                          onChange={(e) => {
+                            const voteWeight = parseInt(e.target.value);
+                            handleUpdateCompetitionSettings({ voteWeight, judgeWeight: 100 - voteWeight });
+                          }}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div style={{
+                    marginTop: spacing.xxl,
+                    padding: spacing.xl,
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    borderRadius: borderRadius.xl,
+                  }}>
+                    <h4 style={{ fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, color: '#ef4444', marginBottom: spacing.md }}>
+                      Danger Zone
+                    </h4>
+                    <div style={{ display: 'flex', gap: spacing.md }}>
+                      <Button
+                        variant="secondary"
+                        icon={RotateCcw}
+                        onClick={() => {
+                          // Reset all host-made changes
+                          handleUpdateDashboardData('contestants', dashboardData.contestants.map(c => ({ ...c, status: 'pending', hostApproved: false })));
+                        }}
+                      >
+                        Reset Host Approvals
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        icon={Trash2}
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this competition?')) {
+                            handleDelete(dashboardTemplate.id);
+                            setShowDashboard(false);
+                          }
+                        }}
+                        style={{ borderColor: 'rgba(239,68,68,0.5)', color: '#ef4444' }}
+                      >
+                        Delete Competition
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
