@@ -22,6 +22,28 @@ CREATE TABLE profiles (
   -- Preferences
   hobbies TEXT[],
   interests TEXT[],
+  -- Super admin flag
+  is_super_admin BOOLEAN DEFAULT FALSE,
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- ORGANIZATIONS
+-- ============================================
+CREATE TABLE organizations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  logo TEXT,
+  tagline TEXT,
+  description TEXT,
+  cover_image TEXT,
+  -- Stats (auto-updated)
+  total_competitions INTEGER DEFAULT 0,
+  total_cities INTEGER DEFAULT 0,
+  total_contestants INTEGER DEFAULT 0,
   -- Timestamps
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -33,6 +55,7 @@ CREATE TABLE profiles (
 CREATE TABLE competitions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   host_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
   city TEXT NOT NULL,
   season INTEGER DEFAULT EXTRACT(YEAR FROM NOW()),
   status TEXT DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'nomination', 'voting', 'finals', 'completed')),
@@ -198,6 +221,7 @@ CREATE TABLE announcements (
 CREATE INDEX idx_competitions_host ON competitions(host_id);
 CREATE INDEX idx_competitions_status ON competitions(status);
 CREATE INDEX idx_competitions_city_season ON competitions(city, season);
+CREATE INDEX idx_competitions_organization ON competitions(organization_id);
 
 CREATE INDEX idx_contestants_competition ON contestants(competition_id);
 CREATE INDEX idx_contestants_user ON contestants(user_id);
@@ -223,6 +247,7 @@ CREATE OR REPLACE VIEW user_roles AS
 SELECT
   p.id as user_id,
   p.email,
+  p.is_super_admin,
   EXISTS(SELECT 1 FROM competitions c WHERE c.host_id = p.id) as is_host,
   EXISTS(SELECT 1 FROM contestants ct WHERE ct.user_id = p.id AND ct.status = 'active') as is_contestant,
   EXISTS(SELECT 1 FROM nominees n WHERE n.user_id = p.id AND n.status NOT IN ('approved', 'rejected')) as is_nominee,
@@ -246,6 +271,7 @@ CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW
 CREATE TRIGGER update_competitions_updated_at BEFORE UPDATE ON competitions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_contestants_updated_at BEFORE UPDATE ON contestants FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER update_nominees_updated_at BEFORE UPDATE ON nominees FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON organizations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Auto-update vote counts
 CREATE OR REPLACE FUNCTION process_vote()
@@ -277,3 +303,23 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- Update organization stats when competitions change
+CREATE OR REPLACE FUNCTION update_organization_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update the organization stats
+  UPDATE organizations o
+  SET
+    total_competitions = (SELECT COUNT(*) FROM competitions WHERE organization_id = o.id),
+    total_cities = (SELECT COUNT(DISTINCT city) FROM competitions WHERE organization_id = o.id),
+    total_contestants = (SELECT COALESCE(SUM(total_contestants), 0) FROM competitions WHERE organization_id = o.id),
+    updated_at = NOW()
+  WHERE o.id = COALESCE(NEW.organization_id, OLD.organization_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_competition_change
+  AFTER INSERT OR UPDATE OR DELETE ON competitions
+  FOR EACH ROW EXECUTE FUNCTION update_organization_stats();
