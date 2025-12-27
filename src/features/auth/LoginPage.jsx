@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Crown, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { colors, gradients, shadows, borderRadius, spacing, typography } from '../../styles/theme';
 import { useSupabaseAuth } from '../../hooks';
-import { supabase, isSupabaseConfigured, testConnection } from '../../lib/supabase';
 
 export default function LoginPage({ onLogin, onBack }) {
   const [mode, setMode] = useState('login'); // 'login' or 'signup'
@@ -15,24 +14,8 @@ export default function LoginPage({ onLogin, onBack }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [debugInfo, setDebugInfo] = useState('');
-  const [connectionTest, setConnectionTest] = useState(null);
 
   const { signIn, signUp, isDemoMode } = useSupabaseAuth();
-
-  // Debug info
-  const supabaseConfigured = isSupabaseConfigured();
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-  // Run connection test on mount
-  useEffect(() => {
-    if (supabaseConfigured) {
-      testConnection().then(result => {
-        console.log('Connection test result:', result);
-        setConnectionTest(result);
-      });
-    }
-  }, [supabaseConfigured]);
 
   const validateForm = () => {
     if (!email || !password) {
@@ -102,24 +85,17 @@ export default function LoginPage({ onLogin, onBack }) {
 
     try {
       if (mode === 'signup') {
-        setDebugInfo(`Attempting signup... isDemoMode=${isDemoMode}, supabaseConfigured=${supabaseConfigured}`);
-
         const { user, error } = await signUp(email, password, {
           first_name: firstName,
           last_name: lastName,
         });
 
-        setDebugInfo(prev => prev + ` | Result: user=${user?.id || 'null'}, error=${error || 'none'}`);
-
         if (error) {
           setError(error);
         } else if (user) {
           if (isDemoMode) {
-            // Demo mode - log in immediately
-            setDebugInfo(prev => prev + ' | Demo mode login');
             onLogin({ email, name: `${firstName} ${lastName}` });
           } else {
-            // Real Supabase - check for email confirmation
             setSuccess('Account created! Please check your email to confirm your account.');
             setMode('login');
           }
@@ -316,17 +292,6 @@ export default function LoginPage({ onLogin, onBack }) {
     cursor: 'pointer',
     fontWeight: typography.fontWeight.medium,
     marginLeft: spacing.xs,
-  };
-
-  const demoNoteStyle = {
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    background: 'rgba(212,175,55,0.1)',
-    border: `1px solid ${colors.border.gold}`,
-    borderRadius: borderRadius.lg,
-    fontSize: typography.fontSize.sm,
-    color: colors.gold.primary,
-    textAlign: 'center',
   };
 
   const footerStyle = {
@@ -544,30 +509,6 @@ export default function LoginPage({ onLogin, onBack }) {
             {mode === 'login' ? 'Sign up' : 'Sign in'}
           </span>
         </p>
-
-        {/* Debug Info */}
-        <div style={{
-          ...demoNoteStyle,
-          background: connectionTest?.success ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)',
-          border: `1px solid ${connectionTest?.success ? 'green' : 'red'}`
-        }}>
-          <strong>Config:</strong> {supabaseConfigured ? 'YES' : 'NO'} |
-          <strong> API Test:</strong> {connectionTest ? (connectionTest.success ? `OK (REST:${connectionTest.restStatus}, Auth:${connectionTest.authStatus})` : `FAIL: ${connectionTest.error}`) : 'Testing...'}<br/>
-          <small style={{ opacity: 0.8 }}>
-            URL: {supabaseUrl ? supabaseUrl.substring(0, 35) + '...' : 'NOT SET'}<br/>
-            isDemoMode: {String(isDemoMode)}
-          </small>
-          {connectionTest?.authSettings && (
-            <div style={{ marginTop: 4, fontSize: 10 }}>
-              CAPTCHA: {connectionTest.authSettings.external?.captcha_enabled ? 'ENABLED (this may cause issues!)' : 'disabled'}
-            </div>
-          )}
-          {debugInfo && (
-            <div style={{ marginTop: 8, fontSize: 11, wordBreak: 'break-all', color: '#ff6b6b' }}>
-              {debugInfo}
-            </div>
-          )}
-        </div>
 
         {/* Footer */}
         <p style={footerStyle}>© 2025 EliteRank. All rights reserved.</p>
