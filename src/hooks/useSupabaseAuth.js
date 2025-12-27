@@ -111,10 +111,7 @@ export default function useSupabaseAuth() {
 
   // Sign up with email/password
   const signUp = useCallback(async (email, password, metadata = {}) => {
-    console.log('SignUp called, isDemoMode:', isDemoMode, 'supabase:', !!supabase);
-
     if (isDemoMode) {
-      console.log('Running in demo mode - no Supabase connection');
       return signIn(email, password);
     }
 
@@ -122,7 +119,6 @@ export default function useSupabaseAuth() {
     setError(null);
 
     try {
-      console.log('Calling supabase.auth.signUp...');
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -130,8 +126,6 @@ export default function useSupabaseAuth() {
           data: metadata,
         },
       });
-
-      console.log('SignUp response:', { user: data?.user?.id, error });
 
       if (error) throw error;
 
