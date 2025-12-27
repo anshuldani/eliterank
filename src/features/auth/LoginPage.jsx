@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Crown, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { colors, gradients, shadows, borderRadius, spacing, typography } from '../../styles/theme';
 import { useSupabaseAuth } from '../../hooks';
-import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured, testConnection } from '../../lib/supabase';
 
 export default function LoginPage({ onLogin, onBack }) {
   const [mode, setMode] = useState('login'); // 'login' or 'signup'
@@ -16,12 +16,23 @@ export default function LoginPage({ onLogin, onBack }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [connectionTest, setConnectionTest] = useState(null);
 
   const { signIn, signUp, isDemoMode } = useSupabaseAuth();
 
   // Debug info
   const supabaseConfigured = isSupabaseConfigured();
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+  // Run connection test on mount
+  useEffect(() => {
+    if (supabaseConfigured) {
+      testConnection().then(result => {
+        console.log('Connection test result:', result);
+        setConnectionTest(result);
+      });
+    }
+  }, [supabaseConfigured]);
 
   const validateForm = () => {
     if (!email || !password) {
@@ -537,16 +548,22 @@ export default function LoginPage({ onLogin, onBack }) {
         {/* Debug Info */}
         <div style={{
           ...demoNoteStyle,
-          background: supabaseConfigured ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)',
-          border: `1px solid ${supabaseConfigured ? 'green' : 'red'}`
+          background: connectionTest?.success ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)',
+          border: `1px solid ${connectionTest?.success ? 'green' : 'red'}`
         }}>
-          <strong>Status:</strong> {supabaseConfigured ? 'Supabase CONNECTED' : 'Supabase NOT CONNECTED'}<br/>
+          <strong>Config:</strong> {supabaseConfigured ? 'YES' : 'NO'} |
+          <strong> API Test:</strong> {connectionTest ? (connectionTest.success ? `OK (REST:${connectionTest.restStatus}, Auth:${connectionTest.authStatus})` : `FAIL: ${connectionTest.error}`) : 'Testing...'}<br/>
           <small style={{ opacity: 0.8 }}>
-            URL: {supabaseUrl ? supabaseUrl.substring(0, 40) + '...' : 'NOT SET'}<br/>
+            URL: {supabaseUrl ? supabaseUrl.substring(0, 35) + '...' : 'NOT SET'}<br/>
             isDemoMode: {String(isDemoMode)}
           </small>
+          {connectionTest?.authSettings && (
+            <div style={{ marginTop: 4, fontSize: 10 }}>
+              CAPTCHA: {connectionTest.authSettings.external?.captcha_enabled ? 'ENABLED (this may cause issues!)' : 'disabled'}
+            </div>
+          )}
           {debugInfo && (
-            <div style={{ marginTop: 8, fontSize: 11, wordBreak: 'break-all' }}>
+            <div style={{ marginTop: 8, fontSize: 11, wordBreak: 'break-all', color: '#ff6b6b' }}>
               {debugInfo}
             </div>
           )}

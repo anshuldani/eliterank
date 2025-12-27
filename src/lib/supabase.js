@@ -8,13 +8,13 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 console.log('=== SUPABASE CONFIG DEBUG ===');
 console.log('VITE_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET');
 console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'NOT SET');
-console.log('All env vars:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
+console.log('Key length:', supabaseAnonKey?.length || 0);
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Vercel Environment Variables for the Preview environment.');
+  console.error('Missing Supabase environment variables.');
 }
 
-// Create Supabase client - always create if we have credentials
+// Create Supabase client
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
@@ -26,6 +26,50 @@ export const supabase = supabaseUrl && supabaseAnonKey
   : null;
 
 export const isSupabaseConfigured = () => !!supabase;
+
+// Test raw connection to Supabase
+export const testConnection = async () => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { success: false, error: 'Missing configuration' };
+  }
+
+  try {
+    // Test 1: Raw fetch to Supabase health endpoint
+    console.log('Testing raw fetch to Supabase...');
+    const healthUrl = `${supabaseUrl}/rest/v1/`;
+    const response = await fetch(healthUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+    });
+    console.log('Health check response:', response.status, response.statusText);
+
+    // Test 2: Auth API health
+    console.log('Testing auth API...');
+    const authUrl = `${supabaseUrl}/auth/v1/settings`;
+    const authResponse = await fetch(authUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+      },
+    });
+    const authData = await authResponse.json();
+    console.log('Auth settings:', authData);
+
+    return {
+      success: true,
+      restStatus: response.status,
+      authStatus: authResponse.status,
+      authSettings: authData
+    };
+  } catch (err) {
+    console.error('Connection test failed:', err);
+    return { success: false, error: err.message, fullError: err };
+  }
+};
 
 // Helper to check connection
 export const checkConnection = async () => {
