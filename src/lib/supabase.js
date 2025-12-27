@@ -4,23 +4,18 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate configuration
-const isConfigured = supabaseUrl && supabaseAnonKey &&
-  supabaseUrl !== 'https://your-project-id.supabase.co' &&
-  supabaseAnonKey !== 'your-anon-key-here';
+// Debug logging - show partial values for verification
+console.log('=== SUPABASE CONFIG DEBUG ===');
+console.log('VITE_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET');
+console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : 'NOT SET');
+console.log('All env vars:', Object.keys(import.meta.env).filter(k => k.startsWith('VITE_')));
 
-if (!isConfigured) {
-  console.warn(
-    '⚠️ Supabase not configured. Running in demo mode.\n' +
-    'To connect to Supabase:\n' +
-    '1. Copy .env.example to .env\n' +
-    '2. Add your Supabase project URL and anon key\n' +
-    '3. Restart the dev server'
-  );
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Vercel Environment Variables for the Preview environment.');
 }
 
-// Create Supabase client only if properly configured
-export const supabase = isConfigured
+// Create Supabase client - always create if we have credentials
+export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
