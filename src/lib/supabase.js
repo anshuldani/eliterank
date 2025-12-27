@@ -4,23 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Validate configuration
-const isConfigured = supabaseUrl && supabaseAnonKey &&
-  supabaseUrl !== 'https://your-project-id.supabase.co' &&
-  supabaseAnonKey !== 'your-anon-key-here';
-
-if (!isConfigured) {
-  console.warn(
-    '⚠️ Supabase not configured. Running in demo mode.\n' +
-    'To connect to Supabase:\n' +
-    '1. Copy .env.example to .env\n' +
-    '2. Add your Supabase project URL and anon key\n' +
-    '3. Restart the dev server'
-  );
-}
-
-// Create Supabase client only if properly configured
-export const supabase = isConfigured
+// Create Supabase client if credentials are provided
+export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
