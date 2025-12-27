@@ -1,117 +1,168 @@
-import React, { useState } from 'react';
-import { Users, UserCheck, UserX, Mail, Instagram, Linkedin, MapPin, Clock, Check, X, Eye } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, UserCheck, UserX, Mail, Instagram, Linkedin, MapPin, Clock, Check, X, Eye, Loader } from 'lucide-react';
 import { Button, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
-
-// Mock data for hosts and applications
-const MOCK_HOSTS = [
-  {
-    id: 'h1',
-    name: 'James Davidson',
-    email: 'host@eliterank.com',
-    city: 'New York',
-    avatar: null,
-    instagram: '@jamesdavidson',
-    linkedin: 'jamesdavidson',
-    joinedAt: '2024-01-15',
-    competitions: 2,
-    totalRevenue: 45000,
-    status: 'active',
-  },
-  {
-    id: 'h2',
-    name: 'Sarah Miller',
-    email: 'sarah@example.com',
-    city: 'Chicago',
-    avatar: null,
-    instagram: '@sarahmiller',
-    linkedin: 'sarahmiller',
-    joinedAt: '2024-06-01',
-    competitions: 1,
-    totalRevenue: 12000,
-    status: 'active',
-  },
-];
-
-const MOCK_APPLICATIONS = [
-  {
-    id: 'a1',
-    userId: 'u3',
-    name: 'Michael Chen',
-    email: 'michael@example.com',
-    city: 'Los Angeles',
-    experience: '5 years in event management, previously organized charity galas and networking events.',
-    socialFollowing: 15000,
-    instagram: '@michaelchen',
-    linkedin: 'michaelchen',
-    whyHost: 'I have a strong network in LA and want to bring exciting social events to the city.',
-    status: 'pending',
-    appliedAt: '2024-12-20',
-  },
-  {
-    id: 'a2',
-    userId: 'u4',
-    name: 'Emily Rodriguez',
-    email: 'emily@example.com',
-    city: 'Miami',
-    experience: '3 years as social media manager, built communities of 50k+ followers.',
-    socialFollowing: 25000,
-    instagram: '@emilyrodriguez',
-    linkedin: 'emilyrod',
-    whyHost: 'Miami has an amazing social scene and I want to create opportunities for singles to connect.',
-    status: 'pending',
-    appliedAt: '2024-12-18',
-  },
-  {
-    id: 'a3',
-    userId: 'u5',
-    name: 'David Park',
-    email: 'david@example.com',
-    city: 'San Francisco',
-    experience: 'Tech industry professional with experience organizing meetups and conferences.',
-    socialFollowing: 8000,
-    instagram: '@davidpark',
-    linkedin: 'davidpark',
-    whyHost: 'SF needs more social opportunities outside of tech events.',
-    status: 'pending',
-    appliedAt: '2024-12-15',
-  },
-];
+import { supabase } from '../../../lib/supabase';
 
 export default function HostsManager() {
   const [activeTab, setActiveTab] = useState('hosts');
-  const [hosts, setHosts] = useState(MOCK_HOSTS);
-  const [applications, setApplications] = useState(MOCK_APPLICATIONS);
+  const [hosts, setHosts] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const handleApprove = (applicationId) => {
+  // Fetch hosts from Supabase (users with is_host = true)
+  const fetchHosts = useCallback(async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_host', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setHosts((data || []).map(h => ({
+        id: h.id,
+        name: `${h.first_name || ''} ${h.last_name || ''}`.trim() || h.email,
+        email: h.email,
+        city: h.city || 'Not specified',
+        avatar: h.avatar_url,
+        instagram: h.instagram,
+        linkedin: h.linkedin,
+        joinedAt: h.created_at?.split('T')[0] || 'Unknown',
+        competitions: 0, // Would need to count from competitions table
+        totalRevenue: 0, // Would need to sum from transactions
+        status: 'active',
+      })));
+    } catch (err) {
+      console.error('Error fetching hosts:', err);
+      setError(err.message);
+    }
+  }, []);
+
+  // Fetch host applications from Supabase
+  const fetchApplications = useCallback(async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('host_applications')
+        .select('*, profile:profiles(*)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        // Table might not exist yet
+        console.warn('Host applications table not found or empty:', error);
+        setApplications([]);
+        return;
+      }
+
+      setApplications((data || []).map(app => ({
+        id: app.id,
+        userId: app.user_id,
+        name: app.profile ? `${app.profile.first_name || ''} ${app.profile.last_name || ''}`.trim() : 'Unknown',
+        email: app.profile?.email || app.email,
+        city: app.city,
+        experience: app.experience,
+        socialFollowing: app.social_following || 0,
+        instagram: app.instagram,
+        linkedin: app.linkedin,
+        whyHost: app.why_host,
+        status: app.status,
+        appliedAt: app.created_at?.split('T')[0] || 'Unknown',
+      })));
+    } catch (err) {
+      console.error('Error fetching applications:', err);
+      // Don't set error for missing table
+      setApplications([]);
+    }
+  }, []);
+
+  // Load data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchHosts(), fetchApplications()]);
+      setLoading(false);
+    };
+    loadData();
+  }, [fetchHosts, fetchApplications]);
+
+  // Approve a host application
+  const handleApprove = async (applicationId) => {
+    if (!supabase) return;
+
     const app = applications.find(a => a.id === applicationId);
     if (!app) return;
 
-    // Add to hosts
-    setHosts([...hosts, {
-      id: app.userId,
-      name: app.name,
-      email: app.email,
-      city: app.city,
-      avatar: null,
-      instagram: app.instagram,
-      linkedin: app.linkedin,
-      joinedAt: new Date().toISOString().split('T')[0],
-      competitions: 0,
-      totalRevenue: 0,
-      status: 'active',
-    }]);
+    try {
+      // Update the user's profile to mark as host
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ is_host: true })
+        .eq('id', app.userId);
 
-    // Remove from applications
-    setApplications(applications.filter(a => a.id !== applicationId));
-    setSelectedApplication(null);
+      if (profileError) throw profileError;
+
+      // Update application status
+      const { error: appError } = await supabase
+        .from('host_applications')
+        .update({ status: 'approved' })
+        .eq('id', applicationId);
+
+      if (appError) throw appError;
+
+      // Refresh data
+      await Promise.all([fetchHosts(), fetchApplications()]);
+      setSelectedApplication(null);
+    } catch (err) {
+      console.error('Error approving application:', err);
+      setError(err.message);
+    }
   };
 
-  const handleReject = (applicationId) => {
-    setApplications(applications.filter(a => a.id !== applicationId));
-    setSelectedApplication(null);
+  // Reject a host application
+  const handleReject = async (applicationId) => {
+    if (!supabase) return;
+
+    try {
+      const { error } = await supabase
+        .from('host_applications')
+        .update({ status: 'rejected' })
+        .eq('id', applicationId);
+
+      if (error) throw error;
+
+      await fetchApplications();
+      setSelectedApplication(null);
+    } catch (err) {
+      console.error('Error rejecting application:', err);
+      setError(err.message);
+    }
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.xxxl,
+        color: colors.text.secondary
+      }}>
+        <Loader size={32} style={{ animation: 'spin 1s linear infinite', marginBottom: spacing.md }} />
+        <p>Loading hosts...</p>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -187,6 +238,24 @@ export default function HostsManager() {
 
       {/* Active Hosts */}
       {activeTab === 'hosts' && (
+        hosts.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            padding: spacing.xxxl,
+            background: colors.background.card,
+            borderRadius: borderRadius.xl,
+            border: `1px solid ${colors.border.light}`,
+          }}>
+            <UserCheck size={64} style={{ color: colors.text.muted, marginBottom: spacing.lg }} />
+            <h3 style={{ fontSize: typography.fontSize.xl, marginBottom: spacing.sm }}>No Hosts Yet</h3>
+            <p style={{ color: colors.text.secondary }}>
+              Hosts will appear here when users are assigned the host role.
+            </p>
+            <p style={{ color: colors.text.muted, fontSize: typography.fontSize.sm, marginTop: spacing.md }}>
+              To add a host, set is_host = true on their profile in Supabase.
+            </p>
+          </div>
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: spacing.xl }}>
           {hosts.map((host) => (
             <div
@@ -280,6 +349,7 @@ export default function HostsManager() {
             </div>
           ))}
         </div>
+        )
       )}
 
       {/* Pending Applications */}

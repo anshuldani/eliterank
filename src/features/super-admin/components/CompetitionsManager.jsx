@@ -165,25 +165,44 @@ export default function CompetitionsManager({ onViewDashboard }) {
   const handleCreateOrganization = async () => {
     if (!newOrg.name.trim()) return;
     setIsSubmitting(true);
-    const org = await createOrganization({
-      name: newOrg.name.trim(),
-      logo: newOrg.logo,
-      description: newOrg.description.trim() || `${newOrg.name} competitions`,
-    });
-    if (org) {
-      setNewTemplate({ ...newTemplate, organization: org });
+    try {
+      const org = await createOrganization({
+        name: newOrg.name.trim(),
+        logo: newOrg.logo,
+        description: newOrg.description.trim() || `${newOrg.name} competitions`,
+      });
+      if (org) {
+        setNewTemplate({ ...newTemplate, organization: org });
+        setShowNewOrgForm(false);
+        setNewOrg({ name: '', logo: '🏆', description: '' });
+      } else {
+        alert('Failed to create organization. Check console for details.');
+      }
+    } catch (err) {
+      console.error('Error creating organization:', err);
+      alert(`Error creating organization: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-    setShowNewOrgForm(false);
-    setNewOrg({ name: '', logo: '🏆', description: '' });
-    setIsSubmitting(false);
   };
 
   const handleCreateTemplate = async () => {
     setIsSubmitting(true);
-    await createCompetition(newTemplate, null); // No host assigned initially
-    setShowCreateModal(false);
-    resetWizard();
-    setIsSubmitting(false);
+    try {
+      const result = await createCompetition(newTemplate, null); // No host assigned initially
+      if (result) {
+        setShowCreateModal(false);
+        resetWizard();
+      } else {
+        // Show error to user
+        alert('Failed to create competition. Check console for details.');
+      }
+    } catch (err) {
+      console.error('Error creating competition:', err);
+      alert(`Error creating competition: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAssignHost = async (templateId, host) => {
@@ -214,11 +233,17 @@ export default function CompetitionsManager({ onViewDashboard }) {
   // Save edited template
   const handleSaveEdit = async () => {
     setIsSubmitting(true);
-    await updateCompetition(editingTemplate.id, editingTemplate);
-    setShowEditModal(false);
-    setEditingTemplate(null);
-    setEditStep(1);
-    setIsSubmitting(false);
+    try {
+      await updateCompetition(editingTemplate.id, editingTemplate);
+      setShowEditModal(false);
+      setEditingTemplate(null);
+      setEditStep(1);
+    } catch (err) {
+      console.error('Error saving competition:', err);
+      alert(`Error saving competition: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   
