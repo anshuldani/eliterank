@@ -31,15 +31,26 @@ export function useCompetitionManager() {
         season: comp.season,
         status: comp.status || 'draft',
         phase: comp.phase,
+        // Form fields
+        category: comp.category,
+        contestantType: comp.contestant_type,
+        hasHost: comp.has_host ?? true,
+        hasEvents: comp.has_events ?? true,
+        numberOfWinners: comp.number_of_winners || 5,
+        selectionCriteria: comp.selection_criteria,
+        voteWeight: comp.vote_weight || 50,
+        judgeWeight: comp.judge_weight || 50,
         maxContestants: comp.total_contestants || 30,
-        votePrice: comp.vote_price,
-        hostPayoutPercentage: comp.host_payout_percentage,
+        votePrice: comp.vote_price || 1.00,
+        hostPayoutPercentage: comp.host_payout_percentage || 20,
+        // Related data
         organization: comp.organization,
         assignedHost: comp.host ? {
           id: comp.host.id,
           name: `${comp.host.first_name || ''} ${comp.host.last_name || ''}`.trim() || comp.host.email,
           email: comp.host.email,
         } : null,
+        // Dates
         nominationStart: comp.nomination_start,
         nominationEnd: comp.nomination_end,
         votingStart: comp.voting_start,
@@ -99,6 +110,16 @@ export function useCompetitionManager() {
           season: templateData.season || new Date().getFullYear(),
           status: 'upcoming',
           phase: 'setup',
+          // Form fields from wizard
+          category: templateData.category,
+          contestant_type: templateData.contestantType,
+          has_host: templateData.hasHost ?? true,
+          has_events: templateData.hasEvents ?? true,
+          number_of_winners: templateData.numberOfWinners || 5,
+          selection_criteria: templateData.selectionCriteria,
+          vote_weight: templateData.voteWeight || 50,
+          judge_weight: templateData.judgeWeight || 50,
+          total_contestants: templateData.maxContestants || 30,
           vote_price: templateData.votePrice || 1.00,
           host_payout_percentage: templateData.hostPayoutPercentage || 20,
         })
@@ -123,14 +144,25 @@ export function useCompetitionManager() {
 
     try {
       const dbUpdates = {};
+      // Basic fields
       if (updates.city) dbUpdates.city = updates.city;
       if (updates.season) dbUpdates.season = updates.season;
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.phase) dbUpdates.phase = updates.phase;
-      if (updates.votePrice) dbUpdates.vote_price = updates.votePrice;
-      if (updates.hostPayoutPercentage) dbUpdates.host_payout_percentage = updates.hostPayoutPercentage;
       if (updates.organization?.id) dbUpdates.organization_id = updates.organization.id;
       if (updates.hostId) dbUpdates.host_id = updates.hostId;
+      // Form fields
+      if (updates.category) dbUpdates.category = updates.category;
+      if (updates.contestantType) dbUpdates.contestant_type = updates.contestantType;
+      if (updates.hasHost !== undefined) dbUpdates.has_host = updates.hasHost;
+      if (updates.hasEvents !== undefined) dbUpdates.has_events = updates.hasEvents;
+      if (updates.numberOfWinners) dbUpdates.number_of_winners = updates.numberOfWinners;
+      if (updates.selectionCriteria) dbUpdates.selection_criteria = updates.selectionCriteria;
+      if (updates.voteWeight !== undefined) dbUpdates.vote_weight = updates.voteWeight;
+      if (updates.judgeWeight !== undefined) dbUpdates.judge_weight = updates.judgeWeight;
+      if (updates.maxContestants) dbUpdates.total_contestants = updates.maxContestants;
+      if (updates.votePrice) dbUpdates.vote_price = updates.votePrice;
+      if (updates.hostPayoutPercentage) dbUpdates.host_payout_percentage = updates.hostPayoutPercentage;
 
       const { error } = await supabase
         .from('competitions')
