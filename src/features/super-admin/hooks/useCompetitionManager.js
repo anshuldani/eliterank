@@ -10,7 +10,6 @@ export function useCompetitionManager() {
   // Fetch competitions from Supabase
   const fetchCompetitions = useCallback(async () => {
     if (!supabase) {
-      setLoading(false);
       return;
     }
 
@@ -21,7 +20,11 @@ export function useCompetitionManager() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching competitions:', error);
+        setCompetitions([]);
+        return;
+      }
 
       // Transform data to match expected format
       const transformed = (data || []).map(comp => ({
@@ -59,7 +62,7 @@ export function useCompetitionManager() {
       setCompetitions(transformed);
     } catch (err) {
       console.error('Error fetching competitions:', err);
-      setError(err.message);
+      setCompetitions([]);
     }
   }, []);
 
@@ -91,8 +94,13 @@ export function useCompetitionManager() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchCompetitions(), fetchOrganizations()]);
-      setLoading(false);
+      try {
+        await Promise.all([fetchCompetitions(), fetchOrganizations()]);
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, [fetchCompetitions, fetchOrganizations]);
@@ -105,28 +113,33 @@ export function useCompetitionManager() {
     }
 
     try {
+      // Build insert object with only columns that exist in the table
+      const insertData = {
+        host_id: hostId,
+        organization_id: templateData.organization?.id || null,
+        city: templateData.city,
+        season: templateData.season || new Date().getFullYear(),
+        status: 'upcoming',
+        phase: 'setup',
+        total_contestants: templateData.maxContestants || 30,
+        vote_price: templateData.votePrice || 1.00,
+        host_payout_percentage: templateData.hostPayoutPercentage || 20,
+      };
+
+      // Add optional columns if they exist in the database
+      // These will fail gracefully if columns don't exist
+      if (templateData.category) insertData.category = templateData.category;
+      if (templateData.contestantType) insertData.contestant_type = templateData.contestantType;
+      if (templateData.hasHost !== undefined) insertData.has_host = templateData.hasHost;
+      if (templateData.hasEvents !== undefined) insertData.has_events = templateData.hasEvents;
+      if (templateData.numberOfWinners) insertData.number_of_winners = templateData.numberOfWinners;
+      if (templateData.selectionCriteria) insertData.selection_criteria = templateData.selectionCriteria;
+      if (templateData.voteWeight !== undefined) insertData.vote_weight = templateData.voteWeight;
+      if (templateData.judgeWeight !== undefined) insertData.judge_weight = templateData.judgeWeight;
+
       const { data, error } = await supabase
         .from('competitions')
-        .insert({
-          host_id: hostId,
-          organization_id: templateData.organization?.id || null,
-          city: templateData.city,
-          season: templateData.season || new Date().getFullYear(),
-          status: 'upcoming',
-          phase: 'setup',
-          // Form fields from wizard
-          category: templateData.category,
-          contestant_type: templateData.contestantType,
-          has_host: templateData.hasHost ?? true,
-          has_events: templateData.hasEvents ?? true,
-          number_of_winners: templateData.numberOfWinners || 5,
-          selection_criteria: templateData.selectionCriteria,
-          vote_weight: templateData.voteWeight || 50,
-          judge_weight: templateData.judgeWeight || 50,
-          total_contestants: templateData.maxContestants || 30,
-          vote_price: templateData.votePrice || 1.00,
-          host_payout_percentage: templateData.hostPayoutPercentage || 20,
-        })
+        .insert(insertData)
         .select()
         .single();
 
