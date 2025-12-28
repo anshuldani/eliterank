@@ -52,14 +52,26 @@ const AVAILABLE_CITIES = [
 ];
 
 const statusStyles = {
+  setup: { bg: 'rgba(100,100,100,0.2)', color: colors.text.secondary, label: 'Setup' },
   draft: { bg: 'rgba(100,100,100,0.2)', color: colors.text.secondary, label: 'Draft' },
   upcoming: { bg: 'rgba(100,100,100,0.2)', color: colors.text.secondary, label: 'Upcoming' },
   assigned: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6', label: 'Host Assigned' },
   active: { bg: 'rgba(34,197,94,0.2)', color: '#22c55e', label: 'Active' },
   nomination: { bg: 'rgba(212,175,55,0.2)', color: '#d4af37', label: 'Nominations' },
   voting: { bg: 'rgba(139,92,246,0.2)', color: '#8b5cf6', label: 'Voting' },
-  completed: { bg: 'rgba(139,92,246,0.2)', color: '#8b5cf6', label: 'Completed' },
+  judging: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6', label: 'Judging' },
+  completed: { bg: 'rgba(34,197,94,0.2)', color: '#22c55e', label: 'Completed' },
 };
+
+// Available statuses for dropdown
+const COMPETITION_STATUSES = [
+  { id: 'setup', label: 'Setup', description: 'Competition is being configured' },
+  { id: 'assigned', label: 'Host Assigned', description: 'Host has been assigned, awaiting activation' },
+  { id: 'nomination', label: 'Nominations', description: 'Accepting nominations from the public' },
+  { id: 'voting', label: 'Voting', description: 'Public voting is open' },
+  { id: 'judging', label: 'Judging', description: 'Judges are evaluating contestants' },
+  { id: 'completed', label: 'Completed', description: 'Competition has ended' },
+];
 
 
 const WIZARD_STEPS = [
@@ -1818,6 +1830,44 @@ export default function CompetitionsManager({ onViewDashboard }) {
 
             {/* Edit Content */}
             <div style={{ flex: 1, overflow: 'auto', padding: spacing.xl }}>
+              {/* Competition Status */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Competition Status
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.sm }}>
+                  {COMPETITION_STATUSES.map((status) => {
+                    const style = statusStyles[status.id] || statusStyles.setup;
+                    return (
+                      <div
+                        key={status.id}
+                        onClick={() => setEditingTemplate({ ...editingTemplate, status: status.id })}
+                        style={{
+                          padding: spacing.md,
+                          background: editingTemplate.status === status.id ? style.bg : colors.background.secondary,
+                          border: `2px solid ${editingTemplate.status === status.id ? style.color : colors.border.light}`,
+                          borderRadius: borderRadius.lg,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <p style={{
+                          fontSize: typography.fontSize.sm,
+                          fontWeight: typography.fontWeight.semibold,
+                          color: editingTemplate.status === status.id ? style.color : '#fff',
+                          marginBottom: spacing.xs,
+                        }}>
+                          {status.label}
+                        </p>
+                        <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
+                          {status.description}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Organization */}
               <div style={{ marginBottom: spacing.xl }}>
                 <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
