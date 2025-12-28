@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Calendar, Users, Edit2, Trash2, UserPlus, Check, Eye } from 'lucide-react';
+import { MapPin, Calendar, Users, Edit2, Trash2, UserPlus, Eye } from 'lucide-react';
 import { Button, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import { STATUS_STYLES, CATEGORY_TYPES } from '../constants/competitionConfig';
@@ -7,7 +7,6 @@ import { STATUS_STYLES, CATEGORY_TYPES } from '../constants/competitionConfig';
 export default function CompetitionCard({
   template,
   onAssignHost,
-  onActivate,
   onViewDashboard,
   onEdit,
   onDelete,
@@ -141,18 +140,8 @@ export default function CompetitionCard({
             Assign Host
           </Button>
         )}
-        {template.status === 'assigned' && (
-          <Button
-            variant="approve"
-            size="sm"
-            icon={Check}
-            onClick={() => onActivate(template.id)}
-            style={{ flex: 1 }}
-          >
-            Activate
-          </Button>
-        )}
-        {template.status === 'active' && onViewDashboard && (
+        {/* View Dashboard - show for any competition with a host assigned */}
+        {template.status === 'assigned' && onViewDashboard && (
           <Button
             variant="secondary"
             size="sm"

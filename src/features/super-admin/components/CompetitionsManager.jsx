@@ -1479,18 +1479,8 @@ export default function CompetitionsManager({ onViewDashboard }) {
                       Assign Host
                     </Button>
                   )}
-                  {(!template.hasHost || template.assignedHost) && template.status !== 'active' && (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={Check}
-                      onClick={() => handleActivate(template.id)}
-                      style={{ flex: 1 }}
-                    >
-                      Activate
-                    </Button>
-                  )}
-                  {template.status === 'active' && onViewDashboard && (
+                  {/* View Dashboard - show for any competition with a host assigned */}
+                  {template.assignedHost && onViewDashboard && (
                     <Button
                       variant="secondary"
                       size="sm"

@@ -283,9 +283,13 @@ export function useCompetitionManager() {
     return result;
   }, [updateCompetition]);
 
-  // Activate a competition
+  // Activate a competition (mark as published/ready for timeline-based phases)
+  // This does NOT change the phase - the timeline dates control the actual phase
   const activateCompetition = useCallback(async (competitionId) => {
-    await updateCompetition(competitionId, { status: 'active', phase: 'nomination' });
+    // Just mark as 'assigned' (ready) - the computeCompetitionPhase utility
+    // will determine the actual phase based on timeline dates
+    // This ensures the competition is visible but respects the timeline
+    await updateCompetition(competitionId, { status: 'assigned' });
   }, [updateCompetition]);
 
   // Create a new organization in Supabase
@@ -316,11 +320,17 @@ export function useCompetitionManager() {
   }, [fetchOrganizations]);
 
   // Get competitions by status
+  // Note: The actual phase is now computed from timeline dates via computeCompetitionPhase()
+  // These groupings are for admin dashboard organization
   const competitionsByStatus = useMemo(() => {
     return {
-      draft: competitions.filter((t) => t.status === 'draft' || t.status === 'upcoming'),
+      draft: competitions.filter((t) => t.status === 'draft' || t.status === 'upcoming' || t.status === 'setup'),
       assigned: competitions.filter((t) => t.status === 'assigned'),
-      active: competitions.filter((t) => t.status === 'active' || t.status === 'nomination' || t.status === 'voting'),
+      active: competitions.filter((t) => {
+        // Competitions are "active" if they have a host AND have timeline dates set
+        // The actual phase (nomination, voting, etc.) is determined by timeline dates
+        return t.status === 'assigned' && t.nominationStart;
+      }),
       completed: competitions.filter((t) => t.status === 'completed'),
     };
   }, [competitions]);
