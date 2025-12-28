@@ -19,13 +19,13 @@ export default function OverviewPage({
   onViewPublicSite,
   onViewEliteRankCity,
 }) {
-  // Calculate revenue data
+  // Calculate revenue from actual data
   const sponsorshipTotal = sponsors.reduce((sum, s) => sum + s.amount, 0);
   const revenueData = {
-    total: 125500,
+    total: sponsorshipTotal, // Only sponsorships for now, add votes/tickets when implemented
     sponsorships: sponsorshipTotal,
-    paidVotes: 42500,
-    eventTickets: 20000,
+    paidVotes: 0,
+    eventTickets: 0,
   };
 
   // Extract city name from competition name (e.g., "Chicago Most Eligible 2026" -> "Chicago")
