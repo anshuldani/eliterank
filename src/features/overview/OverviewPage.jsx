@@ -11,7 +11,7 @@ import CompetitionOverview from './components/CompetitionOverview';
 import Leaderboard from './components/Leaderboard';
 
 export default function OverviewPage({
-  competitions,
+  hostCompetition,
   contestants,
   sponsors,
   events,
@@ -28,7 +28,8 @@ export default function OverviewPage({
     eventTickets: 20000,
   };
 
-  const currentCompetition = competitions[0];
+  // Extract city name from competition name (e.g., "Chicago Most Eligible 2026" -> "Chicago")
+  const cityName = hostCompetition?.name?.split(' ')[0] || 'Your City';
 
   return (
     <div>
@@ -45,7 +46,7 @@ export default function OverviewPage({
         <HostPayoutCard totalRevenue={revenueData.total} />
         <RankingCard
           competitionRankings={competitionRankings}
-          currentCity="New York"
+          currentCity={cityName}
           currentRevenue={revenueData.total}
         />
       </div>
@@ -66,12 +67,12 @@ export default function OverviewPage({
 
       {/* Competition Overview */}
       <CompetitionOverview
-        competition={currentCompetition}
+        competition={hostCompetition}
         onViewPublicSite={onViewPublicSite}
       />
 
       {/* Leaderboard */}
-      <Leaderboard contestants={contestants} title="New York Top Contestants" />
+      <Leaderboard contestants={contestants} title={`${cityName} Top Contestants`} />
 
       {/* Footer */}
       <div

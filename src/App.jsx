@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 
 // Layout components
 import { MainLayout, PageHeader } from './components/layout';
@@ -26,6 +26,9 @@ import {
 
 // Hooks
 import { useModals, useSupabaseAuth } from './hooks';
+
+// Supabase client
+import { supabase } from './lib/supabase';
 
 // Constants and initial state
 import {
@@ -61,6 +64,37 @@ export default function App() {
     if (profile?.is_host) return 'host';
     return 'fan';
   }, [profile]);
+
+  // Host's assigned competition
+  const [hostCompetition, setHostCompetition] = useState(null);
+
+  // Fetch host's assigned competition from Supabase
+  useEffect(() => {
+    const fetchHostCompetition = async () => {
+      if (!user?.id || userRole !== 'host') {
+        setHostCompetition(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('competitions')
+          .select('*')
+          .eq('host_id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching host competition:', error);
+        }
+
+        setHostCompetition(data || null);
+      } catch (err) {
+        console.error('Error fetching host competition:', err);
+      }
+    };
+
+    fetchHostCompetition();
+  }, [user?.id, userRole]);
 
   // Modal management (custom hook)
   const {
@@ -375,20 +409,21 @@ export default function App() {
       case 'overview':
         return (
           <OverviewPage
-            competitions={INITIAL_COMPETITIONS}
+            hostCompetition={hostCompetition}
             contestants={contestants}
             sponsors={sponsors}
             events={events}
             competitionRankings={COMPETITION_RANKINGS}
             onViewPublicSite={() => {
+              const cityName = hostCompetition?.name?.split(' ')[0] || 'Your City';
               setSelectedCompetition({
-                city: 'New York',
-                season: '2026',
-                phase: 'voting',
+                city: cityName,
+                season: hostCompetition?.season || '2026',
+                phase: hostCompetition?.status || 'voting',
                 host: {
-                  name: `${hostProfile.firstName} ${hostProfile.lastName}`.trim() || 'James Davidson',
+                  name: `${hostProfile.firstName} ${hostProfile.lastName}`.trim() || 'Host',
                   title: 'Competition Host',
-                  bio: hostProfile.bio || 'Your dedicated host for Most Eligible New York.',
+                  bio: hostProfile.bio || `Your dedicated host for ${hostCompetition?.name || 'this competition'}.`,
                   instagram: hostProfile.instagram,
                   twitter: hostProfile.twitter,
                   linkedin: hostProfile.linkedin,
@@ -450,6 +485,7 @@ export default function App() {
             onSave={handleSaveProfile}
             onCancel={handleCancelProfile}
             onChange={handleProfileChange}
+            hostCompetition={hostCompetition}
           />
         );
 
@@ -509,7 +545,11 @@ export default function App() {
           hostProfile={hostProfile}
           onLogout={handleLogout}
         >
-          <PageHeader title={getPageTitle()} />
+          <PageHeader
+            tab={activeTab}
+            competitionName={hostCompetition?.name}
+            showCompetitionLabel={activeTab === 'overview'}
+          />
           {renderDashboardContent()}
         </MainLayout>
 

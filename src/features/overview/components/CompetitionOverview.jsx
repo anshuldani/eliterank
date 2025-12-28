@@ -45,7 +45,7 @@ export default function CompetitionOverview({ competition, onViewPublicSite }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, fontWeight: typography.fontWeight.semibold }}>
               <Crown size={18} style={{ color: colors.gold.primary }} />
-              New York Most Eligible
+              {comp.name || 'Your Competition'}
             </div>
             <Badge variant="success" pill uppercase>
               {comp.status}

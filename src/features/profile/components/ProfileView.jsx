@@ -3,7 +3,7 @@ import { Edit, MapPin, Star, FileText, Heart, Camera, Globe, Trophy } from 'luci
 import { Panel, Button, Badge, InterestTag } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
 
-export default function ProfileView({ hostProfile, onEdit }) {
+export default function ProfileView({ hostProfile, onEdit, hostCompetition }) {
   if (!hostProfile) return null;
 
   const initials = `${(hostProfile.firstName || '?')[0]}${(hostProfile.lastName || '?')[0]}`;
@@ -237,13 +237,15 @@ export default function ProfileView({ hostProfile, onEdit }) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.sm }}>
                   <MapPin size={16} style={{ color: colors.gold.primary }} />
-                  <span style={{ fontWeight: typography.fontWeight.semibold }}>New York Most Eligible</span>
+                  <span style={{ fontWeight: typography.fontWeight.semibold }}>
+                    {hostCompetition?.name || 'No Competition Assigned'}
+                  </span>
                 </div>
                 <p style={{ fontSize: typography.fontSize.base, color: colors.text.secondary, marginBottom: spacing.md }}>
-                  Season 2025 • Voting Phase
+                  {hostCompetition ? `Season ${hostCompetition.season || '2025'} • ${hostCompetition.status || 'Upcoming'}` : 'Contact admin to be assigned'}
                 </p>
-                <Badge variant="success" size="md" pill>
-                  ● ACTIVE
+                <Badge variant={hostCompetition ? 'success' : 'warning'} size="md" pill>
+                  ● {hostCompetition?.status?.toUpperCase() || 'PENDING'}
                 </Badge>
               </div>
             </div>
