@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import NominationForm from './NominationForm';
 
-export default function NominationTab({ city, competitionId, onNominationSubmit, isAuthenticated = false, onLogin, isSetupPhase = false }) {
+export default function NominationTab({ city, competitionId, onNominationSubmit, isAuthenticated = false, onLogin, isSetupPhase = false, userEmail, userInstagram }) {
   const [showForm, setShowForm] = useState(false);
 
   // Handle "Start Your Nomination" click
@@ -24,6 +24,8 @@ export default function NominationTab({ city, competitionId, onNominationSubmit,
           competitionId={competitionId}
           onSubmit={onNominationSubmit}
           onClose={() => setShowForm(false)}
+          userEmail={userEmail}
+          userInstagram={userInstagram}
         />
       </div>
     );

@@ -142,6 +142,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showPublicSite, setShowPublicSite] = useState(false);
   const [selectedCompetition, setSelectedCompetition] = useState({
+    id: null,
     city: 'New York',
     season: '2026',
     phase: 'voting',
@@ -604,6 +605,8 @@ export default function App() {
           competition={hostCompetition}
           isAuthenticated={isAuthenticated}
           onLogin={handleShowLogin}
+          userEmail={user?.email}
+          userInstagram={profile?.instagram}
         />
 
         {/* Modals */}
@@ -655,6 +658,7 @@ export default function App() {
           onOpenCompetition={(competition) => {
             closeEliteRankCity();
             setSelectedCompetition({
+              id: competition.id,
               city: competition.city,
               season: competition.season || '2026',
               phase: competition.phase || 'voting',
@@ -677,6 +681,7 @@ export default function App() {
         isFullPage={true}
         onOpenCompetition={(competition) => {
           setSelectedCompetition({
+            id: competition.id,
             city: competition.city,
             season: competition.season || '2026',
             phase: competition.phase || 'voting',
@@ -710,6 +715,8 @@ export default function App() {
         competition={selectedCompetition}
         isAuthenticated={isAuthenticated}
         onLogin={handleShowLogin}
+        userEmail={user?.email}
+        userInstagram={profile?.instagram}
       />
     </>
   );

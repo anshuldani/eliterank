@@ -48,6 +48,8 @@ export default function PublicSitePage({
   competition = null, // Competition object with timeline data
   isAuthenticated = false, // Whether user is logged in
   onLogin, // Callback to trigger login flow
+  userEmail, // User's email for pre-filling forms
+  userInstagram, // User's instagram for pre-filling forms
 }) {
   // Determine phase categories
   const isSetupPhase = phase === 'setup' || phase === 'assigned';
@@ -270,6 +272,8 @@ export default function PublicSitePage({
             isAuthenticated={isAuthenticated}
             onLogin={onLogin}
             isSetupPhase={isSetupPhase}
+            userEmail={userEmail}
+            userInstagram={userInstagram}
           />
         )}
         {activeTab === 'contestants' && (
