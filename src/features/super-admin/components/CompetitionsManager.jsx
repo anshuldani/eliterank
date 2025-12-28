@@ -1868,6 +1868,149 @@ export default function CompetitionsManager({ onViewDashboard }) {
                 </div>
               </div>
 
+              {/* Competition Timeline */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  Competition Timeline
+                </label>
+                <div style={{
+                  padding: spacing.lg,
+                  background: colors.background.secondary,
+                  borderRadius: borderRadius.xl,
+                  border: `1px solid ${colors.border.light}`,
+                }}>
+                  {/* Nomination Period */}
+                  <div style={{ marginBottom: spacing.lg }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                      <UserPlus size={16} style={{ color: '#d4af37' }} />
+                      <span style={{ fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium, color: '#d4af37' }}>
+                        Nomination Period
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>
+                          Start Date
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editingTemplate.nominationStart ? new Date(editingTemplate.nominationStart).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, nominationStart: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          style={{
+                            width: '100%',
+                            padding: spacing.sm,
+                            background: colors.background.card,
+                            border: `1px solid ${colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            fontSize: typography.fontSize.sm,
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>
+                          End Date
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editingTemplate.nominationEnd ? new Date(editingTemplate.nominationEnd).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, nominationEnd: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          style={{
+                            width: '100%',
+                            padding: spacing.sm,
+                            background: colors.background.card,
+                            border: `1px solid ${colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            fontSize: typography.fontSize.sm,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Voting Period */}
+                  <div style={{ marginBottom: spacing.lg }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                      <Vote size={16} style={{ color: '#8b5cf6' }} />
+                      <span style={{ fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium, color: '#8b5cf6' }}>
+                        Voting Period
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>
+                          Start Date
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editingTemplate.votingStart ? new Date(editingTemplate.votingStart).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, votingStart: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          style={{
+                            width: '100%',
+                            padding: spacing.sm,
+                            background: colors.background.card,
+                            border: `1px solid ${colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            fontSize: typography.fontSize.sm,
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>
+                          End Date
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={editingTemplate.votingEnd ? new Date(editingTemplate.votingEnd).toISOString().slice(0, 16) : ''}
+                          onChange={(e) => setEditingTemplate({ ...editingTemplate, votingEnd: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                          style={{
+                            width: '100%',
+                            padding: spacing.sm,
+                            background: colors.background.card,
+                            border: `1px solid ${colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            fontSize: typography.fontSize.sm,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Finals Date */}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                      <Trophy size={16} style={{ color: '#22c55e' }} />
+                      <span style={{ fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium, color: '#22c55e' }}>
+                        Finals / Award Ceremony
+                      </span>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: typography.fontSize.xs, color: colors.text.muted, marginBottom: spacing.xs }}>
+                        Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={editingTemplate.finalsDate ? new Date(editingTemplate.finalsDate).toISOString().slice(0, 16) : ''}
+                        onChange={(e) => setEditingTemplate({ ...editingTemplate, finalsDate: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                        style={{
+                          width: '100%',
+                          maxWidth: '250px',
+                          padding: spacing.sm,
+                          background: colors.background.card,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.sm,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Organization */}
               <div style={{ marginBottom: spacing.xl }}>
                 <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.sm }}>

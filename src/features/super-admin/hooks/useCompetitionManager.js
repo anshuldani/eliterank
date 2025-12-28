@@ -227,6 +227,12 @@ export function useCompetitionManager() {
       if (updates.maxContestants) dbUpdates.total_contestants = updates.maxContestants;
       if (updates.votePrice) dbUpdates.vote_price = updates.votePrice;
       if (updates.hostPayoutPercentage) dbUpdates.host_payout_percentage = updates.hostPayoutPercentage;
+      // Timeline fields (allow null to clear dates)
+      if (updates.nominationStart !== undefined) dbUpdates.nomination_start = updates.nominationStart || null;
+      if (updates.nominationEnd !== undefined) dbUpdates.nomination_end = updates.nominationEnd || null;
+      if (updates.votingStart !== undefined) dbUpdates.voting_start = updates.votingStart || null;
+      if (updates.votingEnd !== undefined) dbUpdates.voting_end = updates.votingEnd || null;
+      if (updates.finalsDate !== undefined) dbUpdates.finals_date = updates.finalsDate || null;
 
       console.log('Updating competition:', competitionId, 'with:', dbUpdates);
 

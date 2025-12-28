@@ -1,13 +1,15 @@
-import React from 'react';
-import { Award, Building, Calendar, Plus, Edit, Trash2, Check, Info, Link, Image } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Award, Building, Calendar, Plus, Edit, Trash2, Check, Info, Link, Image, Clock, UserPlus, Vote, Trophy, Save, Loader } from 'lucide-react';
 import { Panel, Avatar, Badge, Button } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import { formatCurrency, formatEventDateRange } from '../../utils/formatters';
+import { supabase } from '../../lib/supabase';
 
 export default function SettingsPage({
   judges,
   sponsors,
   events,
+  hostCompetition,
   onAddJudge,
   onEditJudge,
   onDeleteJudge,
@@ -16,7 +18,92 @@ export default function SettingsPage({
   onDeleteSponsor,
   onEditEvent,
   onShowSponsorInfo,
+  onCompetitionUpdate,
 }) {
+  // Timeline editing state
+  const [editingTimeline, setEditingTimeline] = useState(false);
+  const [savingTimeline, setSavingTimeline] = useState(false);
+  const [timelineData, setTimelineData] = useState({
+    nominationStart: '',
+    nominationEnd: '',
+    votingStart: '',
+    votingEnd: '',
+    finalsDate: '',
+  });
+
+  // Initialize timeline data from hostCompetition
+  useEffect(() => {
+    if (hostCompetition) {
+      setTimelineData({
+        nominationStart: hostCompetition.nomination_start || '',
+        nominationEnd: hostCompetition.nomination_end || '',
+        votingStart: hostCompetition.voting_start || '',
+        votingEnd: hostCompetition.voting_end || '',
+        finalsDate: hostCompetition.finals_date || '',
+      });
+    }
+  }, [hostCompetition]);
+
+  // Format date for input
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toISOString().slice(0, 16);
+    } catch {
+      return '';
+    }
+  };
+
+  // Format date for display
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return 'Not set';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch {
+      return 'Invalid date';
+    }
+  };
+
+  // Save timeline changes
+  const handleSaveTimeline = async () => {
+    if (!hostCompetition?.id || !supabase) return;
+
+    setSavingTimeline(true);
+    try {
+      const updates = {
+        nomination_start: timelineData.nominationStart || null,
+        nomination_end: timelineData.nominationEnd || null,
+        voting_start: timelineData.votingStart || null,
+        voting_end: timelineData.votingEnd || null,
+        finals_date: timelineData.finalsDate || null,
+      };
+
+      const { error } = await supabase
+        .from('competitions')
+        .update(updates)
+        .eq('id', hostCompetition.id);
+
+      if (error) throw error;
+
+      setEditingTimeline(false);
+      // Notify parent to refresh competition data
+      if (onCompetitionUpdate) {
+        onCompetitionUpdate();
+      }
+    } catch (err) {
+      console.error('Error saving timeline:', err);
+      alert('Failed to save timeline. Please try again.');
+    } finally {
+      setSavingTimeline(false);
+    }
+  };
   const getTierStyle = (tier) => {
     const tierMap = {
       Platinum: { bg: 'rgba(200,200,200,0.1)', color: colors.tier.platinum },
@@ -30,6 +117,318 @@ export default function SettingsPage({
 
   return (
     <div>
+      {/* Competition Timeline Section */}
+      {hostCompetition && (
+        <Panel
+          title="Competition Timeline"
+          icon={Clock}
+          action={
+            editingTimeline ? (
+              <div style={{ display: 'flex', gap: spacing.md }}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={() => {
+                    setEditingTimeline(false);
+                    // Reset to original data
+                    setTimelineData({
+                      nominationStart: hostCompetition.nomination_start || '',
+                      nominationEnd: hostCompetition.nomination_end || '',
+                      votingStart: hostCompetition.voting_start || '',
+                      votingEnd: hostCompetition.voting_end || '',
+                      finalsDate: hostCompetition.finals_date || '',
+                    });
+                  }}
+                  disabled={savingTimeline}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveTimeline}
+                  icon={savingTimeline ? Loader : Save}
+                  size="md"
+                  disabled={savingTimeline}
+                >
+                  {savingTimeline ? 'Saving...' : 'Save Timeline'}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => setEditingTimeline(true)} icon={Edit} size="md">
+                Edit Timeline
+              </Button>
+            )
+          }
+        >
+          <div style={{ padding: spacing.xl }}>
+            {editingTimeline ? (
+              /* Edit Mode */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xl }}>
+                {/* Nomination Period */}
+                <div style={{
+                  padding: spacing.lg,
+                  background: 'rgba(212,175,55,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(212,175,55,0.2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                    <UserPlus size={18} style={{ color: '#d4af37' }} />
+                    <span style={{ fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, color: '#d4af37' }}>
+                      Nomination Period
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.xs }}>
+                        Start Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formatDateForInput(timelineData.nominationStart)}
+                        onChange={(e) => setTimelineData({ ...timelineData, nominationStart: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                        style={{
+                          width: '100%',
+                          padding: spacing.md,
+                          background: colors.background.secondary,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.md,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.xs }}>
+                        End Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formatDateForInput(timelineData.nominationEnd)}
+                        onChange={(e) => setTimelineData({ ...timelineData, nominationEnd: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                        style={{
+                          width: '100%',
+                          padding: spacing.md,
+                          background: colors.background.secondary,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.md,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Voting Period */}
+                <div style={{
+                  padding: spacing.lg,
+                  background: 'rgba(139,92,246,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(139,92,246,0.2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                    <Vote size={18} style={{ color: '#8b5cf6' }} />
+                    <span style={{ fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, color: '#8b5cf6' }}>
+                      Voting Period
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.lg }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.xs }}>
+                        Start Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formatDateForInput(timelineData.votingStart)}
+                        onChange={(e) => setTimelineData({ ...timelineData, votingStart: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                        style={{
+                          width: '100%',
+                          padding: spacing.md,
+                          background: colors.background.secondary,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.md,
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.xs }}>
+                        End Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        value={formatDateForInput(timelineData.votingEnd)}
+                        onChange={(e) => setTimelineData({ ...timelineData, votingEnd: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                        style={{
+                          width: '100%',
+                          padding: spacing.md,
+                          background: colors.background.secondary,
+                          border: `1px solid ${colors.border.light}`,
+                          borderRadius: borderRadius.md,
+                          color: '#fff',
+                          fontSize: typography.fontSize.md,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Finals Date */}
+                <div style={{
+                  padding: spacing.lg,
+                  background: 'rgba(34,197,94,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(34,197,94,0.2)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+                    <Trophy size={18} style={{ color: '#22c55e' }} />
+                    <span style={{ fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, color: '#22c55e' }}>
+                      Finals / Award Ceremony
+                    </span>
+                  </div>
+                  <div style={{ maxWidth: '300px' }}>
+                    <label style={{ display: 'block', fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.xs }}>
+                      Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formatDateForInput(timelineData.finalsDate)}
+                      onChange={(e) => setTimelineData({ ...timelineData, finalsDate: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                      style={{
+                        width: '100%',
+                        padding: spacing.md,
+                        background: colors.background.secondary,
+                        border: `1px solid ${colors.border.light}`,
+                        borderRadius: borderRadius.md,
+                        color: '#fff',
+                        fontSize: typography.fontSize.md,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* View Mode */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+                {/* Nomination Period */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.lg,
+                  padding: spacing.lg,
+                  background: 'rgba(212,175,55,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(212,175,55,0.1)',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: borderRadius.lg,
+                    background: 'rgba(212,175,55,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <UserPlus size={20} style={{ color: '#d4af37' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: typography.fontSize.sm, color: '#d4af37', fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
+                      Nomination Period
+                    </p>
+                    <p style={{ fontSize: typography.fontSize.md, color: colors.text.primary }}>
+                      {formatDateForDisplay(hostCompetition.nomination_start)}
+                      {' → '}
+                      {formatDateForDisplay(hostCompetition.nomination_end)}
+                    </p>
+                  </div>
+                  {hostCompetition.nomination_start && hostCompetition.nomination_end && (
+                    <Badge variant="warning" size="sm">
+                      {new Date() >= new Date(hostCompetition.nomination_start) && new Date() <= new Date(hostCompetition.nomination_end) ? 'Active' :
+                       new Date() < new Date(hostCompetition.nomination_start) ? 'Upcoming' : 'Ended'}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Voting Period */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.lg,
+                  padding: spacing.lg,
+                  background: 'rgba(139,92,246,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(139,92,246,0.1)',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: borderRadius.lg,
+                    background: 'rgba(139,92,246,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Vote size={20} style={{ color: '#8b5cf6' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: typography.fontSize.sm, color: '#8b5cf6', fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
+                      Voting Period
+                    </p>
+                    <p style={{ fontSize: typography.fontSize.md, color: colors.text.primary }}>
+                      {formatDateForDisplay(hostCompetition.voting_start)}
+                      {' → '}
+                      {formatDateForDisplay(hostCompetition.voting_end)}
+                    </p>
+                  </div>
+                  {hostCompetition.voting_start && hostCompetition.voting_end && (
+                    <Badge variant="info" size="sm">
+                      {new Date() >= new Date(hostCompetition.voting_start) && new Date() <= new Date(hostCompetition.voting_end) ? 'Active' :
+                       new Date() < new Date(hostCompetition.voting_start) ? 'Upcoming' : 'Ended'}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Finals Date */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: spacing.lg,
+                  padding: spacing.lg,
+                  background: 'rgba(34,197,94,0.05)',
+                  borderRadius: borderRadius.lg,
+                  border: '1px solid rgba(34,197,94,0.1)',
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: borderRadius.lg,
+                    background: 'rgba(34,197,94,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Trophy size={20} style={{ color: '#22c55e' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: typography.fontSize.sm, color: '#22c55e', fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
+                      Finals / Award Ceremony
+                    </p>
+                    <p style={{ fontSize: typography.fontSize.md, color: colors.text.primary }}>
+                      {formatDateForDisplay(hostCompetition.finals_date)}
+                    </p>
+                  </div>
+                  {hostCompetition.finals_date && (
+                    <Badge variant="success" size="sm">
+                      {new Date() >= new Date(hostCompetition.finals_date) ? 'Completed' : 'Upcoming'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </Panel>
+      )}
+
       {/* Judges Section */}
       <Panel
         title="Judges"

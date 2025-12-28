@@ -483,6 +483,7 @@ export default function App() {
             judges={judges}
             sponsors={sponsors}
             events={events}
+            hostCompetition={hostCompetition}
             onAddJudge={() => openJudgeModal(null)}
             onEditJudge={openJudgeModal}
             onDeleteJudge={handleDeleteJudge}
@@ -490,6 +491,22 @@ export default function App() {
             onEditSponsor={openSponsorModal}
             onDeleteSponsor={handleDeleteSponsor}
             onEditEvent={openEventModal}
+            onCompetitionUpdate={async () => {
+              // Refresh host competition from Supabase
+              if (!user?.id) return;
+              const { data } = await supabase
+                .from('competitions')
+                .select('*')
+                .eq('host_id', user.id)
+                .single();
+              if (data) {
+                const cityIncludesName = data.city?.toLowerCase().includes('most eligible');
+                const name = cityIncludesName
+                  ? data.city
+                  : `${data.city || 'Unknown'} Most Eligible ${data.season || ''}`.trim();
+                setHostCompetition({ ...data, name });
+              }
+            }}
           />
         );
 
