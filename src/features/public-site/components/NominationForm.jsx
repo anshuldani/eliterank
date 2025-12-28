@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Crown, User, Phone, Mail, Instagram, MapPin, Heart, Users, Check, ChevronRight, Sparkles } from 'lucide-react';
+import { Crown, User, Phone, Mail, Instagram, MapPin, Heart, Users, Check, ChevronRight, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
+import { supabase } from '../../../lib/supabase';
 
-export default function NominationForm({ city, onSubmit, onClose }) {
+export default function NominationForm({ city, competitionId, onSubmit, onClose }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -22,6 +23,7 @@ export default function NominationForm({ city, onSubmit, onClose }) {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -80,11 +82,58 @@ export default function NominationForm({ city, onSubmit, onClose }) {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    if (onSubmit) onSubmit(formData);
+    setSubmitError(null);
+
+    try {
+      if (!competitionId) {
+        throw new Error('Competition ID is required');
+      }
+
+      // Determine nominee data based on nomination type
+      const isSelfNomination = formData.nominationType === 'self';
+      const nomineeName = isSelfNomination ? formData.fullName : formData.nomineeName;
+      const nomineeEmail = isSelfNomination
+        ? (formData.contactMethod === 'email' ? formData.email : formData.nomineeContact)
+        : formData.nomineeContact;
+
+      // Build the nominee record
+      const nomineeData = {
+        competition_id: competitionId,
+        name: nomineeName,
+        email: nomineeEmail.includes('@') ? nomineeEmail : null,
+        age: isSelfNomination ? parseInt(formData.age) : null,
+        city: city,
+        instagram: isSelfNomination ? formData.instagram : null,
+        nominated_by: isSelfNomination ? 'self' : 'third_party',
+        nominator_name: isSelfNomination ? null : formData.fullName,
+        nominator_email: isSelfNomination ? null : (formData.contactMethod === 'email' ? formData.email : null),
+        status: 'pending',
+        profile_complete: isSelfNomination,
+      };
+
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('nominees')
+        .insert(nomineeData)
+        .select()
+        .single();
+
+      if (error) {
+        // Check for duplicate entry
+        if (error.code === '23505') {
+          throw new Error('This person has already been nominated for this competition.');
+        }
+        throw error;
+      }
+
+      setIsSuccess(true);
+      if (onSubmit) onSubmit({ ...formData, nomineeId: data.id });
+    } catch (err) {
+      console.error('Error submitting nomination:', err);
+      setSubmitError(err.message || 'Failed to submit nomination. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const inputStyle = {
@@ -507,6 +556,25 @@ export default function NominationForm({ city, onSubmit, onClose }) {
               By submitting, you confirm that all information provided is accurate and you agree to our terms and conditions.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {submitError && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.sm,
+          padding: spacing.md,
+          background: 'rgba(239,68,68,0.1)',
+          border: `1px solid ${colors.status.error}`,
+          borderRadius: borderRadius.lg,
+          marginTop: spacing.lg,
+        }}>
+          <AlertCircle size={18} style={{ color: colors.status.error, flexShrink: 0 }} />
+          <p style={{ color: colors.status.error, fontSize: typography.fontSize.sm }}>
+            {submitError}
+          </p>
         </div>
       )}
 

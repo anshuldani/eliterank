@@ -30,7 +30,7 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch real data from Supabase
-  const { data, loading, error, refresh } = useCompetitionDashboard(competition?.id);
+  const { data, loading, error, refresh, approveNominee, rejectNominee } = useCompetitionDashboard(competition?.id);
 
   // Header component matching host dashboard style but with purple admin theme
   const renderHeader = () => (
@@ -442,8 +442,8 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
                   {nominee.status}
                 </Badge>
                 <div style={{ display: 'flex', gap: spacing.sm }}>
-                  <Button variant="approve" size="sm">Approve</Button>
-                  <Button variant="reject" size="sm">Reject</Button>
+                  <Button variant="approve" size="sm" onClick={() => approveNominee(nominee)}>Approve</Button>
+                  <Button variant="reject" size="sm" onClick={() => rejectNominee(nominee.id)}>Reject</Button>
                 </div>
               </div>
             ))

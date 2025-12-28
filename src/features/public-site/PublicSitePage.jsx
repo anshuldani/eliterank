@@ -265,6 +265,7 @@ export default function PublicSitePage({
         {activeTab === 'nominate' && (
           <NominationTab
             city={city}
+            competitionId={competition?.id}
             onNominationSubmit={(data) => console.log('Nomination submitted:', data)}
             isAuthenticated={isAuthenticated}
             onLogin={onLogin}

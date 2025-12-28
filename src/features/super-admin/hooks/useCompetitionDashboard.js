@@ -231,11 +231,74 @@ export function useCompetitionDashboard(competitionId) {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
+  // Approve a nominee - updates status and creates a contestant record
+  const approveNominee = useCallback(async (nominee) => {
+    if (!supabase || !competitionId) return { success: false, error: 'Missing configuration' };
+
+    try {
+      // First, update the nominee status to 'approved'
+      const { error: updateError } = await supabase
+        .from('nominees')
+        .update({ status: 'approved' })
+        .eq('id', nominee.id);
+
+      if (updateError) throw updateError;
+
+      // Then, create a contestant record from the nominee data
+      const contestantData = {
+        competition_id: competitionId,
+        name: nominee.name,
+        email: nominee.email,
+        age: nominee.age,
+        occupation: nominee.occupation,
+        bio: nominee.bio,
+        status: 'active',
+        votes: 0,
+      };
+
+      const { error: insertError } = await supabase
+        .from('contestants')
+        .insert(contestantData);
+
+      if (insertError) throw insertError;
+
+      // Refresh data to show updated lists
+      await fetchDashboardData();
+      return { success: true };
+    } catch (err) {
+      console.error('Error approving nominee:', err);
+      return { success: false, error: err.message };
+    }
+  }, [competitionId, fetchDashboardData]);
+
+  // Reject a nominee - updates status to 'rejected'
+  const rejectNominee = useCallback(async (nomineeId) => {
+    if (!supabase || !competitionId) return { success: false, error: 'Missing configuration' };
+
+    try {
+      const { error: updateError } = await supabase
+        .from('nominees')
+        .update({ status: 'rejected' })
+        .eq('id', nomineeId);
+
+      if (updateError) throw updateError;
+
+      // Refresh data to show updated list
+      await fetchDashboardData();
+      return { success: true };
+    } catch (err) {
+      console.error('Error rejecting nominee:', err);
+      return { success: false, error: err.message };
+    }
+  }, [competitionId, fetchDashboardData]);
+
   return {
     data,
     loading,
     error,
     refresh,
+    approveNominee,
+    rejectNominee,
   };
 }
 
