@@ -1,47 +1,31 @@
 import { put } from '@vercel/blob';
 
+export default async function handler(request, response) {
+  if (request.method !== 'POST') {
+    return response.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const filename = request.query.filename;
+
+    if (!filename) {
+      return response.status(400).json({ error: 'Filename is required' });
+    }
+
+    // Upload to Vercel Blob
+    const blob = await put(filename, request, {
+      access: 'public',
+    });
+
+    return response.status(200).json(blob);
+  } catch (error) {
+    console.error('Upload error:', error);
+    return response.status(500).json({ error: error.message });
+  }
+}
+
 export const config = {
   api: {
     bodyParser: false,
   },
 };
-
-export default async function handler(request) {
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
-
-  try {
-    const formData = await request.formData();
-    const file = formData.get('file');
-    const folder = formData.get('folder') || 'uploads';
-
-    if (!file) {
-      return new Response(JSON.stringify({ error: 'No file provided' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Generate unique filename
-    const timestamp = Date.now();
-    const ext = file.name.split('.').pop();
-    const filename = `${folder}/${timestamp}.${ext}`;
-
-    // Upload to Vercel Blob
-    const blob = await put(filename, file, {
-      access: 'public',
-    });
-
-    return new Response(JSON.stringify({ url: blob.url }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}

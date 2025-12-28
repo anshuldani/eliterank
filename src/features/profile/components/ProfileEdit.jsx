@@ -26,13 +26,14 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
     if (!file) return null;
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', folder);
+      // Generate unique filename with folder prefix
+      const timestamp = Date.now();
+      const ext = file.name.split('.').pop();
+      const filename = `${folder}/${timestamp}.${ext}`;
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
         method: 'POST',
-        body: formData,
+        body: file,
       });
 
       const data = await response.json();
