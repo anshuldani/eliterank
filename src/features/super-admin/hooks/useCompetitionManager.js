@@ -163,8 +163,7 @@ export function useCompetitionManager() {
         organization_id: templateData.organization?.id || null,
         city: templateData.city,
         season: templateData.season || new Date().getFullYear(),
-        status: 'upcoming',
-        phase: 'setup',
+        status: 'draft', // New competitions start as draft
         total_contestants: templateData.maxContestants || 30,
         vote_price: templateData.votePrice || 1.00,
         host_payout_percentage: templateData.hostPayoutPercentage || 20,
@@ -320,18 +319,14 @@ export function useCompetitionManager() {
   }, [fetchOrganizations]);
 
   // Get competitions by status
-  // Note: The actual phase is now computed from timeline dates via computeCompetitionPhase()
-  // These groupings are for admin dashboard organization
+  // Status values: draft, publish, active, complete, archive
   const competitionsByStatus = useMemo(() => {
     return {
-      draft: competitions.filter((t) => t.status === 'draft' || t.status === 'upcoming' || t.status === 'setup'),
-      assigned: competitions.filter((t) => t.status === 'assigned'),
-      active: competitions.filter((t) => {
-        // Competitions are "active" if they have a host AND have timeline dates set
-        // The actual phase (nomination, voting, etc.) is determined by timeline dates
-        return t.status === 'assigned' && t.nominationStart;
-      }),
-      completed: competitions.filter((t) => t.status === 'completed'),
+      draft: competitions.filter((t) => t.status === 'draft'),
+      publish: competitions.filter((t) => t.status === 'publish'),
+      active: competitions.filter((t) => t.status === 'active'),
+      complete: competitions.filter((t) => t.status === 'complete'),
+      archive: competitions.filter((t) => t.status === 'archive'),
     };
   }, [competitions]);
 
@@ -340,9 +335,10 @@ export function useCompetitionManager() {
     return {
       total: competitions.length,
       draft: competitionsByStatus.draft.length,
-      assigned: competitionsByStatus.assigned.length,
+      publish: competitionsByStatus.publish.length,
       active: competitionsByStatus.active.length,
-      completed: competitionsByStatus.completed.length,
+      complete: competitionsByStatus.complete.length,
+      archive: competitionsByStatus.archive.length,
     };
   }, [competitions, competitionsByStatus]);
 
