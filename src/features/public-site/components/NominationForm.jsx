@@ -266,10 +266,8 @@ export default function NominationForm({ city, competitionId, onSubmit, onClose,
         <p style={{
           fontSize: typography.fontSize.lg,
           color: colors.text.secondary,
-          marginBottom: spacing.xl,
           maxWidth: '400px',
-          margin: '0 auto',
-          marginBottom: spacing.xl,
+          margin: `0 auto ${spacing.xl}`,
           lineHeight: 1.6,
         }}>
           Your nomination has been recorded.

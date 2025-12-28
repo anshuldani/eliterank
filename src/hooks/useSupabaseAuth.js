@@ -41,20 +41,21 @@ export default function useSupabaseAuth() {
     setProfileLoading(true);
 
     try {
+      // Use maybeSingle() to avoid 406 errors when no profile exists
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
         .abortSignal(controller.signal);
 
       if (fetchError) {
-        // If profile doesn't exist, that's okay - user might be new
-        if (fetchError.code === 'PGRST116') {
-          console.log('Auth: No profile found for user, may need to create one');
-          return null;
-        }
         throw fetchError;
+      }
+
+      // maybeSingle returns null if no row found - that's okay
+      if (!data) {
+        console.log('Auth: No profile found for user, may need to create one');
       }
 
       return data;

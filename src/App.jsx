@@ -72,34 +72,37 @@ export default function App() {
   // Fetches for anyone who can access the host dashboard (hosts and super_admins)
   useEffect(() => {
     const fetchHostCompetition = async () => {
-      if (!user?.id) {
+      if (!user?.id || !supabase) {
         setHostCompetition(null);
         return;
       }
 
       try {
+        // Use .limit(1) instead of .single() to avoid 406 errors
         const { data, error } = await supabase
           .from('competitions')
           .select('*')
           .eq('host_id', user.id)
-          .single();
+          .limit(1);
 
-        if (error && error.code !== 'PGRST116') {
-          // PGRST116 = no rows returned, which is fine
+        if (error) {
           console.error('Error fetching host competition:', error);
+          setHostCompetition(null);
+          return;
         }
 
-        if (data) {
+        const competition = data?.[0];
+        if (competition) {
           // Transform raw data to include computed name
           // If city already includes "Most Eligible", use it as-is
           // Otherwise build the full name
-          const cityIncludesName = data.city?.toLowerCase().includes('most eligible');
+          const cityIncludesName = competition.city?.toLowerCase().includes('most eligible');
           const name = cityIncludesName
-            ? data.city
-            : `${data.city || 'Unknown'} Most Eligible ${data.season || ''}`.trim();
+            ? competition.city
+            : `${competition.city || 'Unknown'} Most Eligible ${competition.season || ''}`.trim();
 
           setHostCompetition({
-            ...data,
+            ...competition,
             name,
           });
         } else {
@@ -107,6 +110,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('Error fetching host competition:', err);
+        setHostCompetition(null);
       }
     };
 
