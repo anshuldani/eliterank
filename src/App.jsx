@@ -121,6 +121,9 @@ export default function App() {
         linkedin: profile.linkedin || '',
         tiktok: profile.tiktok || '',
         hobbies: profile.hobbies || [],
+        avatarUrl: profile.avatar_url || '',
+        coverImage: profile.cover_image || '',
+        gallery: profile.gallery || [],
       };
     }
     return DEFAULT_HOST_PROFILE;
@@ -306,6 +309,9 @@ export default function App() {
       linkedin: editingProfileData.linkedin,
       tiktok: editingProfileData.tiktok,
       hobbies: editingProfileData.hobbies,
+      avatar_url: editingProfileData.avatarUrl,
+      cover_image: editingProfileData.coverImage,
+      gallery: editingProfileData.gallery,
     };
     Object.keys(dbUpdates).forEach(key => {
       if (dbUpdates[key] === undefined) delete dbUpdates[key];
