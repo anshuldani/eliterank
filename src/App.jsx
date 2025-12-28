@@ -69,9 +69,10 @@ export default function App() {
   const [hostCompetition, setHostCompetition] = useState(null);
 
   // Fetch host's assigned competition from Supabase
+  // Fetches for anyone who can access the host dashboard (hosts and super_admins)
   useEffect(() => {
     const fetchHostCompetition = async () => {
-      if (!user?.id || userRole !== 'host') {
+      if (!user?.id) {
         setHostCompetition(null);
         return;
       }
@@ -84,17 +85,33 @@ export default function App() {
           .single();
 
         if (error && error.code !== 'PGRST116') {
+          // PGRST116 = no rows returned, which is fine
           console.error('Error fetching host competition:', error);
         }
 
-        setHostCompetition(data || null);
+        if (data) {
+          // Transform raw data to include computed name
+          // If city already includes "Most Eligible", use it as-is
+          // Otherwise build the full name
+          const cityIncludesName = data.city?.toLowerCase().includes('most eligible');
+          const name = cityIncludesName
+            ? data.city
+            : `${data.city || 'Unknown'} Most Eligible ${data.season || ''}`.trim();
+
+          setHostCompetition({
+            ...data,
+            name,
+          });
+        } else {
+          setHostCompetition(null);
+        }
       } catch (err) {
         console.error('Error fetching host competition:', err);
       }
     };
 
     fetchHostCompetition();
-  }, [user?.id, userRole]);
+  }, [user?.id]);
 
   // Modal management (custom hook)
   const {
