@@ -51,10 +51,12 @@ export default function EliteRankCityModal({
             city: comp.city,
             season: comp.season || new Date().getFullYear(),
             status: comp.status || 'upcoming',
-            phase: comp.phase || 'setup',
+            // Use status as the phase for PublicSitePage consistency
+            phase: comp.status || 'setup',
             contestants: 0,
             votes: 0,
-            available: ['active', 'nomination', 'voting', 'assigned'].includes(comp.status),
+            // Allow viewing competitions that are in nomination, voting, judging, or completed phases
+            available: ['active', 'nomination', 'voting', 'judging', 'completed', 'assigned'].includes(comp.status),
             organizationId: comp.organization_id,
             host: comp.host_id ? { id: comp.host_id } : null,
           })));
