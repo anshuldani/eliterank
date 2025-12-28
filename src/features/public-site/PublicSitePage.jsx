@@ -37,7 +37,7 @@ export default function PublicSitePage({
   onClose,
   city = 'New York',
   season = '2026',
-  phase = 'voting', // 'setup', 'assigned', 'nomination', 'voting', 'judging', or 'completed'
+  phase = 'voting', // Timeline phase: 'nomination', 'voting', 'judging', 'completed' or status: 'draft', 'publish', 'complete'
   contestants,
   events,
   announcements,
@@ -69,10 +69,11 @@ export default function PublicSitePage({
     );
   }
 
-  // Determine phase categories
-  const isSetupPhase = phase === 'setup' || phase === 'assigned';
+  // Determine phase categories based on computed phase from timeline
+  // 'draft' status shouldn't reach here (not accessible), but handle gracefully
+  const isDraftPhase = phase === 'draft';
   const isNominationPhase = phase === 'nomination';
-  const isVotingPhase = phase === 'voting' || phase === 'active';
+  const isVotingPhase = phase === 'voting';
   const isJudgingPhase = phase === 'judging';
   const isCompletedPhase = phase === 'completed' || phase === 'complete';
 
@@ -83,8 +84,8 @@ export default function PublicSitePage({
   if (isCompletedPhase) {
     TABS = COMPLETED_TABS;
     defaultTab = 'winners';
-  } else if (isNominationPhase || isSetupPhase) {
-    // Show nomination tabs for setup/assigned phases (coming soon state)
+  } else if (isNominationPhase || isDraftPhase) {
+    // Show nomination tabs for nomination phase
     TABS = NOMINATION_TABS;
     defaultTab = 'nominate';
   } else {
@@ -100,9 +101,9 @@ export default function PublicSitePage({
   useEffect(() => {
     // Determine correct default tab based on phase
     let newDefaultTab;
-    if (phase === 'completed') {
+    if (phase === 'completed' || phase === 'complete') {
       newDefaultTab = 'winners';
-    } else if (phase === 'nomination' || phase === 'setup' || phase === 'assigned') {
+    } else if (phase === 'nomination' || phase === 'draft') {
       newDefaultTab = 'nominate';
     } else {
       newDefaultTab = 'contestants';
@@ -239,13 +240,13 @@ export default function PublicSitePage({
               <Badge variant="info" size="md" pill>
                 <Award size={12} /> JUDGING IN PROGRESS
               </Badge>
-            ) : isSetupPhase ? (
-              <Badge variant="warning" size="md" pill>
-                <Clock size={12} /> COMING SOON
-              </Badge>
             ) : isNominationPhase ? (
               <Badge variant="warning" size="md" pill>
                 <Sparkles size={12} /> NOMINATIONS OPEN
+              </Badge>
+            ) : isVotingPhase ? (
+              <Badge variant="success" size="md" pill>
+                ● VOTING LIVE
               </Badge>
             ) : (
               <Badge variant="success" size="md" pill>
@@ -286,10 +287,9 @@ export default function PublicSitePage({
           <NominationTab
             city={city}
             competitionId={competition?.id}
-            onNominationSubmit={(data) => console.log('Nomination submitted:', data)}
+            onNominationSubmit={onClose}
             isAuthenticated={isAuthenticated}
             onLogin={onLogin}
-            isSetupPhase={isSetupPhase}
             userEmail={userEmail}
             userInstagram={userInstagram}
           />

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Crown, Sparkles, Users, Calendar, Trophy, ChevronRight, Star, LogIn, Clock } from 'lucide-react';
+import { Crown, Sparkles, Users, Calendar, Trophy, ChevronRight, Star, LogIn } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import NominationForm from './NominationForm';
 
-export default function NominationTab({ city, competitionId, onNominationSubmit, isAuthenticated = false, onLogin, isSetupPhase = false, userEmail, userInstagram }) {
+export default function NominationTab({ city, competitionId, onNominationSubmit, isAuthenticated = false, onLogin, userEmail, userInstagram }) {
   const [showForm, setShowForm] = useState(false);
 
   // Handle "Start Your Nomination" click
@@ -46,26 +46,15 @@ export default function NominationTab({ city, competitionId, onNominationSubmit,
           alignItems: 'center',
           gap: spacing.sm,
           padding: `${spacing.sm} ${spacing.lg}`,
-          background: isSetupPhase ? 'rgba(251,191,36,0.2)' : 'rgba(212,175,55,0.2)',
-          border: `1px solid ${isSetupPhase ? colors.status.warning : colors.gold.primary}`,
+          background: 'rgba(212,175,55,0.2)',
+          border: `1px solid ${colors.gold.primary}`,
           borderRadius: borderRadius.pill,
           marginBottom: spacing.xl,
         }}>
-          {isSetupPhase ? (
-            <>
-              <Clock size={16} style={{ color: colors.status.warning }} />
-              <span style={{ fontSize: typography.fontSize.sm, color: colors.status.warning, fontWeight: typography.fontWeight.semibold }}>
-                COMING SOON
-              </span>
-            </>
-          ) : (
-            <>
-              <Sparkles size={16} style={{ color: colors.gold.primary }} />
-              <span style={{ fontSize: typography.fontSize.sm, color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>
-                NOMINATIONS NOW OPEN
-              </span>
-            </>
-          )}
+          <Sparkles size={16} style={{ color: colors.gold.primary }} />
+          <span style={{ fontSize: typography.fontSize.sm, color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>
+            NOMINATIONS NOW OPEN
+          </span>
         </div>
 
         <h1 style={{
@@ -87,29 +76,10 @@ export default function NominationTab({ city, competitionId, onNominationSubmit,
           marginBottom: spacing.xxl,
           lineHeight: 1.6,
         }}>
-          {isSetupPhase ? (
-            <>Nominations will open soon! Stay tuned to nominate yourself or someone you know to compete for the title of Most Eligible in {city}.</>
-          ) : (
-            <>Nominate yourself or someone you know to compete for the title of Most Eligible in {city}. Join an exclusive community of ambitious professionals.</>
-          )}
+          Nominate yourself or someone you know to compete for the title of Most Eligible in {city}. Join an exclusive community of ambitious professionals.
         </p>
 
-        {isSetupPhase ? (
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: spacing.sm,
-            padding: `${spacing.lg} ${spacing.xxxl}`,
-            background: 'rgba(255,255,255,0.05)',
-            border: `1px solid ${colors.border.light}`,
-            borderRadius: borderRadius.lg,
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.lg,
-          }}>
-            <Clock size={20} />
-            Check back soon for nomination details
-          </div>
-        ) : !isAuthenticated ? (
+        {!isAuthenticated ? (
           <Button
             size="lg"
             onClick={handleStartNomination}
@@ -395,44 +365,42 @@ export default function NominationTab({ city, competitionId, onNominationSubmit,
       </div>
 
       {/* CTA */}
-      {!isSetupPhase && (
-        <div style={{ textAlign: 'center', padding: spacing.xl }}>
-          {!isAuthenticated ? (
-            <Button
-              size="lg"
-              onClick={handleStartNomination}
-              style={{
-                padding: `${spacing.lg} ${spacing.xxxl}`,
-                fontSize: typography.fontSize.lg,
-              }}
-            >
-              <LogIn size={20} />
-              Sign In to Nominate
-              <ChevronRight size={20} />
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              onClick={handleStartNomination}
-              style={{
-                padding: `${spacing.lg} ${spacing.xxxl}`,
-                fontSize: typography.fontSize.lg,
-              }}
-            >
-              <Crown size={20} />
-              Nominate Now
-              <ChevronRight size={20} />
-            </Button>
-          )}
-          <p style={{
-            fontSize: typography.fontSize.sm,
-            color: colors.text.muted,
-            marginTop: spacing.md,
-          }}>
-            Don't miss your chance to compete!
-          </p>
-        </div>
-      )}
+      <div style={{ textAlign: 'center', padding: spacing.xl }}>
+        {!isAuthenticated ? (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <LogIn size={20} />
+            Sign In to Nominate
+            <ChevronRight size={20} />
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <Crown size={20} />
+            Nominate Now
+            <ChevronRight size={20} />
+          </Button>
+        )}
+        <p style={{
+          fontSize: typography.fontSize.sm,
+          color: colors.text.muted,
+          marginTop: spacing.md,
+        }}>
+          Don't miss your chance to compete!
+        </p>
+      </div>
     </div>
   );
 }

@@ -499,17 +499,22 @@ export default function App() {
             onCompetitionUpdate={async () => {
               // Refresh host competition from Supabase
               if (!user?.id) return;
-              const { data } = await supabase
+              const { data, error } = await supabase
                 .from('competitions')
                 .select('*')
                 .eq('host_id', user.id)
-                .single();
-              if (data) {
-                const cityIncludesName = data.city?.toLowerCase().includes('most eligible');
+                .limit(1);
+              if (error) {
+                console.error('Error refreshing host competition:', error.message);
+                return;
+              }
+              const competition = data?.[0];
+              if (competition) {
+                const cityIncludesName = competition.city?.toLowerCase().includes('most eligible');
                 const name = cityIncludesName
-                  ? data.city
-                  : `${data.city || 'Unknown'} Most Eligible ${data.season || ''}`.trim();
-                setHostCompetition({ ...data, name });
+                  ? competition.city
+                  : `${competition.city || 'Unknown'} Most Eligible ${competition.season || ''}`.trim();
+                setHostCompetition({ ...competition, name });
               }
             }}
           />

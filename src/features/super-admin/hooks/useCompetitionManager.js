@@ -118,22 +118,19 @@ export function useCompetitionManager() {
     let isMounted = true;
 
     const loadData = async () => {
-      console.log('CompetitionManager: Starting data load...');
       setLoading(true);
 
       // Failsafe timeout - ensure loading completes even if something hangs
       const timeout = setTimeout(() => {
         if (isMounted) {
-          console.warn('CompetitionManager: Load timeout - forcing loading to false');
           setLoading(false);
         }
       }, 10000); // 10 second timeout
 
       try {
         await Promise.all([fetchCompetitions(), fetchOrganizations()]);
-        console.log('CompetitionManager: Data load complete');
       } catch (err) {
-        console.error('CompetitionManager: Error loading data:', err);
+        console.error('Error loading competition data:', err.message);
       } finally {
         clearTimeout(timeout);
         if (isMounted) {
@@ -233,20 +230,14 @@ export function useCompetitionManager() {
       if (updates.votingEnd !== undefined) dbUpdates.voting_end = updates.votingEnd || null;
       if (updates.finalsDate !== undefined) dbUpdates.finals_date = updates.finalsDate || null;
 
-      console.log('Updating competition:', competitionId, 'with:', dbUpdates);
-
       const { data, error } = await supabase
         .from('competitions')
         .update(dbUpdates)
         .eq('id', competitionId)
         .select();
 
-      if (error) {
-        console.error('Supabase update error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Update result:', data);
       await fetchCompetitions();
       return { success: true, data };
     } catch (err) {
@@ -275,20 +266,15 @@ export function useCompetitionManager() {
     }
   }, [fetchCompetitions]);
 
-  // Assign a host to a competition
+  // Assign a host to a competition (does not change status)
   const assignHost = useCallback(async (competitionId, hostId) => {
-    console.log('Assigning host:', hostId, 'to competition:', competitionId);
-    const result = await updateCompetition(competitionId, { hostId, status: 'assigned' });
+    const result = await updateCompetition(competitionId, { hostId });
     return result;
   }, [updateCompetition]);
 
-  // Activate a competition (mark as published/ready for timeline-based phases)
-  // This does NOT change the phase - the timeline dates control the actual phase
+  // Activate a competition - sets status to 'active' so timeline dates take effect
   const activateCompetition = useCallback(async (competitionId) => {
-    // Just mark as 'assigned' (ready) - the computeCompetitionPhase utility
-    // will determine the actual phase based on timeline dates
-    // This ensures the competition is visible but respects the timeline
-    await updateCompetition(competitionId, { status: 'assigned' });
+    await updateCompetition(competitionId, { status: 'active' });
   }, [updateCompetition]);
 
   // Create a new organization in Supabase

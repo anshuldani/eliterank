@@ -135,6 +135,10 @@ export default function NominationForm({ city, competitionId, onSubmit, onClose,
         throw error;
       }
 
+      if (!data) {
+        throw new Error('Failed to create nomination. Please try again.');
+      }
+
       setNomineeId(data.id);
       setIsSuccess(true);
       if (onSubmit) onSubmit({ ...formData, nomineeId: data.id });

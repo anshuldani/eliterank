@@ -93,7 +93,7 @@ export function useCompetitionDashboard(competitionId) {
           .from('competitions')
           .select('total_revenue, total_votes')
           .eq('id', competitionId)
-          .single(),
+          .maybeSingle(),
       ]);
 
       // Check for errors
