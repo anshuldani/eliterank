@@ -21,10 +21,13 @@ export default function CompetitionOverview({ competition, onViewPublicSite }) {
     padding: spacing.xl,
   };
 
+  // Handle empty/undefined competition
+  const comp = competition || { contestants: 0, votes: 0, status: 'upcoming' };
+
   const stats = [
-    { label: 'Contestants', value: competition.contestants },
-    { label: 'Total Votes', value: formatNumber(competition.votes) },
-    { label: 'Nominations', value: 156 }, // Hardcoded for demo
+    { label: 'Contestants', value: comp.contestants || 0 },
+    { label: 'Total Votes', value: formatNumber(comp.votes || 0) },
+    { label: 'Nominations', value: 0 },
   ];
 
   return (
@@ -45,7 +48,7 @@ export default function CompetitionOverview({ competition, onViewPublicSite }) {
               New York Most Eligible
             </div>
             <Badge variant="success" pill uppercase>
-              {competition.status}
+              {comp.status}
             </Badge>
           </div>
 
