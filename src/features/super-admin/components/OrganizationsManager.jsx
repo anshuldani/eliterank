@@ -41,13 +41,10 @@ export default function OrganizationsManager() {
 
     setLoading(true);
     try {
-      // Fetch organizations with their competition counts
+      // Simple query without relational count (avoids FK issues)
       const { data, error } = await supabase
         .from('organizations')
-        .select(`
-          *,
-          competitions:competitions(count)
-        `)
+        .select('*')
         .order('name');
 
       if (error) throw error;
@@ -55,7 +52,7 @@ export default function OrganizationsManager() {
       setOrganizations(data || []);
     } catch (err) {
       console.error('Error fetching organizations:', err);
-      toast.error('Failed to load organizations');
+      toast.error(`Failed to load organizations: ${err.message}`);
     } finally {
       setLoading(false);
     }

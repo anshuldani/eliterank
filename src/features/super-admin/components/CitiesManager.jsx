@@ -37,12 +37,10 @@ export default function CitiesManager() {
 
     setLoading(true);
     try {
+      // Simple query without relational count (avoids FK issues)
       const { data, error } = await supabase
         .from('cities')
-        .select(`
-          *,
-          competitions:competitions(count)
-        `)
+        .select('*')
         .order('name');
 
       if (error) throw error;
@@ -50,7 +48,7 @@ export default function CitiesManager() {
       setCities(data || []);
     } catch (err) {
       console.error('Error fetching cities:', err);
-      toast.error('Failed to load cities');
+      toast.error(`Failed to load cities: ${err.message}`);
     } finally {
       setLoading(false);
     }

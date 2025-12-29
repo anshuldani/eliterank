@@ -66,43 +66,46 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
 
     setLoading(true);
     try {
-      // Fetch all data in parallel
-      const [competitionsRes, orgsRes, citiesRes, hostsRes] = await Promise.all([
-        supabase
-          .from('competitions')
-          .select(`
-            *,
-            organization:organizations(*),
-            city:cities(*),
-            host:profiles!competitions_host_id_fkey(id, email, first_name, last_name),
-            settings:competition_settings(*)
-          `)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('organizations')
-          .select('*')
-          .order('name'),
-        supabase
-          .from('cities')
-          .select('*')
-          .order('name'),
-        supabase
-          .from('profiles')
-          .select('id, email, first_name, last_name')
-          .eq('is_host', true),
-      ]);
+      // Fetch data separately for better error handling
+      // Organizations
+      const { data: orgsData, error: orgsError } = await supabase
+        .from('organizations')
+        .select('*')
+        .order('name');
 
-      if (competitionsRes.error) throw competitionsRes.error;
-      if (orgsRes.error) throw orgsRes.error;
-      if (citiesRes.error) throw citiesRes.error;
+      if (!orgsError) setOrganizations(orgsData || []);
 
-      setCompetitions(competitionsRes.data || []);
-      setOrganizations(orgsRes.data || []);
-      setCities(citiesRes.data || []);
-      setHosts(hostsRes.data || []);
+      // Cities
+      const { data: citiesData, error: citiesError } = await supabase
+        .from('cities')
+        .select('*')
+        .order('name');
+
+      if (!citiesError) setCities(citiesData || []);
+
+      // Hosts
+      const { data: hostsData } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .eq('is_host', true);
+
+      setHosts(hostsData || []);
+
+      // Competitions - simple query first
+      const { data: compsData, error: compsError } = await supabase
+        .from('competitions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!compsError) {
+        setCompetitions(compsData || []);
+      } else {
+        console.warn('Error fetching competitions:', compsError);
+        setCompetitions([]);
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
-      toast.error('Failed to load data');
+      toast.error(`Failed to load data: ${err.message}`);
     } finally {
       setLoading(false);
     }
