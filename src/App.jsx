@@ -450,7 +450,16 @@ export default function App() {
       if (dbUpdates[key] === undefined) delete dbUpdates[key];
     });
 
-    await updateProfile(dbUpdates);
+    console.log('[App] Saving profile:', dbUpdates);
+    const result = await updateProfile(dbUpdates);
+
+    if (result?.error) {
+      console.error('[App] Profile save error:', result.error);
+      alert(`Failed to save profile: ${result.error}. Please try again.`);
+      return;
+    }
+
+    console.log('[App] Profile saved successfully');
     setIsEditingProfile(false);
     setEditingProfileData(null);
   }, [editingProfileData, updateProfile]);
@@ -489,6 +498,14 @@ export default function App() {
   // Navigate to user profile (for non-host authenticated users)
   const handleShowProfile = useCallback(() => {
     setShowUserProfile(true);
+    setShowPublicSite(false); // Close public site if open
+  }, []);
+
+  // Close user profile modal
+  const handleCloseProfile = useCallback(() => {
+    setShowUserProfile(false);
+    setIsEditingProfile(false);
+    setEditingProfileData(null);
   }, []);
 
   // Navigate back to public
@@ -788,6 +805,8 @@ export default function App() {
         onClose={() => {}} // Can't close - it's the main view
         isFullPage={true}
         onOpenCompetition={(competition) => {
+          // Close profile modal if open
+          setShowUserProfile(false);
           setSelectedCompetition({
             id: competition.id,
             city: competition.city,
@@ -860,7 +879,7 @@ export default function App() {
           >
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
               <button
-                onClick={() => setShowUserProfile(false)}
+                onClick={handleCloseProfile}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
