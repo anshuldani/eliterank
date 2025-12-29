@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Crown, Users, Calendar, Sparkles, Award, UserPlus, Trophy, Clock } from 'lucide-react';
-import { Button, Badge } from '../../components/ui';
+import { Button, Badge, OrganizationLogo } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
 import ContestantsTab from './components/ContestantsTab';
 import EventsTab from './components/EventsTab';
@@ -52,6 +52,9 @@ export default function PublicSitePage({
   userEmail, // User's email for pre-filling forms
   userInstagram, // User's instagram for pre-filling forms
   user, // Full user object for forms
+  canEditEvents = false, // Whether user can edit events (host/superadmin)
+  onEditEvent, // Callback to edit an event
+  onAddEvent, // Callback to add a new event
 }) {
   // Check if this is a teaser page (publish status)
   const isTeaser = competition?.isTeaser === true || competition?.status === 'publish';
@@ -163,19 +166,11 @@ export default function PublicSitePage({
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  background: 'linear-gradient(135deg, #d4af37, #f4d03f)',
-                  borderRadius: borderRadius.md,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Crown size={22} style={{ color: '#0a0a0f' }} />
-              </div>
+              <OrganizationLogo
+                logo={competition?.organization?.logo_url}
+                size={40}
+                style={{ borderRadius: borderRadius.md }}
+              />
               <div>
                 <p style={{ fontSize: typography.fontSize.xs, color: colors.gold.primary, fontWeight: typography.fontWeight.semibold, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Most Eligible
@@ -306,7 +301,17 @@ export default function PublicSitePage({
             isJudgingPhase={isJudgingPhase}
           />
         )}
-        {activeTab === 'events' && <EventsTab events={events} city={city} season={season} phase={phase} />}
+        {activeTab === 'events' && (
+          <EventsTab
+            events={events}
+            city={city}
+            season={season}
+            phase={phase}
+            canEdit={canEditEvents}
+            onEditEvent={onEditEvent}
+            onAddEvent={onAddEvent}
+          />
+        )}
         {activeTab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
         {activeTab === 'about' && (
           <AboutTab

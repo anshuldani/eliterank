@@ -1,87 +1,43 @@
 import React from 'react';
-import { MapPin, Users, Calendar, Clock, Sparkles } from 'lucide-react';
+import { MapPin, Users, Calendar, Clock, Sparkles, Edit2, Plus } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
+import { formatEventDateRange } from '../../../utils/formatters';
 
-// City-specific events data
-const CITY_EVENTS = {
-  'New York': [
-    {
-      id: 1,
-      featured: true,
-      name: 'New York Most Eligible Finals Gala',
-      date: 'FEB 20, 2025',
-      time: '7:00 PM',
-      venue: 'The Plaza Hotel, NYC',
-      capacity: '500 Guests',
-      description: 'Join us for an unforgettable evening as we crown New York\'s Most Eligible. Red carpet, live entertainment, and the final reveal.',
-      price: '$150',
-    },
-    {
-      id: 2,
-      name: 'Double Vote Day Mixer',
-      date: 'FEB 10, 2025',
-      time: '6:00 PM',
-      venue: 'Soho House NYC',
-      description: 'Meet the contestants in person during our special double vote day event.',
-      price: 'Free',
-    },
-    {
-      id: 3,
-      name: 'Semi-Finals Watch Party',
-      date: 'FEB 15, 2025',
-      time: '8:00 PM',
-      venue: '1 Oak NYC',
-      description: 'Watch the semi-finals announcement live with fellow fans and supporters.',
-      price: 'Free',
-    },
-  ],
-  'Chicago': {
-    '2025': [
-      {
-        id: 1,
-        name: 'Chicago Finals Gala',
-        date: 'DEC 15, 2025',
-        time: '7:00 PM',
-        venue: 'The Signature Room',
-        description: 'The grand finale where Chicago\'s Most Eligible was crowned.',
-        status: 'completed',
-      },
-      {
-        id: 2,
-        name: 'Meet the Finalists',
-        date: 'DEC 10, 2025',
-        time: '6:00 PM',
-        venue: 'Chicago Athletic Association',
-        description: 'An exclusive evening with the top 10 finalists.',
-        status: 'completed',
-      },
-    ],
-    '2026': [], // No events yet for nomination phase
-  },
-};
-
-export default function EventsTab({ events, city = 'New York', season = '2026', phase = 'voting' }) {
-  // Get city-specific events
-  let cityEvents = [];
-
-  if (city === 'Chicago') {
-    cityEvents = CITY_EVENTS['Chicago']?.[season] || [];
-  } else {
-    cityEvents = CITY_EVENTS[city] || [];
-  }
+export default function EventsTab({
+  events = [],
+  city = 'New York',
+  season = '2026',
+  phase = 'voting',
+  canEdit = false,
+  onEditEvent,
+  onAddEvent,
+}) {
+  // Filter to only show public/visible events
+  const visibleEvents = events.filter(e => e.publicVisible !== false);
 
   // For nomination phase or if no events
-  if (cityEvents.length === 0) {
+  if (visibleEvents.length === 0) {
     return (
       <div>
-        <div style={{ textAlign: 'center', marginBottom: spacing.xxxl }}>
-          <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
-            Events
-          </h1>
-          <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
-            Exclusive Most Eligible {city} events
-          </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xxxl }}>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
+              Events
+            </h1>
+            <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
+              Exclusive Most Eligible {city} events
+            </p>
+          </div>
+          {canEdit && onAddEvent && (
+            <Button
+              onClick={onAddEvent}
+              icon={Plus}
+              style={{ flexShrink: 0 }}
+            >
+              Add Event
+            </Button>
+          )}
         </div>
 
         <div style={{
@@ -122,21 +78,63 @@ export default function EventsTab({ events, city = 'New York', season = '2026', 
     );
   }
 
-  const featuredEvent = cityEvents.find(e => e.featured);
-  const otherEvents = cityEvents.filter(e => !e.featured);
+  const featuredEvent = visibleEvents.find(e => e.featured);
+  const otherEvents = visibleEvents.filter(e => !e.featured);
+
+  // Helper to get event status
+  const getEventStatus = (event) => {
+    if (event.status === 'completed') return 'completed';
+    if (!event.date && !event.startDate) return 'upcoming';
+    const eventDate = new Date(event.date || event.startDate);
+    const now = new Date();
+    if (eventDate < now) return 'completed';
+    return 'upcoming';
+  };
+
+  // Helper to format date/time display
+  const formatEventDateTime = (event) => {
+    if (event.startDate || event.endDate) {
+      return formatEventDateRange(event);
+    }
+    if (event.date) {
+      try {
+        const date = new Date(event.date);
+        return date.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      } catch {
+        return event.date;
+      }
+    }
+    return 'TBD';
+  };
 
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: spacing.xxxl }}>
-        <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
-          Events
-        </h1>
-        <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
-          {phase === 'completed'
-            ? `Past events from Most Eligible ${city} Season ${season}`
-            : `Don't miss our exclusive Most Eligible ${city} events`
-          }
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xxxl }}>
+        <div style={{ textAlign: 'center', flex: 1 }}>
+          <h1 style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
+            Events
+          </h1>
+          <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
+            {phase === 'completed'
+              ? `Past events from Most Eligible ${city} Season ${season}`
+              : `Don't miss our exclusive Most Eligible ${city} events`
+            }
+          </p>
+        </div>
+        {canEdit && onAddEvent && (
+          <Button
+            onClick={onAddEvent}
+            icon={Plus}
+            style={{ flexShrink: 0 }}
+          >
+            Add Event
+          </Button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gap: spacing.xxl }}>
@@ -152,94 +150,143 @@ export default function EventsTab({ events, city = 'New York', season = '2026', 
               overflow: 'hidden',
             }}
           >
-            <span
-              style={{
-                position: 'absolute',
-                top: spacing.xl,
-                right: spacing.xl,
-                padding: `${spacing.sm} ${spacing.md}`,
-                background: colors.gold.primary,
-                color: '#0a0a0f',
-                borderRadius: borderRadius.xxl,
-                fontSize: typography.fontSize.sm,
-                fontWeight: typography.fontWeight.bold,
-              }}
-            >
-              FEATURED
-            </span>
-            <p style={{ color: colors.gold.primary, fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
-              {featuredEvent.date} • {featuredEvent.time}
-            </p>
-            <h2 style={{ fontSize: typography.fontSize.display, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
-              {featuredEvent.name}
-            </h2>
-            <p style={{ color: colors.text.light, fontSize: typography.fontSize.lg, marginBottom: spacing.xl, maxWidth: '600px' }}>
-              {featuredEvent.description}
-            </p>
-            <div style={{ display: 'flex', gap: spacing.lg, alignItems: 'center', marginBottom: spacing.xxl }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.md }}>
-                <MapPin size={16} /> {featuredEvent.venue}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span
+                style={{
+                  padding: `${spacing.sm} ${spacing.md}`,
+                  background: colors.gold.primary,
+                  color: '#0a0a0f',
+                  borderRadius: borderRadius.xxl,
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: typography.fontWeight.bold,
+                }}
+              >
+                FEATURED
               </span>
-              {featuredEvent.capacity && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.md }}>
-                  <Users size={16} /> {featuredEvent.capacity}
-                </span>
+              {canEdit && onEditEvent && (
+                <button
+                  onClick={() => onEditEvent(featuredEvent)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: borderRadius.md,
+                    color: colors.text.secondary,
+                    cursor: 'pointer',
+                    fontSize: typography.fontSize.sm,
+                  }}
+                >
+                  <Edit2 size={14} />
+                  Edit
+                </button>
               )}
             </div>
-            <Button size="lg" style={{ padding: `${spacing.md} ${spacing.xxxl}` }}>
-              {featuredEvent.price === 'Free' ? 'RSVP Free' : `Get Tickets - ${featuredEvent.price}`}
-            </Button>
+            <div style={{ marginTop: spacing.lg }}>
+              <p style={{ color: colors.gold.primary, fontSize: typography.fontSize.md, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
+                {formatEventDateTime(featuredEvent)} {featuredEvent.time && `• ${featuredEvent.time}`}
+              </p>
+              <h2 style={{ fontSize: typography.fontSize.display, fontWeight: typography.fontWeight.bold, marginBottom: spacing.md }}>
+                {featuredEvent.name}
+              </h2>
+              <p style={{ color: colors.text.light, fontSize: typography.fontSize.lg, marginBottom: spacing.xl, maxWidth: '600px' }}>
+                {featuredEvent.description}
+              </p>
+              <div style={{ display: 'flex', gap: spacing.lg, alignItems: 'center', marginBottom: spacing.xxl }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.md }}>
+                  <MapPin size={16} /> {featuredEvent.location || featuredEvent.venue || 'TBD'}
+                </span>
+                {featuredEvent.capacity && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.md }}>
+                    <Users size={16} /> {featuredEvent.capacity}
+                  </span>
+                )}
+              </div>
+              {getEventStatus(featuredEvent) !== 'completed' && (
+                <Button size="lg" style={{ padding: `${spacing.md} ${spacing.xxxl}` }}>
+                  {featuredEvent.price === 'Free' || !featuredEvent.price ? 'RSVP Free' : `Get Tickets - ${featuredEvent.price}`}
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
         {/* Other Events */}
         {otherEvents.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.xl }}>
-            {otherEvents.map(event => (
-              <div
-                key={event.id}
-                style={{
-                  background: colors.background.card,
-                  border: `1px solid ${colors.border.light}`,
-                  borderRadius: borderRadius.xxl,
-                  padding: spacing.xxl,
-                  opacity: event.status === 'completed' ? 0.8 : 1,
-                }}
-              >
-                {event.status === 'completed' && (
-                  <span style={{
-                    display: 'inline-block',
-                    padding: `${spacing.xs} ${spacing.sm}`,
-                    background: 'rgba(255,255,255,0.1)',
-                    borderRadius: borderRadius.sm,
-                    fontSize: typography.fontSize.xs,
-                    color: colors.text.muted,
-                    marginBottom: spacing.sm,
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                  }}>
-                    Past Event
-                  </span>
-                )}
-                <p style={{ color: colors.gold.primary, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
-                  {event.date} • {event.time}
-                </p>
-                <h3 style={{ fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
-                  {event.name}
-                </h3>
-                <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.md, marginBottom: spacing.lg }}>
-                  {event.description}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.base, marginBottom: spacing.lg }}>
-                  <MapPin size={14} /> {event.venue}
+            {otherEvents.map(event => {
+              const status = getEventStatus(event);
+              return (
+                <div
+                  key={event.id}
+                  style={{
+                    background: colors.background.card,
+                    border: `1px solid ${colors.border.light}`,
+                    borderRadius: borderRadius.xxl,
+                    padding: spacing.xxl,
+                    opacity: status === 'completed' ? 0.8 : 1,
+                    position: 'relative',
+                  }}
+                >
+                  {canEdit && onEditEvent && (
+                    <button
+                      onClick={() => onEditEvent(event)}
+                      style={{
+                        position: 'absolute',
+                        top: spacing.md,
+                        right: spacing.md,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                        padding: `${spacing.xs} ${spacing.sm}`,
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: borderRadius.md,
+                        color: colors.text.secondary,
+                        cursor: 'pointer',
+                        fontSize: typography.fontSize.xs,
+                      }}
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                  )}
+                  {status === 'completed' && (
+                    <span style={{
+                      display: 'inline-block',
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      background: 'rgba(255,255,255,0.1)',
+                      borderRadius: borderRadius.sm,
+                      fontSize: typography.fontSize.xs,
+                      color: colors.text.muted,
+                      marginBottom: spacing.sm,
+                      textTransform: 'uppercase',
+                      letterSpacing: '1px',
+                    }}>
+                      Past Event
+                    </span>
+                  )}
+                  <p style={{ color: colors.gold.primary, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
+                    {formatEventDateTime(event)} {event.time && `• ${event.time}`}
+                  </p>
+                  <h3 style={{ fontSize: typography.fontSize.xxl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
+                    {event.name}
+                  </h3>
+                  <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.md, marginBottom: spacing.lg }}>
+                    {event.description}
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, color: colors.text.secondary, fontSize: typography.fontSize.base, marginBottom: spacing.lg }}>
+                    <MapPin size={14} /> {event.location || event.venue || 'TBD'}
+                  </div>
+                  {status !== 'completed' && (
+                    <Button variant="secondary" fullWidth>
+                      {event.price === 'Free' || !event.price ? 'RSVP Free' : `Get Tickets - ${event.price}`}
+                    </Button>
+                  )}
                 </div>
-                {event.status !== 'completed' && (
-                  <Button variant="secondary" fullWidth>
-                    {event.price === 'Free' ? 'RSVP Free' : `Get Tickets - ${event.price}`}
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

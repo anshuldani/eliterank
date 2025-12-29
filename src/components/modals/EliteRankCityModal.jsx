@@ -55,12 +55,19 @@ export default function EliteRankCityModal({
 
       try {
         // Fetch competitions with settings for timeline dates
-        const [compsResult, orgsResult, citiesResult, settingsResult] = await Promise.all([
+        const [compsResult, orgsResult, citiesResult, settingsResult, profilesResult] = await Promise.all([
           supabase.from('competitions').select('*').order('created_at', { ascending: false }),
           supabase.from('organizations').select('*').order('name'),
           supabase.from('cities').select('*').order('name'),
           supabase.from('competition_settings').select('*'),
+          supabase.from('profiles').select('id, email, first_name, last_name, avatar_url, bio, instagram'),
         ]);
+
+        // Create lookup map for profiles (hosts)
+        const profilesMap = (profilesResult.data || []).reduce((acc, profile) => {
+          acc[profile.id] = profile;
+          return acc;
+        }, {});
 
         // Store cities for lookup
         const citiesData = citiesResult.data || [];
@@ -128,6 +135,17 @@ export default function EliteRankCityModal({
             const cityState = city?.state || '';
             const citySlug = city?.slug || '';
 
+            // Get host profile if host_id exists
+            const hostProfile = comp.host_id ? profilesMap[comp.host_id] : null;
+            const host = hostProfile ? {
+              id: hostProfile.id,
+              name: `${hostProfile.first_name || ''} ${hostProfile.last_name || ''}`.trim() || hostProfile.email,
+              title: 'Competition Host',
+              bio: hostProfile.bio || '',
+              avatar: hostProfile.avatar_url,
+              instagram: hostProfile.instagram,
+            } : null;
+
             return {
               id: comp.id,
               // Use custom name if set, otherwise generate
@@ -145,7 +163,7 @@ export default function EliteRankCityModal({
               visible,
               accessible,
               organizationId: comp.organization_id,
-              host: comp.host_id ? { id: comp.host_id } : null,
+              host,
               // Timeline data for display (now from competition_settings, but keep for backward compat)
               nomination_start: comp.nomination_start,
               nomination_end: comp.nomination_end,
@@ -209,13 +227,25 @@ export default function EliteRankCityModal({
   });
 
   const handleCompetitionClick = (competition) => {
+    // Get organization data for this competition
+    const org = organizations.find(o => o.id === competition.organizationId);
+    const competitionWithOrg = {
+      ...competition,
+      organization: org ? {
+        id: org.id,
+        name: org.name,
+        logo_url: org.logo_url || org.logo,
+        slug: org.slug,
+      } : null,
+    };
+
     if (competition.accessible && onOpenCompetition) {
-      onOpenCompetition(competition);
+      onOpenCompetition(competitionWithOrg);
     } else if (competition.status === COMPETITION_STATUSES.PUBLISH) {
       if (onOpenTeaser) {
-        onOpenTeaser(competition);
+        onOpenTeaser(competitionWithOrg);
       } else if (onOpenCompetition) {
-        onOpenCompetition({ ...competition, isTeaser: true });
+        onOpenCompetition({ ...competitionWithOrg, isTeaser: true });
       }
     }
   };

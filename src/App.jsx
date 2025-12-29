@@ -149,6 +149,7 @@ const createSafeCompetition = (competition = {}) => ({
   host: competition.host ?? null,
   winners: Array.isArray(competition.winners) ? competition.winners : [],
   isTeaser: competition.isTeaser ?? false,
+  organization: competition.organization ?? null,
   nomination_start: competition.nomination_start ?? null,
   nomination_end: competition.nomination_end ?? null,
   voting_start: competition.voting_start ?? null,
@@ -1017,6 +1018,9 @@ export default function App() {
               onLogin={handleShowLogin}
               userEmail={user?.email}
               userInstagram={profile?.instagram}
+              canEditEvents={userRole === ROLE.HOST || userRole === ROLE.SUPER_ADMIN}
+              onEditEvent={openEventModal}
+              onAddEvent={() => openEventModal({})}
             />
           </Suspense>
         )}
@@ -1113,6 +1117,9 @@ export default function App() {
             userEmail={user?.email}
             userInstagram={profile?.instagram}
             user={user}
+            canEditEvents={userRole === ROLE.HOST || userRole === ROLE.SUPER_ADMIN}
+            onEditEvent={openEventModal}
+            onAddEvent={() => openEventModal({})}
           />
         </Suspense>
       )}
