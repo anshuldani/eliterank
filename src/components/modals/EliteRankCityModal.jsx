@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, Crown, MapPin, Calendar, Trophy, Clock, ChevronRight, Sparkles, Users, Star,
-  Ticket, Activity, Info, Briefcase, UserPlus, Loader, User, ExternalLink, Megaphone, Award, Building, Heart
+  X, Crown, MapPin, Calendar, Trophy, Clock, ChevronRight, ChevronLeft, Sparkles, Users, Star,
+  Ticket, Activity, Info, Briefcase, UserPlus, Loader, User, ExternalLink, Megaphone, Award, Building, Heart, Filter, ChevronDown
 } from 'lucide-react';
 import { Button, Badge, OrganizationLogo } from '../ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
@@ -49,6 +49,20 @@ export default function EliteRankCityModal({
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'upcoming', 'complete'
   const [cityFilter, setCityFilter] = useState('all'); // 'all' or city id
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const cityDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target)) {
+        setShowCityDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch competitions, organizations, and cities from Supabase
   useEffect(() => {
@@ -317,8 +331,8 @@ export default function EliteRankCityModal({
     }
   };
 
-  // Competition Card Component - New Design
-  const CompetitionCard = ({ competition }) => {
+  // Competition Card Component - Sweatpals-inspired Design
+  const CompetitionCard = ({ competition, cardWidth = '340px' }) => {
     const isHovered = hoveredCard === competition.id;
     const isAccessible = competition.accessible;
     const isPublished = competition.status === COMPETITION_STATUSES.PUBLISH;
@@ -336,202 +350,325 @@ export default function EliteRankCityModal({
       if (isPublished) return 'Learn More';
       if (competition.phase === 'nomination') return 'Nominate Now';
       if (competition.phase === 'voting') return 'Vote Now';
-      return 'View Competition';
+      return 'View';
     };
 
     return (
-      <div
-        onClick={() => handleCompetitionClick(competition)}
-        onMouseEnter={() => setHoveredCard(competition.id)}
-        onMouseLeave={() => setHoveredCard(null)}
-        style={{
-          position: 'relative',
-          borderRadius: borderRadius.xl,
-          overflow: 'hidden',
-          cursor: isClickable ? 'pointer' : 'default',
-          transform: isHovered && isClickable ? 'translateY(-4px)' : 'translateY(0)',
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: isHovered && isClickable
-            ? '0 20px 40px rgba(0,0,0,0.4)'
-            : '0 4px 20px rgba(0,0,0,0.3)',
-          minHeight: '280px',
-        }}
-      >
-        {/* Background Image */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `url(${cityImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: isHovered ? 'brightness(0.5)' : 'brightness(0.4)',
-          transition: 'filter 0.3s',
-        }} />
+      <div style={{
+        width: cardWidth,
+        minWidth: cardWidth,
+        flexShrink: 0,
+      }}>
+        {/* Main Card with Image */}
+        <div
+          onClick={() => handleCompetitionClick(competition)}
+          onMouseEnter={() => setHoveredCard(competition.id)}
+          onMouseLeave={() => setHoveredCard(null)}
+          style={{
+            position: 'relative',
+            borderRadius: borderRadius.xl,
+            overflow: 'hidden',
+            cursor: isClickable ? 'pointer' : 'default',
+            transform: isHovered && isClickable ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: isHovered && isClickable
+              ? '0 20px 40px rgba(0,0,0,0.5)'
+              : '0 4px 20px rgba(0,0,0,0.3)',
+            aspectRatio: '16/10',
+          }}
+        >
+          {/* Background Image */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${cityImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: isHovered ? 'brightness(0.6)' : 'brightness(0.5)',
+            transition: 'filter 0.3s',
+          }} />
 
-        {/* Gradient Overlay */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.3) 100%)',
-        }} />
+          {/* Gradient Overlay */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.2) 100%)',
+          }} />
 
-        {/* Content */}
-        <div style={{
-          position: 'relative',
-          padding: spacing.xl,
-          height: '100%',
-          minHeight: '280px',
-          display: 'flex',
-          flexDirection: 'column',
-        }}>
-          {/* Top Row: Status Badge + Organization Logo */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            {/* Status Badge */}
-            <Badge variant={config.variant} size="md" pill>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {config.pulse && (
-                  <span style={{
-                    width: '8px',
-                    height: '8px',
-                    background: '#4ade80',
-                    borderRadius: '50%',
-                    animation: 'pulse 2s infinite',
-                  }} />
+          {/* Content */}
+          <div style={{
+            position: 'relative',
+            padding: spacing.lg,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            {/* Top Row: Status Badge */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Badge variant={config.variant} size="sm" pill style={{ backdropFilter: 'blur(8px)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  {config.pulse && (
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      background: '#4ade80',
+                      borderRadius: '50%',
+                      animation: 'pulse 2s infinite',
+                    }} />
+                  )}
+                  {config.label}
+                </span>
+              </Badge>
+            </div>
+
+            {/* Main Content - Bottom Aligned */}
+            <div style={{ marginTop: 'auto' }}>
+              {/* Competition Name */}
+              <h3 style={{
+                fontSize: typography.fontSize.lg,
+                fontWeight: typography.fontWeight.bold,
+                color: '#fff',
+                marginBottom: spacing.xs,
+                lineHeight: 1.2,
+              }}>
+                {competition.name}
+              </h3>
+
+              {/* Season */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                marginBottom: spacing.sm,
+              }}>
+                <Calendar size={12} style={{ color: colors.text.secondary }} />
+                <span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+                  Season {competition.season}
+                </span>
+              </div>
+
+              {/* CTA Button Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {isClickable && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                    padding: `${spacing.xs} ${spacing.md}`,
+                    background: isHovered ? colors.gold.primary : 'rgba(212,175,55,0.25)',
+                    border: `1px solid ${colors.gold.primary}`,
+                    borderRadius: borderRadius.md,
+                    color: isHovered ? '#000' : colors.gold.primary,
+                    fontSize: typography.fontSize.xs,
+                    fontWeight: typography.fontWeight.semibold,
+                    transition: 'all 0.2s',
+                  }}>
+                    <Sparkles size={12} />
+                    {getCtaText()}
+                  </div>
                 )}
-                {config.label}
-              </span>
-            </Badge>
 
-            {/* Organization Logo */}
-            <div
-              onClick={(e) => handleOrganizationClick(e, competition.organizationId)}
-              style={{
-                cursor: 'pointer',
-                padding: '4px',
-                borderRadius: borderRadius.md,
-                background: 'rgba(255,255,255,0.1)',
-                backdropFilter: 'blur(10px)',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-            >
-              <OrganizationLogo logo={getOrganizationLogo(competition.organizationId)} size={44} />
+                {/* Coming Soon Date */}
+                {!isClickable && competition.nomination_start && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                    color: colors.text.secondary,
+                    fontSize: typography.fontSize.xs,
+                  }}>
+                    <Clock size={12} />
+                    Opens {new Date(competition.nomination_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Main Content - Bottom Aligned */}
-          <div style={{ marginTop: 'auto' }}>
-            {/* Organization Name - Clickable */}
-            {competition.organizationId && (
-              <div
-                onClick={(e) => handleOrganizationClick(e, competition.organizationId)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: spacing.xs,
-                  marginBottom: spacing.xs,
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{
-                  fontSize: typography.fontSize.xs,
-                  color: colors.gold.primary,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  fontWeight: typography.fontWeight.medium,
-                }}>
-                  {getOrganizationName(competition.organizationId)}
-                </span>
-                <ExternalLink size={10} style={{ color: colors.gold.primary, opacity: 0.7 }} />
-              </div>
-            )}
-
-            {/* Competition Name */}
-            <h3 style={{
-              fontSize: typography.fontSize.xl,
-              fontWeight: typography.fontWeight.bold,
-              color: '#fff',
-              marginBottom: spacing.sm,
-              lineHeight: 1.2,
-            }}>
-              {competition.name}
-            </h3>
-
-            {/* Season */}
-            <div style={{
+        {/* Info Below Card */}
+        <div style={{
+          padding: `${spacing.md} ${spacing.xs}`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: spacing.xs,
+        }}>
+          {/* Location - Clickable */}
+          <div
+            onClick={(e) => handleCityClick(e, competition.citySlug)}
+            style={{
               display: 'flex',
               alignItems: 'center',
               gap: spacing.xs,
-              marginBottom: spacing.sm,
+              cursor: competition.citySlug ? 'pointer' : 'default',
+            }}
+          >
+            <MapPin size={14} style={{ color: colors.gold.primary }} />
+            <span style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.gold.primary,
+              fontWeight: typography.fontWeight.medium,
             }}>
-              <Calendar size={14} style={{ color: colors.text.secondary }} />
-              <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
-                Season {competition.season}
-              </span>
-            </div>
+              {competition.city}{competition.cityState ? `, ${competition.cityState}` : ''}
+            </span>
+            {competition.citySlug && (
+              <ChevronRight size={12} style={{ color: colors.gold.primary, opacity: 0.6 }} />
+            )}
+          </div>
 
-            {/* Location - Clickable */}
+          {/* Organization - Clickable */}
+          {competition.organizationId && (
             <div
-              onClick={(e) => handleCityClick(e, competition.citySlug)}
+              onClick={(e) => handleOrganizationClick(e, competition.organizationId)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: spacing.xs,
-                cursor: competition.citySlug ? 'pointer' : 'default',
-                marginBottom: spacing.md,
+                cursor: 'pointer',
               }}
             >
-              <MapPin size={14} style={{ color: colors.gold.primary }} />
+              <OrganizationLogo logo={getOrganizationLogo(competition.organizationId)} size={18} />
               <span style={{
-                fontSize: typography.fontSize.sm,
-                color: colors.gold.primary,
-              }}>
-                {competition.city}{competition.cityState ? `, ${competition.cityState}` : ''}
-              </span>
-              {competition.citySlug && (
-                <ExternalLink size={10} style={{ color: colors.gold.primary, opacity: 0.7 }} />
-              )}
-            </div>
-
-            {/* CTA Button - Always on new line */}
-            {isClickable && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
-                padding: `${spacing.sm} ${spacing.lg}`,
-                background: isHovered ? colors.gold.primary : 'rgba(212,175,55,0.2)',
-                border: `1px solid ${colors.gold.primary}`,
-                borderRadius: borderRadius.lg,
-                color: isHovered ? '#000' : colors.gold.primary,
-                fontSize: typography.fontSize.sm,
-                fontWeight: typography.fontWeight.semibold,
-                transition: 'all 0.2s',
-                width: 'fit-content',
-              }}>
-                <Sparkles size={14} />
-                {getCtaText()}
-              </div>
-            )}
-
-            {/* Coming Soon Date */}
-            {!isClickable && competition.nomination_start && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: spacing.sm,
+                fontSize: typography.fontSize.xs,
                 color: colors.text.secondary,
-                fontSize: typography.fontSize.sm,
               }}>
-                <Clock size={14} />
-                <span>
-                  Opens {new Date(competition.nomination_start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-              </div>
-            )}
+                {getOrganizationName(competition.organizationId)}
+              </span>
+              <ChevronRight size={12} style={{ color: colors.text.muted, opacity: 0.6 }} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Horizontal Scroll Carousel Component
+  const CompetitionCarousel = ({ title, competitions: comps, icon: Icon, iconColor = colors.gold.primary, emptyMessage }) => {
+    const scrollContainerRef = useRef(null);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(false);
+
+    const updateScrollButtons = () => {
+      if (scrollContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+        setCanScrollLeft(scrollLeft > 0);
+        setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+      }
+    };
+
+    useEffect(() => {
+      updateScrollButtons();
+      window.addEventListener('resize', updateScrollButtons);
+      return () => window.removeEventListener('resize', updateScrollButtons);
+    }, [comps]);
+
+    const scroll = (direction) => {
+      if (scrollContainerRef.current) {
+        const scrollAmount = 360; // Card width + gap
+        scrollContainerRef.current.scrollBy({
+          left: direction === 'left' ? -scrollAmount : scrollAmount,
+          behavior: 'smooth',
+        });
+        setTimeout(updateScrollButtons, 300);
+      }
+    };
+
+    if (comps.length === 0) {
+      return null;
+    }
+
+    return (
+      <div style={{ marginBottom: spacing.xxxl }}>
+        {/* Section Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: spacing.lg,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+            <Icon size={22} style={{ color: iconColor }} />
+            <h3 style={{
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.semibold,
+              color: '#fff',
+            }}>
+              {title}
+            </h3>
+            <Badge variant="default" size="sm" style={{ background: 'rgba(255,255,255,0.1)' }}>
+              {comps.length}
+            </Badge>
+          </div>
+
+          {/* Scroll Arrows */}
+          <div style={{ display: 'flex', gap: spacing.sm }}>
+            <button
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: canScrollLeft ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${canScrollLeft ? colors.border.light : 'transparent'}`,
+                color: canScrollLeft ? '#fff' : colors.text.muted,
+                cursor: canScrollLeft ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: canScrollRight ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${canScrollRight ? colors.border.light : 'transparent'}`,
+                color: canScrollRight ? '#fff' : colors.text.muted,
+                cursor: canScrollRight ? 'pointer' : 'default',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s',
+              }}
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
+
+        {/* Horizontal Scroll Container */}
+        <div
+          ref={scrollContainerRef}
+          onScroll={updateScrollButtons}
+          style={{
+            display: 'flex',
+            gap: spacing.lg,
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            paddingBottom: spacing.md,
+            marginLeft: `-${spacing.md}`,
+            marginRight: `-${spacing.md}`,
+            paddingLeft: spacing.md,
+            paddingRight: spacing.md,
+          }}
+        >
+          {comps.map((competition) => (
+            <CompetitionCard key={competition.id} competition={competition} />
+          ))}
+        </div>
+
+        {/* Hide scrollbar */}
+        <style>{`
+          div::-webkit-scrollbar { display: none; }
+        `}</style>
       </div>
     );
   };
@@ -548,10 +685,27 @@ export default function EliteRankCityModal({
       );
     }
 
+    // Group competitions by status for carousel sections
+    const liveNowCompetitions = visibleCompetitions.filter(c =>
+      c.status === COMPETITION_STATUSES.LIVE && ['nomination', 'voting', 'judging'].includes(c.phase)
+    );
+    const comingSoonCompetitions = visibleCompetitions.filter(c =>
+      c.status === COMPETITION_STATUSES.PUBLISH
+    );
+    const recentlyCompletedCompetitions = visibleCompetitions.filter(c =>
+      c.status === COMPETITION_STATUSES.COMPLETED || c.phase === 'completed'
+    );
+
+    // Get selected city name
+    const selectedCityName = cityFilter === 'all'
+      ? 'All Cities'
+      : cities.find(c => c.id === cityFilter)?.name || 'All Cities';
+
     switch (activeTab) {
       case 'competitions':
         return (
           <>
+            {/* Hero Section */}
             <section style={{ padding: `${spacing.xxxl} ${spacing.xxl}`, textAlign: 'center', maxWidth: '900px', margin: '0 auto' }}>
               <h2 style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: typography.fontWeight.bold, color: '#fff', marginBottom: spacing.lg, lineHeight: 1.2 }}>
                 Discover the Most Eligible
@@ -563,131 +717,255 @@ export default function EliteRankCityModal({
             </section>
 
             <section style={{ padding: `0 ${spacing.xxl} ${spacing.xxxl}`, maxWidth: '1400px', margin: '0 auto' }}>
-              {/* Filters */}
+              {/* Restyled Filters Bar */}
               <div style={{
                 display: 'flex',
-                flexDirection: 'column',
-                gap: spacing.md,
-                marginBottom: spacing.xl,
                 alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.lg,
+                marginBottom: spacing.xxl,
+                padding: `${spacing.md} ${spacing.lg}`,
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: borderRadius.xl,
+                border: `1px solid ${colors.border.light}`,
+                flexWrap: 'wrap',
               }}>
-                {/* City Filter */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setCityFilter('all')}
-                    style={{
-                      padding: `${spacing.sm} ${spacing.lg}`,
-                      background: cityFilter === 'all'
-                        ? 'rgba(212,175,55,0.2)'
-                        : colors.background.secondary,
-                      border: `1px solid ${cityFilter === 'all' ? colors.gold.primary : colors.border.light}`,
-                      borderRadius: borderRadius.lg,
-                      color: cityFilter === 'all' ? colors.gold.primary : colors.text.secondary,
-                      fontSize: typography.fontSize.sm,
-                      fontWeight: typography.fontWeight.medium,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
+                {/* Left: Filter Icon & City Dropdown */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+                  <Filter size={18} style={{ color: colors.text.secondary }} />
+
+                  {/* City Dropdown */}
+                  <div
+                    ref={cityDropdownRef}
+                    style={{ position: 'relative' }}
                   >
-                    All Cities
-                  </button>
-                  {availableCities.map((city) => (
                     <button
-                      key={city.id}
-                      onClick={() => setCityFilter(city.id)}
+                      onClick={() => setShowCityDropdown(!showCityDropdown)}
                       style={{
-                        padding: `${spacing.sm} ${spacing.lg}`,
-                        background: cityFilter === city.id
-                          ? 'rgba(212,175,55,0.2)'
-                          : colors.background.secondary,
-                        border: `1px solid ${cityFilter === city.id ? colors.gold.primary : colors.border.light}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        padding: `${spacing.sm} ${spacing.md}`,
+                        background: cityFilter !== 'all' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.05)',
+                        border: `1px solid ${cityFilter !== 'all' ? colors.gold.primary : colors.border.light}`,
                         borderRadius: borderRadius.lg,
-                        color: cityFilter === city.id ? colors.gold.primary : colors.text.secondary,
+                        color: cityFilter !== 'all' ? colors.gold.primary : colors.text.primary,
                         fontSize: typography.fontSize.sm,
                         fontWeight: typography.fontWeight.medium,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
+                        minWidth: '140px',
+                        justifyContent: 'space-between',
                       }}
                     >
-                      {city.name}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
+                        <MapPin size={14} />
+                        {selectedCityName}
+                      </span>
+                      <ChevronDown size={14} style={{
+                        transform: showCityDropdown ? 'rotate(180deg)' : 'rotate(0)',
+                        transition: 'transform 0.2s',
+                      }} />
                     </button>
-                  ))}
+
+                    {/* Dropdown Menu */}
+                    {showCityDropdown && (
+                      <div style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 4px)',
+                        left: 0,
+                        minWidth: '180px',
+                        background: colors.background.card,
+                        border: `1px solid ${colors.border.light}`,
+                        borderRadius: borderRadius.lg,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                        zIndex: 100,
+                        overflow: 'hidden',
+                      }}>
+                        <button
+                          onClick={() => { setCityFilter('all'); setShowCityDropdown(false); }}
+                          style={{
+                            width: '100%',
+                            padding: `${spacing.sm} ${spacing.md}`,
+                            background: cityFilter === 'all' ? 'rgba(212,175,55,0.15)' : 'transparent',
+                            border: 'none',
+                            color: cityFilter === 'all' ? colors.gold.primary : colors.text.primary,
+                            fontSize: typography.fontSize.sm,
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = cityFilter === 'all' ? 'rgba(212,175,55,0.15)' : 'transparent'}
+                        >
+                          All Cities
+                        </button>
+                        {availableCities.map((city) => (
+                          <button
+                            key={city.id}
+                            onClick={() => { setCityFilter(city.id); setShowCityDropdown(false); }}
+                            style={{
+                              width: '100%',
+                              padding: `${spacing.sm} ${spacing.md}`,
+                              background: cityFilter === city.id ? 'rgba(212,175,55,0.15)' : 'transparent',
+                              border: 'none',
+                              color: cityFilter === city.id ? colors.gold.primary : colors.text.primary,
+                              fontSize: typography.fontSize.sm,
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = cityFilter === city.id ? 'rgba(212,175,55,0.15)' : 'transparent'}
+                          >
+                            {city.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Status Filter Buttons */}
-                <div style={{ display: 'flex', gap: spacing.sm }}>
+                {/* Right: Status Filter Pills */}
+                <div style={{ display: 'flex', gap: spacing.xs }}>
                   {[
-                    { id: 'all', label: 'All' },
-                    { id: 'active', label: 'Live Now' },
-                    { id: 'upcoming', label: 'Coming Soon' },
-                    { id: 'complete', label: 'Completed' },
+                    { id: 'all', label: 'All', icon: null },
+                    { id: 'active', label: 'Live Now', icon: Activity },
+                    { id: 'upcoming', label: 'Coming Soon', icon: Clock },
+                    { id: 'complete', label: 'Completed', icon: Trophy },
                   ].map((filter) => (
                     <button
                       key={filter.id}
                       onClick={() => setStatusFilter(filter.id)}
                       style={{
-                        padding: `${spacing.sm} ${spacing.lg}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                        padding: `${spacing.xs} ${spacing.md}`,
                         background: statusFilter === filter.id
                           ? 'rgba(212,175,55,0.2)'
-                          : colors.background.secondary,
-                        border: `1px solid ${statusFilter === filter.id ? colors.gold.primary : colors.border.light}`,
-                        borderRadius: borderRadius.lg,
+                          : 'transparent',
+                        border: statusFilter === filter.id
+                          ? `1px solid ${colors.gold.primary}`
+                          : '1px solid transparent',
+                        borderRadius: borderRadius.pill,
                         color: statusFilter === filter.id ? colors.gold.primary : colors.text.secondary,
-                        fontSize: typography.fontSize.sm,
+                        fontSize: typography.fontSize.xs,
                         fontWeight: typography.fontWeight.medium,
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                       }}
                     >
+                      {filter.icon && <filter.icon size={12} />}
                       {filter.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {visibleCompetitions.length > 0 ? (
+              {/* Competition Sections */}
+              {statusFilter === 'all' ? (
                 <>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl }}>
-                    <Sparkles size={24} style={{ color: colors.gold.primary }} />
-                    <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, color: '#fff' }}>
-                      Competitions
-                    </h3>
-                    <Badge variant="warning" size="sm">{visibleCompetitions.length}</Badge>
-                  </div>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: visibleCompetitions.length === 1
-                      ? 'minmax(300px, 400px)'
-                      : 'repeat(auto-fill, minmax(320px, 1fr))',
-                    gap: spacing.xl,
-                  }}>
-                    {visibleCompetitions.map((competition) => (
-                      <CompetitionCard key={competition.id} competition={competition} />
-                    ))}
-                  </div>
+                  {/* Live Now Section */}
+                  <CompetitionCarousel
+                    title="Live Now"
+                    competitions={liveNowCompetitions}
+                    icon={Activity}
+                    iconColor="#4ade80"
+                    emptyMessage="No live competitions at the moment"
+                  />
+
+                  {/* Coming Soon Section */}
+                  <CompetitionCarousel
+                    title="Coming Soon"
+                    competitions={comingSoonCompetitions}
+                    icon={Clock}
+                    iconColor="#60a5fa"
+                    emptyMessage="No upcoming competitions"
+                  />
+
+                  {/* Recently Completed Section */}
+                  <CompetitionCarousel
+                    title="Recently Completed"
+                    competitions={recentlyCompletedCompetitions}
+                    icon={Trophy}
+                    iconColor={colors.gold.primary}
+                    emptyMessage="No completed competitions yet"
+                  />
+
+                  {/* Empty State - When no competitions exist at all */}
+                  {visibleCompetitions.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: spacing.xxxl, background: colors.background.card, borderRadius: borderRadius.xxl, border: `1px solid ${colors.border.light}` }}>
+                      <Crown size={48} style={{ color: colors.text.muted, marginBottom: spacing.lg }} />
+                      <h3 style={{ fontSize: typography.fontSize.xl, color: '#fff', marginBottom: spacing.sm }}>
+                        {cityFilter !== 'all' ? 'No Competitions in This City' : 'No Competitions Yet'}
+                      </h3>
+                      <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary }}>
+                        {cityFilter !== 'all'
+                          ? 'Try selecting a different city.'
+                          : 'Check back soon for upcoming competitions in your city!'}
+                      </p>
+                      {cityFilter !== 'all' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setCityFilter('all')}
+                          style={{ marginTop: spacing.lg, width: 'auto' }}
+                        >
+                          View All Cities
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
-                <div style={{ textAlign: 'center', padding: spacing.xxxl, background: colors.background.card, borderRadius: borderRadius.xxl, border: `1px solid ${colors.border.light}` }}>
-                  <Crown size={48} style={{ color: colors.text.muted, marginBottom: spacing.lg }} />
-                  <h3 style={{ fontSize: typography.fontSize.xl, color: '#fff', marginBottom: spacing.sm }}>
-                    {(statusFilter !== 'all' || cityFilter !== 'all') ? 'No Matching Competitions' : 'No Competitions Yet'}
-                  </h3>
-                  <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary }}>
-                    {(statusFilter !== 'all' || cityFilter !== 'all')
-                      ? 'Try adjusting your filter criteria.'
-                      : 'Check back soon for upcoming competitions in your city!'}
-                  </p>
-                  {(statusFilter !== 'all' || cityFilter !== 'all') && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => { setStatusFilter('all'); setCityFilter('all'); }}
-                      style={{ marginTop: spacing.lg, width: 'auto' }}
-                    >
-                      Clear Filters
-                    </Button>
+                // Filtered View - Show single section with grid layout
+                <>
+                  {visibleCompetitions.length > 0 ? (
+                    <div style={{ marginBottom: spacing.xxxl }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl }}>
+                        {statusFilter === 'active' && <Activity size={22} style={{ color: '#4ade80' }} />}
+                        {statusFilter === 'upcoming' && <Clock size={22} style={{ color: '#60a5fa' }} />}
+                        {statusFilter === 'complete' && <Trophy size={22} style={{ color: colors.gold.primary }} />}
+                        <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, color: '#fff' }}>
+                          {statusFilter === 'active' && 'Live Now'}
+                          {statusFilter === 'upcoming' && 'Coming Soon'}
+                          {statusFilter === 'complete' && 'Recently Completed'}
+                        </h3>
+                        <Badge variant="default" size="sm" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                          {visibleCompetitions.length}
+                        </Badge>
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                        gap: spacing.xl,
+                      }}>
+                        {visibleCompetitions.map((competition) => (
+                          <CompetitionCard key={competition.id} competition={competition} cardWidth="100%" />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: spacing.xxxl, background: colors.background.card, borderRadius: borderRadius.xxl, border: `1px solid ${colors.border.light}` }}>
+                      <Crown size={48} style={{ color: colors.text.muted, marginBottom: spacing.lg }} />
+                      <h3 style={{ fontSize: typography.fontSize.xl, color: '#fff', marginBottom: spacing.sm }}>
+                        No Matching Competitions
+                      </h3>
+                      <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary }}>
+                        Try adjusting your filter criteria.
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => { setStatusFilter('all'); setCityFilter('all'); }}
+                        style={{ marginTop: spacing.lg, width: 'auto' }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </section>
           </>
