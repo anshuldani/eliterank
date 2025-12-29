@@ -417,31 +417,51 @@ export default function App() {
         const cityName = slugToCity(slug);
 
         try {
-          // Try to find competition by city column first, fallback to name
-          let { data: competitions, error } = await supabase
-            .from('competitions')
-            .select('*')
-            .ilike('city', `%${cityName}%`)
+          // First, find the city by name to get city_id
+          const { data: cities } = await supabase
+            .from('cities')
+            .select('id, name')
+            .ilike('name', `%${cityName}%`)
             .limit(1);
 
-          // If city column doesn't exist or no results, try searching by name
-          if (error || !competitions?.length) {
-            const nameResult = await supabase
+          let competitions = [];
+
+          if (cities?.length) {
+            // Found city, search by city_id
+            const { data } = await supabase
+              .from('competitions')
+              .select('*')
+              .eq('city_id', cities[0].id)
+              .limit(1);
+            competitions = data || [];
+          }
+
+          // Fallback: search by competition name if no city match
+          if (!competitions?.length) {
+            const { data } = await supabase
               .from('competitions')
               .select('*')
               .ilike('name', `%${cityName}%`)
               .limit(1);
-
-            if (!nameResult.error && nameResult.data?.length) {
-              competitions = nameResult.data;
-            }
+            competitions = data || [];
           }
 
           if (competitions?.[0]) {
+            // Get city name for the competition
+            let competitionCityName = cityName;
+            if (competitions[0].city_id) {
+              const { data: cityData } = await supabase
+                .from('cities')
+                .select('name')
+                .eq('id', competitions[0].city_id)
+                .single();
+              if (cityData) competitionCityName = cityData.name;
+            }
             const competition = competitions[0];
             setSelectedCompetition(
               createSafeCompetition({
                 ...competition,
+                city: competitionCityName,
                 phase: competition.status === 'live' ? 'voting' : competition.status,
                 isTeaser: competition.status !== 'live',
               })
