@@ -437,7 +437,7 @@ export default function ProfileModal({
                     fontSize: typography.fontSize.lg,
                   }}
                 >
-                  Vote for {profile.name.split(' ')[0]}
+                  Vote for {profile.name?.split(' ')?.[0] || profile.name || 'Contestant'}
                 </Button>
               )}
             </div>
@@ -455,7 +455,7 @@ export default function ProfileModal({
                 fontSize: typography.fontSize.lg,
               }}
             >
-              Vote for {profile.name.split(' ')[0]}
+              Vote for {profile.name?.split(' ')?.[0] || profile.name || 'Contestant'}
             </Button>
           </div>
         )}

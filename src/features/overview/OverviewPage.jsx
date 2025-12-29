@@ -29,7 +29,7 @@ export default function OverviewPage({
   };
 
   // Extract city name from competition name (e.g., "Chicago Most Eligible 2026" -> "Chicago")
-  const cityName = hostCompetition?.name?.split(' ')[0] || 'Your City';
+  const cityName = hostCompetition?.name?.split(' ')?.[0] || 'Your City';
 
   return (
     <div>

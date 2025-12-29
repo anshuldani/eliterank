@@ -536,7 +536,7 @@ export default function App() {
             events={events}
             competitionRankings={COMPETITION_RANKINGS}
             onViewPublicSite={() => {
-              const cityName = hostCompetition?.city || hostCompetition?.name?.split(' ')[0] || 'Your City';
+              const cityName = hostCompetition?.city || hostCompetition?.name?.split(' ')?.[0] || 'Your City';
               setSelectedCompetition({
                 id: hostCompetition?.id,
                 city: cityName,
@@ -830,7 +830,7 @@ export default function App() {
         onProfile={isAuthenticated ? handleShowProfile : null}
         isAuthenticated={isAuthenticated}
         userRole={userRole}
-        userName={profile?.first_name || user?.email?.split('@')[0]}
+        userName={profile?.first_name || user?.email?.split('@')?.[0] || 'User'}
         onLogout={handleLogout}
       />
 
