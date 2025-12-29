@@ -40,7 +40,7 @@ export const TIMELINE_PHASES = {
 export function computeCompetitionPhase(competition) {
   if (!competition) return COMPETITION_STATUSES.DRAFT;
 
-  const status = competition.status || COMPETITION_STATUSES.DRAFT;
+  const status = (competition.status || COMPETITION_STATUSES.DRAFT).toLowerCase();
 
   // If not "live", the status IS the phase
   if (status !== COMPETITION_STATUSES.LIVE) {
@@ -103,11 +103,12 @@ export function computeTimelinePhase(competition) {
  * @returns {boolean}
  */
 export function isCompetitionVisible(status) {
+  const normalizedStatus = (status || '').toLowerCase();
   return [
     COMPETITION_STATUSES.PUBLISH,
     COMPETITION_STATUSES.LIVE,
     COMPETITION_STATUSES.COMPLETED,
-  ].includes(status);
+  ].includes(normalizedStatus);
 }
 
 /**
@@ -118,10 +119,11 @@ export function isCompetitionVisible(status) {
  * @returns {boolean}
  */
 export function isCompetitionAccessible(status) {
+  const normalizedStatus = (status || '').toLowerCase();
   return [
     COMPETITION_STATUSES.LIVE,
     COMPETITION_STATUSES.COMPLETED,
-  ].includes(status);
+  ].includes(normalizedStatus);
 }
 
 /**
