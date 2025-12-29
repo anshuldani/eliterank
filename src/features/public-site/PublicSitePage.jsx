@@ -453,7 +453,7 @@ export default function PublicSitePage({
             onAddEvent={onAddEvent}
           />
         )}
-        {activeTab === 'announcements' && <AnnouncementsTab announcements={displayAnnouncements} />}
+        {activeTab === 'announcements' && <AnnouncementsTab announcements={displayAnnouncements} city={city} season={season} />}
         {activeTab === 'about' && (
           <AboutTab
             judges={displayJudges}
