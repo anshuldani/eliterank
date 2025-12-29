@@ -38,6 +38,7 @@ export function useCompetitionDashboard(competitionId) {
         announcementsResult,
         votesResult,
         competitionResult,
+        profilesResult,
       ] = await Promise.all([
         // Contestants ordered by votes (for leaderboard)
         supabase
@@ -87,6 +88,14 @@ export function useCompetitionDashboard(competitionId) {
           .from('votes')
           .select('amount_paid')
           .eq('competition_id', competitionId),
+
+        // Get competition info (if needed later)
+        null,
+
+        // Fetch all profiles to match by email for third-party nominations
+        supabase
+          .from('profiles')
+          .select('id, email'),
       ]);
 
       // Check for errors
@@ -98,12 +107,21 @@ export function useCompetitionDashboard(competitionId) {
         eventsResult.error,
         announcementsResult.error,
         votesResult.error,
+        profilesResult?.error,
       ].filter(Boolean);
 
       if (errors.length > 0) {
         console.error('Errors fetching dashboard data:', errors);
         setError(errors[0]?.message || 'Error fetching data');
       }
+
+      // Create a map of emails to profile IDs for quick lookup
+      const emailToProfileMap = new Map();
+      (profilesResult?.data || []).forEach((profile) => {
+        if (profile.email) {
+          emailToProfileMap.set(profile.email.toLowerCase(), profile.id);
+        }
+      });
 
       // Transform contestants for leaderboard
       const contestants = (contestantsResult.data || []).map((c, index) => ({
@@ -122,37 +140,61 @@ export function useCompetitionDashboard(competitionId) {
       }));
 
       // Transform nominees - include all fields for categorization
-      const nominees = (nomineesResult.data || []).map((n) => ({
-        id: n.id,
-        name: n.name,
-        email: n.email,
-        phone: n.phone,
-        instagram: n.instagram,
-        occupation: n.occupation,
-        bio: n.bio,
-        interests: n.interests || [],
-        // Nomination source info
-        nominatedBy: n.nominated_by, // 'self' or 'third_party'
-        nominatorId: n.nominator_id,
-        nominatorName: n.nominator_name,
-        nominatorEmail: n.nominator_email,
-        // Profile link info
-        userId: n.user_id, // If not null, they have a profile
-        hasProfile: !!n.user_id,
-        // Status and completion
-        status: n.status,
-        age: n.age,
-        city: n.city,
-        livesNearCity: n.lives_near_city,
-        isSingle: n.is_single,
-        profileComplete: n.profile_complete,
-        // Tracking
-        inviteToken: n.invite_token,
-        inviteSentAt: n.invite_sent_at,
-        convertedToContestantId: n.converted_to_contestant_id,
-        createdAt: n.created_at,
-        updatedAt: n.updated_at,
-      }));
+      const nominees = (nomineesResult.data || []).map((n) => {
+        // Determine if nominee has a profile:
+        // 1. If they have a user_id, they definitely have a profile
+        // 2. If self-nominated, they were logged in so they have a profile
+        // 3. If third-party nominated, check if their email matches a profile in the database
+        let hasProfile = !!n.user_id;
+        let matchedProfileId = n.user_id;
+
+        if (!hasProfile && n.email) {
+          // Check if email matches an existing profile
+          const emailLower = n.email.toLowerCase();
+          if (emailToProfileMap.has(emailLower)) {
+            hasProfile = true;
+            matchedProfileId = emailToProfileMap.get(emailLower);
+          }
+        }
+
+        // Self-nominations always indicate they have a profile (they were logged in)
+        if (n.nominated_by === 'self' && !hasProfile) {
+          // This shouldn't happen in normal flow, but mark it anyway
+          hasProfile = true;
+        }
+
+        return {
+          id: n.id,
+          name: n.name,
+          email: n.email,
+          phone: n.phone,
+          instagram: n.instagram,
+          occupation: n.occupation,
+          bio: n.bio,
+          interests: n.interests || [],
+          // Nomination source info
+          nominatedBy: n.nominated_by, // 'self' or 'third_party'
+          nominatorId: n.nominator_id,
+          nominatorName: n.nominator_name,
+          nominatorEmail: n.nominator_email,
+          // Profile link info - use matched profile ID if found
+          userId: matchedProfileId,
+          hasProfile,
+          // Status and completion
+          status: n.status,
+          age: n.age,
+          city: n.city,
+          livesNearCity: n.lives_near_city,
+          isSingle: n.is_single,
+          profileComplete: n.profile_complete,
+          // Tracking
+          inviteToken: n.invite_token,
+          inviteSentAt: n.invite_sent_at,
+          convertedToContestantId: n.converted_to_contestant_id,
+          createdAt: n.created_at,
+          updatedAt: n.updated_at,
+        };
+      });
 
       // Transform judges
       const judges = (judgesResult.data || []).map((j) => ({
