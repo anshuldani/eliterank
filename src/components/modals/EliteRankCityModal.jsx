@@ -155,8 +155,8 @@ export default function EliteRankCityModal({
               citySlug,
               cityId: comp.city_id,
               season: comp.season || new Date().getFullYear(),
-              // Store both status (super admin controlled) and computed phase
-              status: comp.status || COMPETITION_STATUSES.DRAFT,
+              // Store both status (super admin controlled) and computed phase - normalize to lowercase
+              status: (comp.status || COMPETITION_STATUSES.DRAFT).toLowerCase(),
               phase: computedPhase,
               contestants: 0,
               votes: 0,
