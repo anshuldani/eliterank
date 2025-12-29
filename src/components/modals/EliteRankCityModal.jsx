@@ -100,7 +100,6 @@ export default function EliteRankCityModal({
               .update({ status: newStatus })
               .eq('id', id);
           }
-          console.log('[EliteRankCityModal] Auto-transitioned competitions:', competitionsToTransition);
 
           // Re-fetch competitions to get updated data
           const { data: updatedComps } = await supabase
@@ -155,8 +154,8 @@ export default function EliteRankCityModal({
         if (orgsResult.data) {
           setOrganizations(orgsResult.data);
         }
-      } catch (err) {
-        console.error('Error fetching data:', err);
+      } catch {
+        // Silent fail - will show empty state
       } finally {
         setLoading(false);
       }
@@ -202,28 +201,14 @@ export default function EliteRankCityModal({
   });
 
   const handleCompetitionClick = (competition) => {
-    console.log('[EliteRankCityModal] Competition clicked:', {
-      id: competition.id,
-      city: competition.city,
-      status: competition.status,
-      accessible: competition.accessible,
-    });
-
     if (competition.accessible && onOpenCompetition) {
-      // Full access - open the full competition page
-      console.log('[EliteRankCityModal] Opening accessible competition');
       onOpenCompetition(competition);
     } else if (competition.status === COMPETITION_STATUSES.PUBLISH) {
-      // Teaser - open teaser page or handle inline
-      console.log('[EliteRankCityModal] Opening published competition as teaser');
       if (onOpenTeaser) {
         onOpenTeaser(competition);
       } else if (onOpenCompetition) {
-        // Fallback: pass competition with teaser flag
         onOpenCompetition({ ...competition, isTeaser: true });
       }
-    } else {
-      console.log('[EliteRankCityModal] Competition not clickable - status:', competition.status);
     }
   };
 

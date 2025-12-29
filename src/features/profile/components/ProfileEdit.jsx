@@ -39,12 +39,9 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
     }
 
     try {
-      // Generate unique filename with folder prefix
       const timestamp = Date.now();
       const ext = file.name.split('.').pop();
       const filename = `${folder}/${timestamp}.${ext}`;
-
-      console.log('[ProfileEdit] Uploading file:', filename, 'size:', file.size);
 
       const response = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
         method: 'POST',
@@ -54,14 +51,11 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('[ProfileEdit] Upload response error:', data);
         throw new Error(data.error || 'Upload failed');
       }
 
-      console.log('[ProfileEdit] Upload successful:', data.url);
       return data.url;
     } catch (error) {
-      console.error('[ProfileEdit] Upload error:', error);
       alert(`Upload failed: ${error.message}. Please try again.`);
       return null;
     }

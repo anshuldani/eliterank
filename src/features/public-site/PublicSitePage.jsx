@@ -54,19 +54,7 @@ export default function PublicSitePage({
   user, // Full user object for forms
 }) {
   // Check if this is a teaser page (publish status)
-  // Defensive: check both isTeaser prop AND status to ensure published competitions show teaser
   const isTeaser = competition?.isTeaser === true || competition?.status === 'publish';
-
-  // Debug logging for troubleshooting
-  if (isOpen) {
-    console.log('[PublicSitePage] Rendering with:', {
-      isOpen,
-      isTeaser,
-      competitionStatus: competition?.status,
-      competitionIsTeaser: competition?.isTeaser,
-      city: competition?.city,
-    });
-  }
 
   // If teaser mode, render the teaser component
   if (isOpen && isTeaser) {

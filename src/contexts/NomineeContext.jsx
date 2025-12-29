@@ -48,8 +48,7 @@ export function NomineeProvider({ children }) {
   }, []);
 
   // Resend invite
-  const resendInvite = useCallback((nomineeId) => {
-    console.log('Resending invite to nominee:', nomineeId);
+  const resendInvite = useCallback(() => {
     // In a real app, this would trigger an email resend
   }, []);
 

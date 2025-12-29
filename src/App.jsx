@@ -214,8 +214,6 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('[ErrorBoundary] Error caught:', error);
-    console.error('[ErrorBoundary] Error info:', errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -399,7 +397,6 @@ export default function App() {
           .limit(1);
 
         if (error) {
-          console.error('[App] Error fetching host competition:', error);
           setHostCompetition(null);
           return;
         }
@@ -413,8 +410,7 @@ export default function App() {
         } else {
           setHostCompetition(null);
         }
-      } catch (err) {
-        console.error('[App] Unexpected error fetching competition:', err);
+      } catch {
         setHostCompetition(null);
       }
     };
@@ -434,7 +430,6 @@ export default function App() {
         .limit(1);
 
       if (error) {
-        console.error('[App] Error refreshing competition:', error);
         return;
       }
 
@@ -445,8 +440,8 @@ export default function App() {
           name: buildCompetitionName(competition),
         });
       }
-    } catch (err) {
-      console.error('[App] Unexpected error refreshing competition:', err);
+    } catch {
+      // Silent fail
     }
   }, [user?.id]);
 
@@ -527,8 +522,8 @@ export default function App() {
             );
             setShowPublicSite(true);
           }
-        } catch (err) {
-          console.error('[App] Error loading competition from URL:', err);
+        } catch {
+          // Silent fail for URL parsing
         }
       }
 
@@ -656,15 +651,13 @@ export default function App() {
       const result = await updateProfile(dbUpdates);
 
       if (result?.error) {
-        console.error('[App] Profile save error:', result.error);
         alert(`Failed to save profile: ${result.error}`);
         return;
       }
 
       setIsEditingProfile(false);
       setEditingProfileData(null);
-    } catch (err) {
-      console.error('[App] Profile save error:', err);
+    } catch {
       alert('Failed to save profile. Please try again.');
     }
   }, [editingProfileData, updateProfile]);

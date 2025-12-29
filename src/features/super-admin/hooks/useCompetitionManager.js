@@ -25,7 +25,6 @@ export function useCompetitionManager() {
       ]);
 
       if (compsResult.error) {
-        console.error('Error fetching competitions:', compsResult.error);
         setCompetitions([]);
         return;
       }
@@ -61,7 +60,6 @@ export function useCompetitionManager() {
             .update({ status: newStatus })
             .eq('id', id);
         }
-        console.log('[useCompetitionManager] Auto-transitioned competitions:', competitionsToTransition);
 
         // Re-fetch competitions to get updated data
         const { data: updatedData } = await supabase
@@ -118,8 +116,7 @@ export function useCompetitionManager() {
       }));
 
       setCompetitions(transformed);
-    } catch (err) {
-      console.error('Error fetching competitions:', err);
+    } catch {
       setCompetitions([]);
     }
   }, []);
@@ -135,15 +132,11 @@ export function useCompetitionManager() {
         .order('name');
 
       if (error) {
-        // Table might not exist yet - that's ok
-        console.warn('Organizations table error:', error);
         setOrganizations([]);
         return;
       }
       setOrganizations(data || []);
-    } catch (err) {
-      console.error('Error fetching organizations:', err);
-      // Don't set error for organizations - not critical
+    } catch {
       setOrganizations([]);
     }
   }, []);
@@ -164,8 +157,8 @@ export function useCompetitionManager() {
 
       try {
         await Promise.all([fetchCompetitions(), fetchOrganizations()]);
-      } catch (err) {
-        console.error('Error loading competition data:', err.message);
+      } catch {
+        // Silent fail
       } finally {
         clearTimeout(timeout);
         if (isMounted) {
@@ -184,7 +177,6 @@ export function useCompetitionManager() {
   // Create a new competition in Supabase
   const createCompetition = useCallback(async (templateData, hostId) => {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
@@ -215,7 +207,6 @@ export function useCompetitionManager() {
       await fetchCompetitions();
       return data;
     } catch (err) {
-      console.error('Error creating competition:', err);
       setError(err.message);
       return null;
     }
@@ -224,7 +215,6 @@ export function useCompetitionManager() {
   // Update an existing competition in Supabase
   const updateCompetition = useCallback(async (competitionId, updates) => {
     if (!supabase) {
-      console.error('Supabase not configured');
       return { success: false, error: 'Supabase not configured' };
     }
 
@@ -256,7 +246,6 @@ export function useCompetitionManager() {
       await fetchCompetitions();
       return { success: true, data };
     } catch (err) {
-      console.error('Error updating competition:', err);
       setError(err.message);
       return { success: false, error: err.message };
     }
@@ -276,7 +265,6 @@ export function useCompetitionManager() {
 
       await fetchCompetitions();
     } catch (err) {
-      console.error('Error deleting competition:', err);
       setError(err.message);
     }
   }, [fetchCompetitions]);
@@ -313,7 +301,6 @@ export function useCompetitionManager() {
       await fetchOrganizations();
       return data;
     } catch (err) {
-      console.error('Error creating organization:', err);
       setError(err.message);
       return null;
     }

@@ -2,15 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 /**
- * Custom hook for Supabase authentication
- *
- * Best practices implemented:
- * 1. Auth state and profile state are separate concerns
- * 2. Auth completes quickly - profile loads in background
- * 3. Profile fetch failures don't block the app
- * 4. Uses AbortController for proper request cancellation
- * 5. Retry mechanism for profile fetch
- * 6. No timeout hacks - proper error handling
+ * Simplified Supabase authentication hook
+ * - No retry logic (causes state loops)
+ * - No profile dependency in effects
+ * - Single auth state change handler
  */
 export default function useSupabaseAuth() {
   const [user, setUser] = useState(null);
@@ -19,80 +14,41 @@ export default function useSupabaseAuth() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Track if component is mounted
   const mountedRef = useRef(true);
-  // Track current profile fetch to prevent race conditions
-  const profileFetchRef = useRef(null);
-
   const isDemoMode = !isSupabaseConfigured();
 
-  // Fetch user profile - separate from auth
-  const fetchProfile = useCallback(async (userId, retryCount = 0) => {
+  // Simple profile fetch - no retries
+  const fetchProfile = useCallback(async (userId) => {
     if (!supabase || !userId) return null;
 
-    // Cancel any pending profile fetch
-    if (profileFetchRef.current) {
-      profileFetchRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    profileFetchRef.current = controller;
-
-    setProfileLoading(true);
-
     try {
-      // Use maybeSingle() to avoid 406 errors when no profile exists
       const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .maybeSingle()
-        .abortSignal(controller.signal);
+        .maybeSingle();
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      // maybeSingle returns null if no row found - that's okay
-      if (!data) {
-        console.log('Auth: No profile found for user, may need to create one');
-      }
-
+      if (fetchError) throw fetchError;
       return data;
-    } catch (err) {
-      // Don't log aborted requests
-      if (err.name === 'AbortError') return null;
-
-      console.error('Auth: Profile fetch error:', err.message);
-
-      // Retry up to 2 times for transient errors
-      if (retryCount < 2 && !controller.signal.aborted) {
-        console.log(`Auth: Retrying profile fetch (attempt ${retryCount + 2})`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-        return fetchProfile(userId, retryCount + 1);
-      }
-
+    } catch {
       return null;
-    } finally {
-      if (mountedRef.current) {
-        setProfileLoading(false);
-      }
-      profileFetchRef.current = null;
     }
   }, []);
 
-  // Load profile for a user (called after auth is confirmed)
+  // Load profile for user
   const loadProfile = useCallback(async (userId) => {
     if (!userId || !mountedRef.current) return;
 
+    setProfileLoading(true);
     const profileData = await fetchProfile(userId);
 
     if (mountedRef.current) {
       setProfile(profileData);
+      setProfileLoading(false);
     }
   }, [fetchProfile]);
 
-  // Initialize auth state
+  // Initialize auth - runs once
   useEffect(() => {
     mountedRef.current = true;
 
@@ -101,30 +57,21 @@ export default function useSupabaseAuth() {
       return;
     }
 
-    let authSubscription = null;
-
+    // Get initial session
     const initAuth = async () => {
       try {
-        // Get current session - this should be fast
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('Auth: Session error:', sessionError);
-          setError(sessionError.message);
-        }
+        const { data: { session } } = await supabase.auth.getSession();
 
         if (mountedRef.current) {
           const currentUser = session?.user ?? null;
           setUser(currentUser);
           setAuthLoading(false);
 
-          // Load profile in background AFTER auth is complete
           if (currentUser) {
             loadProfile(currentUser.id);
           }
         }
       } catch (err) {
-        console.error('Auth: Init error:', err);
         if (mountedRef.current) {
           setError(err.message);
           setAuthLoading(false);
@@ -132,11 +79,9 @@ export default function useSupabaseAuth() {
       }
     };
 
-    // Set up auth state listener FIRST
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth: State changed -', event);
-
+      (event, session) => {
         if (!mountedRef.current) return;
 
         const currentUser = session?.user ?? null;
@@ -146,30 +91,19 @@ export default function useSupabaseAuth() {
           loadProfile(currentUser.id);
         } else if (event === 'SIGNED_OUT') {
           setProfile(null);
-        } else if (event === 'TOKEN_REFRESHED' && currentUser && !profile) {
-          // If we have a user but no profile (e.g., after token refresh), load it
-          loadProfile(currentUser.id);
         }
       }
     );
 
-    authSubscription = subscription;
-
-    // Then initialize
     initAuth();
 
     return () => {
       mountedRef.current = false;
-      if (authSubscription) {
-        authSubscription.unsubscribe();
-      }
-      if (profileFetchRef.current) {
-        profileFetchRef.current.abort();
-      }
+      subscription.unsubscribe();
     };
-  }, [isDemoMode, loadProfile, profile]);
+  }, [isDemoMode, loadProfile]);
 
-  // Sign in with email/password
+  // Sign in
   const signIn = useCallback(async (email, password) => {
     if (isDemoMode) {
       const demoUser = {
@@ -201,8 +135,6 @@ export default function useSupabaseAuth() {
       });
 
       if (signInError) throw signInError;
-
-      // Profile will be loaded by onAuthStateChange listener
       return { user: data.user, error: null };
     } catch (err) {
       setError(err.message);
@@ -210,7 +142,7 @@ export default function useSupabaseAuth() {
     }
   }, [isDemoMode]);
 
-  // Sign up with email/password
+  // Sign up
   const signUp = useCallback(async (email, password, metadata = {}) => {
     if (isDemoMode) {
       return signIn(email, password);
@@ -222,16 +154,12 @@ export default function useSupabaseAuth() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: metadata,
-        },
+        options: { data: metadata },
       });
 
       if (signUpError) throw signUpError;
-
       return { user: data.user, error: null };
     } catch (err) {
-      console.error('SignUp error:', err);
       setError(err.message);
       return { user: null, error: err.message };
     }
@@ -247,8 +175,8 @@ export default function useSupabaseAuth() {
 
     try {
       await supabase.auth.signOut();
-    } catch (err) {
-      console.error('Sign out error:', err);
+    } catch {
+      // Silent fail on signout
     }
 
     setUser(null);
@@ -272,16 +200,14 @@ export default function useSupabaseAuth() {
 
       if (updateError) throw updateError;
 
-      // Update local state
       setProfile((prev) => ({ ...prev, ...updates }));
       return { error: null };
     } catch (err) {
-      console.error('Profile update error:', err);
       return { error: err.message };
     }
   }, [isDemoMode, user]);
 
-  // Refresh profile manually (useful after profile creation)
+  // Refresh profile
   const refreshProfile = useCallback(() => {
     if (user) {
       loadProfile(user.id);
@@ -291,7 +217,7 @@ export default function useSupabaseAuth() {
   return {
     user,
     profile,
-    loading: authLoading, // Main loading state is auth loading
+    loading: authLoading,
     profileLoading,
     error,
     isDemoMode,
