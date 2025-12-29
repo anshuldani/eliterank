@@ -17,6 +17,7 @@ import InterestForm from '../components/InterestForm';
 // Tab definitions
 const TABS = [
   { id: 'about', label: 'About', icon: Crown },
+  { id: 'winners', label: 'Winners', icon: Trophy },
   { id: 'vote', label: 'Vote', icon: Vote },
   { id: 'compete', label: 'Compete', icon: UserPlus },
   { id: 'events', label: 'Events', icon: PartyPopper },
@@ -33,6 +34,7 @@ export default function CompetitionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('about');
+  const [winners, setWinners] = useState([]);
 
   // Parse competition slug (format: city-slug-season)
   const parseCompetitionSlug = (slug) => {
@@ -126,6 +128,22 @@ export default function CompetitionPage() {
         ...compData,
         city: cityData,
       });
+
+      // Fetch winners if competition has them
+      if (compData.winners && compData.winners.length > 0) {
+        const { data: winnerProfiles, error: winnersError } = await supabase
+          .from('profiles')
+          .select('id, email, first_name, last_name, instagram_handle, avatar_url')
+          .in('id', compData.winners);
+
+        if (!winnersError && winnerProfiles) {
+          // Maintain order from winner IDs
+          const orderedWinners = compData.winners
+            .map(id => winnerProfiles.find(p => p.id === id))
+            .filter(Boolean);
+          setWinners(orderedWinners);
+        }
+      }
     } catch (err) {
       console.error('Error fetching competition:', err);
       setError('Failed to load competition');
@@ -312,6 +330,8 @@ export default function CompetitionPage() {
               {TABS.filter(tab => {
                 // Hide Events tab if competition doesn't have events
                 if (tab.id === 'events' && !competition.has_events) return false;
+                // Only show Winners tab for completed competitions with winners
+                if (tab.id === 'winners' && (competition.status !== COMPETITION_STATUS.COMPLETED || winners.length === 0)) return false;
                 return true;
               }).map(tab => {
                 const Icon = tab.icon;
@@ -440,6 +460,9 @@ export default function CompetitionPage() {
           <div>
             {activeTab === 'about' && (
               <AboutTab competition={competition} organization={organization} />
+            )}
+            {activeTab === 'winners' && (
+              <WinnersTab winners={winners} />
             )}
             {activeTab === 'vote' && (
               <VoteTab competition={competition} />
@@ -577,6 +600,147 @@ function VoteTab({ competition }) {
       <p style={{ color: colors.text.secondary }}>
         Contestant voting will be displayed here during voting rounds.
       </p>
+    </div>
+  );
+}
+
+function WinnersTab({ winners }) {
+  const getProfileName = (profile) => {
+    const firstName = profile.first_name || '';
+    const lastName = profile.last_name || '';
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || profile.email || 'Unknown';
+  };
+
+  if (!winners || winners.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: spacing.xxxl }}>
+        <Trophy size={64} style={{ color: colors.text.muted, marginBottom: spacing.lg }} />
+        <h2 style={{ fontSize: typography.fontSize.xl, marginBottom: spacing.md }}>
+          Winners
+        </h2>
+        <p style={{ color: colors.text.secondary }}>
+          No winners have been announced yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: typography.fontSize.xl, marginBottom: spacing.lg }}>
+        Competition Winners
+      </h2>
+      <p style={{ color: colors.text.secondary, marginBottom: spacing.xl }}>
+        Congratulations to our winners!
+      </p>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: spacing.lg,
+      }}>
+        {winners.map((winner) => (
+          <div
+            key={winner.id}
+            style={{
+              background: colors.background.card,
+              border: '1px solid rgba(212,175,55,0.3)',
+              borderRadius: borderRadius.xl,
+              padding: spacing.xl,
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Gold accent at top */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: 'linear-gradient(90deg, rgba(212,175,55,0.3), rgba(212,175,55,0.8), rgba(212,175,55,0.3))',
+            }} />
+
+            {/* Crown icon */}
+            <div style={{
+              width: 48,
+              height: 48,
+              borderRadius: borderRadius.full,
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              marginBottom: spacing.md,
+            }}>
+              <Crown size={24} style={{ color: colors.gold.primary }} />
+            </div>
+
+            {/* Avatar */}
+            <div style={{
+              width: 80,
+              height: 80,
+              borderRadius: borderRadius.full,
+              background: winner.avatar_url
+                ? `url(${winner.avatar_url}) center/cover`
+                : 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))',
+              margin: '0 auto',
+              marginBottom: spacing.md,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '3px solid rgba(212,175,55,0.5)',
+              fontSize: typography.fontSize.xxl,
+              fontWeight: typography.fontWeight.bold,
+              color: colors.gold.primary,
+            }}>
+              {!winner.avatar_url && getProfileName(winner).charAt(0).toUpperCase()}
+            </div>
+
+            {/* Name */}
+            <h3 style={{
+              fontSize: typography.fontSize.lg,
+              fontWeight: typography.fontWeight.semibold,
+              marginBottom: spacing.xs,
+            }}>
+              {getProfileName(winner)}
+            </h3>
+
+            {/* Instagram handle */}
+            {winner.instagram_handle && (
+              <p style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.xs,
+              }}>
+                @{winner.instagram_handle.replace('@', '')}
+              </p>
+            )}
+
+            {/* Winner badge */}
+            <div style={{
+              marginTop: spacing.md,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: spacing.xs,
+              padding: `${spacing.xs} ${spacing.md}`,
+              background: 'rgba(212,175,55,0.15)',
+              borderRadius: borderRadius.pill,
+              color: colors.gold.primary,
+              fontSize: typography.fontSize.xs,
+              fontWeight: typography.fontWeight.medium,
+            }}>
+              <Trophy size={12} />
+              Winner
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -15,6 +15,7 @@ import CurrentPhaseCard from '../../overview/components/CurrentPhaseCard';
 import TrafficCard from '../../overview/components/TrafficCard';
 import UpcomingCard from '../../overview/components/UpcomingCard';
 import Leaderboard from '../../overview/components/Leaderboard';
+import WinnersManager from './WinnersManager';
 
 // Import the real data hook
 import { useCompetitionDashboard } from '../hooks';
@@ -555,6 +556,9 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
 
     return (
       <div>
+        {/* Winners Manager - Only for completed competitions */}
+        <WinnersManager competition={competition} onUpdate={refresh} />
+
         {/* Stats Row */}
         <div style={{
           display: 'grid',
