@@ -27,32 +27,10 @@ export default function CitiesManager() {
     state: '',
   });
 
-  // Fetch cities
+  // Fetch cities on mount
   useEffect(() => {
     fetchCities();
   }, []);
-
-  const fetchCities = async () => {
-    if (!supabase) return;
-
-    setLoading(true);
-    try {
-      // Simple query without relational count (avoids FK issues)
-      const { data, error } = await supabase
-        .from('cities')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-
-      setCities(data || []);
-    } catch (err) {
-      console.error('Error fetching cities:', err);
-      toast.error(`Failed to load cities: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Fetch competitions for a city
   const fetchCityCompetitions = async (cityId) => {
@@ -61,12 +39,7 @@ export default function CitiesManager() {
     try {
       const { data, error } = await supabase
         .from('competitions')
-        .select(`
-          id,
-          season,
-          status,
-          organizations:organization_id(name)
-        `)
+        .select('id, season, status, organization_id')
         .eq('city_id', cityId)
         .order('season', { ascending: false });
 
@@ -75,6 +48,51 @@ export default function CitiesManager() {
     } catch (err) {
       console.error('Error fetching city competitions:', err);
       return [];
+    }
+  };
+
+  // Get competition count for a city
+  const getCompetitionCount = async (cityId) => {
+    if (!supabase) return 0;
+    try {
+      const { count, error } = await supabase
+        .from('competitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('city_id', cityId);
+      if (error) return 0;
+      return count || 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Fetch cities with competition counts
+  const fetchCities = async () => {
+    if (!supabase) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('cities')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+
+      // Get competition counts for each city
+      const citiesWithCounts = await Promise.all(
+        (data || []).map(async (city) => {
+          const count = await getCompetitionCount(city.id);
+          return { ...city, competitionCount: count };
+        })
+      );
+
+      setCities(citiesWithCounts);
+    } catch (err) {
+      console.error('Error fetching cities:', err);
+      toast.error(`Failed to load cities: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -361,7 +379,7 @@ export default function CitiesManager() {
                     gap: spacing.xs,
                   }}>
                     <Crown size={12} />
-                    {city.competitions?.[0]?.count || 0} competitions
+                    {city.competitionCount || 0} competitions
                   </span>
                 </div>
               </div>

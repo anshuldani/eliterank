@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Crown, ArrowLeft, Shield, Star, LogOut, BarChart3, UserPlus, FileText, Settings as SettingsIcon,
   User, TrendingUp, Calendar, Eye, Edit2, Loader, AlertCircle
 } from 'lucide-react';
 import { Button, Badge, Avatar, StatCard } from '../../../components/ui';
 import { colors, gradients, spacing, borderRadius, typography, transitions } from '../../../styles/theme';
+import { supabase } from '../../../lib/supabase';
 
 // Import host dashboard components for reuse
 import RevenueCard from '../../overview/components/RevenueCard';
@@ -28,9 +29,43 @@ const TABS = [
 export default function SuperAdminCompetitionDashboard({ competition, onBack, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [assignedHost, setAssignedHost] = useState(null);
 
   // Fetch real data from Supabase
   const { data, loading, error, refresh, approveNominee, rejectNominee } = useCompetitionDashboard(competition?.id);
+
+  // Fetch host data if competition has host_id
+  useEffect(() => {
+    const fetchHost = async () => {
+      if (!competition?.host_id || !supabase) {
+        setAssignedHost(null);
+        return;
+      }
+
+      try {
+        const { data: hostData, error } = await supabase
+          .from('profiles')
+          .select('id, email, first_name, last_name')
+          .eq('id', competition.host_id)
+          .single();
+
+        if (!error && hostData) {
+          setAssignedHost({
+            id: hostData.id,
+            name: `${hostData.first_name || ''} ${hostData.last_name || ''}`.trim() || hostData.email,
+            email: hostData.email,
+          });
+        } else {
+          setAssignedHost(null);
+        }
+      } catch (err) {
+        console.error('Error fetching host:', err);
+        setAssignedHost(null);
+      }
+    };
+
+    fetchHost();
+  }, [competition?.host_id]);
 
   // Header component matching host dashboard style but with purple admin theme
   const renderHeader = () => (
@@ -659,7 +694,7 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
   // Host Profile tab
   const renderHostProfile = () => (
     <div>
-      {competition.assignedHost ? (
+      {assignedHost ? (
         <div style={{
           background: colors.background.card,
           border: `1px solid ${colors.border.light}`,
@@ -668,12 +703,12 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
-              <Avatar name={competition.assignedHost.name} size={80} variant="gold" />
+              <Avatar name={assignedHost.name} size={80} variant="gold" />
               <div>
                 <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
-                  {competition.assignedHost.name}
+                  {assignedHost.name}
                 </h2>
-                <p style={{ color: colors.text.secondary }}>{competition.assignedHost.email}</p>
+                <p style={{ color: colors.text.secondary }}>{assignedHost.email}</p>
                 <Badge variant="gold" size="sm" style={{ marginTop: spacing.sm }}>Competition Host</Badge>
               </div>
             </div>

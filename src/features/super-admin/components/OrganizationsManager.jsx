@@ -31,6 +31,21 @@ export default function OrganizationsManager() {
     logo_url: '',
   });
 
+  // Get competition count for an organization
+  const getCompetitionCount = async (orgId) => {
+    if (!supabase) return 0;
+    try {
+      const { count, error } = await supabase
+        .from('competitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+      if (error) return 0;
+      return count || 0;
+    } catch {
+      return 0;
+    }
+  };
+
   // Fetch organizations
   useEffect(() => {
     fetchOrganizations();
@@ -41,7 +56,6 @@ export default function OrganizationsManager() {
 
     setLoading(true);
     try {
-      // Simple query without relational count (avoids FK issues)
       const { data, error } = await supabase
         .from('organizations')
         .select('*')
@@ -49,7 +63,15 @@ export default function OrganizationsManager() {
 
       if (error) throw error;
 
-      setOrganizations(data || []);
+      // Get competition counts for each organization
+      const orgsWithCounts = await Promise.all(
+        (data || []).map(async (org) => {
+          const count = await getCompetitionCount(org.id);
+          return { ...org, competitionCount: count };
+        })
+      );
+
+      setOrganizations(orgsWithCounts);
     } catch (err) {
       console.error('Error fetching organizations:', err);
       toast.error(`Failed to load organizations: ${err.message}`);
@@ -65,12 +87,7 @@ export default function OrganizationsManager() {
     try {
       const { data, error } = await supabase
         .from('competitions')
-        .select(`
-          id,
-          season,
-          status,
-          cities:city_id(name, state)
-        `)
+        .select('id, season, status, city_id')
         .eq('organization_id', orgId)
         .order('season', { ascending: false });
 
@@ -410,7 +427,7 @@ export default function OrganizationsManager() {
                     gap: spacing.xs,
                   }}>
                     <Crown size={12} />
-                    {org.competitions?.[0]?.count || 0} competitions
+                    {org.competitionCount || 0} competitions
                   </span>
                 </div>
               </div>
