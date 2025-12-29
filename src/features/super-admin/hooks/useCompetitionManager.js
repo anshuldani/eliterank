@@ -1,5 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import {
+  shouldAutoTransitionToLive,
+  shouldAutoTransitionToCompleted,
+} from '../../../utils/competitionPhase';
 
 export function useCompetitionManager() {
   const [competitions, setCompetitions] = useState([]);
@@ -14,16 +18,60 @@ export function useCompetitionManager() {
     }
 
     try {
-      // Fetch competitions
-      const { data, error } = await supabase
-        .from('competitions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch competitions and settings
+      const [compsResult, settingsResult] = await Promise.all([
+        supabase.from('competitions').select('*').order('created_at', { ascending: false }),
+        supabase.from('competition_settings').select('*'),
+      ]);
 
-      if (error) {
-        console.error('Error fetching competitions:', error);
+      if (compsResult.error) {
+        console.error('Error fetching competitions:', compsResult.error);
         setCompetitions([]);
         return;
+      }
+
+      let data = compsResult.data;
+
+      // Create lookup map for settings
+      const settingsMap = (settingsResult.data || []).reduce((acc, s) => {
+        acc[s.competition_id] = s;
+        return acc;
+      }, {});
+
+      // Check for auto-transitions and update if needed
+      const competitionsToTransition = [];
+      for (const comp of (data || [])) {
+        const settings = settingsMap[comp.id];
+
+        // Check if should transition from publish to live
+        if (shouldAutoTransitionToLive(comp, settings)) {
+          competitionsToTransition.push({ id: comp.id, newStatus: 'live' });
+        }
+        // Check if should transition from live to completed
+        else if (shouldAutoTransitionToCompleted(comp, settings)) {
+          competitionsToTransition.push({ id: comp.id, newStatus: 'completed' });
+        }
+      }
+
+      // Apply auto-transitions if any
+      if (competitionsToTransition.length > 0) {
+        for (const { id, newStatus } of competitionsToTransition) {
+          await supabase
+            .from('competitions')
+            .update({ status: newStatus })
+            .eq('id', id);
+        }
+        console.log('[useCompetitionManager] Auto-transitioned competitions:', competitionsToTransition);
+
+        // Re-fetch competitions to get updated data
+        const { data: updatedData } = await supabase
+          .from('competitions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (updatedData) {
+          data = updatedData;
+        }
       }
 
       // Get unique host IDs to fetch host profiles
@@ -272,13 +320,13 @@ export function useCompetitionManager() {
   }, [fetchOrganizations]);
 
   // Get competitions by status
-  // Status values: draft, publish, active, complete, archive
+  // Status values: draft, publish, live, completed, archive
   const competitionsByStatus = useMemo(() => {
     return {
       draft: competitions.filter((t) => t.status === 'draft'),
       publish: competitions.filter((t) => t.status === 'publish'),
-      active: competitions.filter((t) => t.status === 'active'),
-      complete: competitions.filter((t) => t.status === 'complete'),
+      live: competitions.filter((t) => t.status === 'live'),
+      completed: competitions.filter((t) => t.status === 'completed'),
       archive: competitions.filter((t) => t.status === 'archive'),
     };
   }, [competitions]);
@@ -289,8 +337,8 @@ export function useCompetitionManager() {
       total: competitions.length,
       draft: competitionsByStatus.draft.length,
       publish: competitionsByStatus.publish.length,
-      active: competitionsByStatus.active.length,
-      complete: competitionsByStatus.complete.length,
+      live: competitionsByStatus.live.length,
+      completed: competitionsByStatus.completed.length,
       archive: competitionsByStatus.archive.length,
     };
   }, [competitions, competitionsByStatus]);

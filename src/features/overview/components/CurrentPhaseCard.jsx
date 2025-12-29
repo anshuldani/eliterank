@@ -2,7 +2,7 @@ import React from 'react';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import { computeCompetitionPhase, COMPETITION_STATUSES, TIMELINE_PHASES } from '../../../utils/competitionPhase';
 
-// Timeline phases in order (for progress calculation when status is 'active')
+// Timeline phases in order (for progress calculation when status is 'live')
 const TIMELINE_PHASE_ORDER = ['nomination', 'voting', 'judging', 'completed'];
 
 // Human-readable phase/status labels
@@ -10,33 +10,32 @@ const PHASE_LABELS = {
   // Super admin statuses
   draft: 'Draft',
   publish: 'Coming Soon',
-  active: 'Active',
-  complete: 'Complete',
+  live: 'Live',
+  completed: 'Completed',
   archive: 'Archived',
-  // Timeline phases (when status is active)
+  // Timeline phases (when status is live)
   nomination: 'Nomination Phase',
   voting: 'Voting Phase',
   judging: 'Judging Phase',
-  completed: 'Completed',
 };
 
 export default function CurrentPhaseCard({ competition }) {
-  // Get the computed phase (considers timeline dates when status is 'active')
+  // Get the computed phase (considers timeline dates when status is 'live')
   const computedPhase = computeCompetitionPhase(competition);
   const status = competition?.status || 'draft';
 
-  // Determine if we're in an active timeline phase
-  const isActiveStatus = status === COMPETITION_STATUSES.ACTIVE;
+  // Determine if we're in a live timeline phase
+  const isLiveStatus = status === COMPETITION_STATUSES.LIVE;
   const isTimelinePhase = TIMELINE_PHASE_ORDER.includes(computedPhase);
-  const isLive = isActiveStatus && ['nomination', 'voting', 'judging'].includes(computedPhase);
-  const isCompleted = computedPhase === 'completed' || computedPhase === 'complete';
+  const isLive = isLiveStatus && ['nomination', 'voting', 'judging'].includes(computedPhase);
+  const isCompleted = computedPhase === 'completed' || status === COMPETITION_STATUSES.COMPLETED;
 
   // Calculate progress for active competitions
   let progress = 0;
   let completedCount = 0;
   const totalPhases = TIMELINE_PHASE_ORDER.length;
 
-  if (isActiveStatus && isTimelinePhase) {
+  if (isLiveStatus && isTimelinePhase) {
     const phaseIndex = TIMELINE_PHASE_ORDER.indexOf(computedPhase);
     completedCount = phaseIndex >= 0 ? phaseIndex : 0;
     progress = totalPhases > 1 ? (completedCount / (totalPhases - 1)) * 100 : 0;
@@ -103,8 +102,8 @@ export default function CurrentPhaseCard({ competition }) {
         )}
       </div>
 
-      {/* Progress Bar - only show for active competitions */}
-      {isActiveStatus && (
+      {/* Progress Bar - only show for live competitions */}
+      {isLiveStatus && (
         <div style={{ marginTop: spacing.xl }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.sm }}>
             <span style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>

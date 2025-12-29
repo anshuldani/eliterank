@@ -12,6 +12,8 @@ import {
   isCompetitionAccessible,
   getPhaseDisplayConfig,
   COMPETITION_STATUSES,
+  shouldAutoTransitionToLive,
+  shouldAutoTransitionToCompleted,
 } from '../../utils/competitionPhase';
 
 const TABS = [
@@ -50,10 +52,12 @@ export default function EliteRankCityModal({
       }
 
       try {
-        const [compsResult, orgsResult, citiesResult] = await Promise.all([
+        // Fetch competitions with settings for timeline dates
+        const [compsResult, orgsResult, citiesResult, settingsResult] = await Promise.all([
           supabase.from('competitions').select('*').order('created_at', { ascending: false }),
           supabase.from('organizations').select('*').order('name'),
           supabase.from('cities').select('*').order('name'),
+          supabase.from('competition_settings').select('*'),
         ]);
 
         // Store cities for lookup
@@ -65,6 +69,48 @@ export default function EliteRankCityModal({
           acc[city.id] = city;
           return acc;
         }, {});
+
+        // Create lookup map for settings
+        const settingsMap = (settingsResult.data || []).reduce((acc, s) => {
+          acc[s.competition_id] = s;
+          return acc;
+        }, {});
+
+        // Check for auto-transitions and update if needed
+        const competitionsToTransition = [];
+        for (const comp of (compsResult.data || [])) {
+          const settings = settingsMap[comp.id];
+
+          // Check if should transition from publish to live
+          if (shouldAutoTransitionToLive(comp, settings)) {
+            competitionsToTransition.push({ id: comp.id, newStatus: 'live' });
+          }
+          // Check if should transition from live to completed
+          else if (shouldAutoTransitionToCompleted(comp, settings)) {
+            competitionsToTransition.push({ id: comp.id, newStatus: 'completed' });
+          }
+        }
+
+        // Apply auto-transitions if any
+        if (competitionsToTransition.length > 0) {
+          for (const { id, newStatus } of competitionsToTransition) {
+            await supabase
+              .from('competitions')
+              .update({ status: newStatus })
+              .eq('id', id);
+          }
+          console.log('[EliteRankCityModal] Auto-transitioned competitions:', competitionsToTransition);
+
+          // Re-fetch competitions to get updated data
+          const { data: updatedComps } = await supabase
+            .from('competitions')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (updatedComps) {
+            compsResult.data = updatedComps;
+          }
+        }
 
         if (compsResult.data) {
           setCompetitions(compsResult.data.map(comp => {
@@ -138,8 +184,8 @@ export default function EliteRankCityModal({
     // Apply status filter
     if (statusFilter !== 'all') {
       if (statusFilter === 'active') {
-        // Show competitions with active timeline phases (nomination, voting, judging)
-        return c.status === COMPETITION_STATUSES.ACTIVE && ['nomination', 'voting', 'judging'].includes(c.phase);
+        // Show live competitions with timeline phases (nomination, voting, judging)
+        return c.status === COMPETITION_STATUSES.LIVE && ['nomination', 'voting', 'judging'].includes(c.phase);
       }
       if (statusFilter === 'upcoming') {
         // Show published (coming soon) competitions
@@ -147,7 +193,7 @@ export default function EliteRankCityModal({
       }
       if (statusFilter === 'complete') {
         // Show completed competitions
-        return c.status === COMPETITION_STATUSES.COMPLETE || c.phase === 'completed';
+        return c.status === COMPETITION_STATUSES.COMPLETED || c.phase === 'completed';
       }
     }
 

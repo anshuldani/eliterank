@@ -80,19 +80,46 @@ export default function OrganizationsManager() {
     }
   };
 
-  // Fetch competitions for an organization
+  // Fetch competitions for an organization with city names
   const fetchOrgCompetitions = async (orgId) => {
     if (!supabase) return [];
 
     try {
-      const { data, error } = await supabase
+      // Fetch competitions
+      const { data: competitions, error } = await supabase
         .from('competitions')
         .select('id, season, status, city_id')
         .eq('organization_id', orgId)
         .order('season', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      if (!competitions || competitions.length === 0) return [];
+
+      // Get unique city IDs
+      const cityIds = [...new Set(competitions.map(c => c.city_id).filter(Boolean))];
+
+      // Fetch city names
+      let citiesMap = {};
+      if (cityIds.length > 0) {
+        const { data: citiesData } = await supabase
+          .from('cities')
+          .select('id, name, state')
+          .in('id', cityIds);
+
+        if (citiesData) {
+          citiesMap = citiesData.reduce((acc, city) => {
+            acc[city.id] = { name: city.name, state: city.state };
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach city names to competitions
+      return competitions.map(comp => ({
+        ...comp,
+        cityName: comp.city_id ? citiesMap[comp.city_id]?.name || 'Unknown' : 'No City',
+        cityState: comp.city_id ? citiesMap[comp.city_id]?.state || '' : '',
+      }));
     } catch (err) {
       console.error('Error fetching org competitions:', err);
       return [];
@@ -493,7 +520,7 @@ export default function OrganizationsManager() {
                         }}
                       >
                         <span>
-                          {comp.cities?.name}, {comp.cities?.state} - {comp.season}
+                          {comp.cityName}{comp.cityState ? `, ${comp.cityState}` : ''} - {comp.season}
                         </span>
                         <span style={{
                           fontSize: typography.fontSize.xs,

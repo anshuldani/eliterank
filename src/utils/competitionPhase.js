@@ -1,26 +1,26 @@
 /**
  * Competition Phase Utilities
  *
- * New Status System (controlled by super admin):
+ * Status System (controlled by super admin):
  * - draft: Not viewable on public page
- * - publish: Viewable with "Coming Soon" teaser, shows Apply to Host / Sponsor forms
- * - active: Follows timeline dates (nomination → voting → judging → complete)
- * - complete: Competition over, winners displayed
+ * - publish: Viewable with "Coming Soon" teaser, shows interest forms
+ * - live: Full visibility, follows timeline dates (nomination → voting → finale)
+ * - completed: Competition over, winners displayed
  * - archive: Hidden from public but data preserved
  *
- * Timeline dates are the source of truth ONLY when status is "active"
+ * Timeline dates control the phase ONLY when status is "live"
  */
 
 // Valid super admin statuses
 export const COMPETITION_STATUSES = {
   DRAFT: 'draft',
   PUBLISH: 'publish',
-  ACTIVE: 'active',
-  COMPLETE: 'complete',
+  LIVE: 'live',
+  COMPLETED: 'completed',
   ARCHIVE: 'archive',
 };
 
-// Timeline-based phases (used when status is "active")
+// Timeline-based phases (used when status is "live")
 export const TIMELINE_PHASES = {
   NOMINATION: 'nomination',
   VOTING: 'voting',
@@ -31,7 +31,7 @@ export const TIMELINE_PHASES = {
 /**
  * Compute the current phase of a competition.
  *
- * If status is "active", compute phase from timeline dates.
+ * If status is "live", compute phase from timeline dates.
  * Otherwise, return the status directly.
  *
  * @param {Object} competition - Competition object
@@ -42,12 +42,12 @@ export function computeCompetitionPhase(competition) {
 
   const status = competition.status || COMPETITION_STATUSES.DRAFT;
 
-  // If not "active", the status IS the phase
-  if (status !== COMPETITION_STATUSES.ACTIVE) {
+  // If not "live", the status IS the phase
+  if (status !== COMPETITION_STATUSES.LIVE) {
     return status;
   }
 
-  // Status is "active" - compute phase from timeline
+  // Status is "live" - compute phase from timeline
   return computeTimelinePhase(competition);
 }
 
@@ -97,7 +97,7 @@ export function computeTimelinePhase(competition) {
 
 /**
  * Check if a competition is visible on the public competitions list.
- * Visible statuses: publish, active, complete
+ * Visible statuses: publish, live, completed
  *
  * @param {string} status - The competition status
  * @returns {boolean}
@@ -105,22 +105,22 @@ export function computeTimelinePhase(competition) {
 export function isCompetitionVisible(status) {
   return [
     COMPETITION_STATUSES.PUBLISH,
-    COMPETITION_STATUSES.ACTIVE,
-    COMPETITION_STATUSES.COMPLETE,
+    COMPETITION_STATUSES.LIVE,
+    COMPETITION_STATUSES.COMPLETED,
   ].includes(status);
 }
 
 /**
  * Check if a competition is fully accessible (not just teaser).
- * Accessible statuses: active, complete
+ * Accessible statuses: live, completed
  *
  * @param {string} status - The competition status
  * @returns {boolean}
  */
 export function isCompetitionAccessible(status) {
   return [
-    COMPETITION_STATUSES.ACTIVE,
-    COMPETITION_STATUSES.COMPLETE,
+    COMPETITION_STATUSES.LIVE,
+    COMPETITION_STATUSES.COMPLETED,
   ].includes(status);
 }
 
@@ -157,7 +157,7 @@ export function validateStatusChange(competition, newStatus) {
   const currentStatus = competition?.status;
 
   // Prevent invalid transitions
-  if (currentStatus === COMPETITION_STATUSES.COMPLETE && newStatus === COMPETITION_STATUSES.ACTIVE) {
+  if (currentStatus === COMPETITION_STATUSES.COMPLETED && newStatus === COMPETITION_STATUSES.LIVE) {
     return {
       valid: false,
       error: 'Cannot reactivate a completed competition. Create a new season instead.',
@@ -171,11 +171,11 @@ export function validateStatusChange(competition, newStatus) {
     };
   }
 
-  if (newStatus === COMPETITION_STATUSES.ACTIVE) {
+  if (newStatus === COMPETITION_STATUSES.LIVE) {
     if (!hasNominationDates(competition)) {
       return {
         valid: false,
-        error: 'Nomination start and end dates must be set before activating a competition.',
+        error: 'Nomination start and end dates must be set before going live.',
       };
     }
   }
@@ -268,16 +268,16 @@ export function getPhaseDisplayConfig(phase) {
       icon: 'Clock',
       description: 'Visible with teaser page',
     },
-    [COMPETITION_STATUSES.ACTIVE]: {
+    [COMPETITION_STATUSES.LIVE]: {
       variant: 'success',
-      label: 'ACTIVE',
+      label: 'LIVE',
       icon: 'Activity',
       pulse: true,
       description: 'Following timeline dates',
     },
-    [COMPETITION_STATUSES.COMPLETE]: {
+    [COMPETITION_STATUSES.COMPLETED]: {
       variant: 'gold',
-      label: 'COMPLETE',
+      label: 'COMPLETED',
       icon: 'Trophy',
       description: 'Winners displayed',
     },
@@ -288,7 +288,7 @@ export function getPhaseDisplayConfig(phase) {
       description: 'Hidden from public',
     },
 
-    // Timeline phases (shown when status is active)
+    // Timeline phases (shown when status is live)
     [TIMELINE_PHASES.NOMINATION]: {
       variant: 'warning',
       label: 'NOMINATIONS OPEN',
@@ -309,7 +309,7 @@ export function getPhaseDisplayConfig(phase) {
     },
     [TIMELINE_PHASES.COMPLETED]: {
       variant: 'gold',
-      label: 'COMPLETE',
+      label: 'COMPLETED',
       icon: 'Trophy',
     },
 
@@ -317,8 +317,8 @@ export function getPhaseDisplayConfig(phase) {
     setup: { variant: 'secondary', label: 'SETUP', icon: 'Settings' },
     assigned: { variant: 'warning', label: 'COMING SOON', icon: 'Clock' },
     voting: { variant: 'success', label: 'VOTING LIVE', icon: 'Vote', pulse: true },
-    active: { variant: 'success', label: 'ACTIVE', icon: 'Activity', pulse: true },
-    completed: { variant: 'gold', label: 'COMPLETE', icon: 'Trophy' },
+    live: { variant: 'success', label: 'LIVE', icon: 'Activity', pulse: true },
+    completed: { variant: 'gold', label: 'COMPLETED', icon: 'Trophy' },
   };
 
   return configs[phase] || configs[COMPETITION_STATUSES.DRAFT];
@@ -342,13 +342,13 @@ export function getStatusOptions() {
       description: 'Visible with "Coming Soon" teaser',
     },
     {
-      value: COMPETITION_STATUSES.ACTIVE,
-      label: 'Active',
-      description: 'Live - follows timeline dates',
+      value: COMPETITION_STATUSES.LIVE,
+      label: 'Live',
+      description: 'Full visibility - follows timeline dates',
     },
     {
-      value: COMPETITION_STATUSES.COMPLETE,
-      label: 'Complete',
+      value: COMPETITION_STATUSES.COMPLETED,
+      label: 'Completed',
       description: 'Winners displayed',
     },
     {
@@ -404,4 +404,56 @@ export function getDatePeriodStatus(startDate, endDate) {
   if (!end && now > start) return 'ended';
 
   return 'active';
+}
+
+/**
+ * Check if a competition should auto-transition from publish to live.
+ * This happens when status is 'publish' and nomination_start date has passed.
+ *
+ * @param {Object} competition - Competition object
+ * @param {Object} settings - Competition settings (with nomination_start)
+ * @returns {boolean} True if should transition to live
+ */
+export function shouldAutoTransitionToLive(competition, settings = null) {
+  if (!competition) return false;
+
+  // Only applies to competitions with status 'publish'
+  if (competition.status !== COMPETITION_STATUSES.PUBLISH) return false;
+
+  // Check nomination_start from settings first, then from competition
+  const nominationStart = settings?.nomination_start || competition?.nomination_start;
+
+  if (!nominationStart) return false;
+
+  const now = new Date();
+  const startDate = new Date(nominationStart);
+
+  // If nomination start has passed, should transition to live
+  return now >= startDate;
+}
+
+/**
+ * Check if a competition should auto-transition from live to completed.
+ * This happens when status is 'live' and finale_date has passed.
+ *
+ * @param {Object} competition - Competition object
+ * @param {Object} settings - Competition settings (with finale_date)
+ * @returns {boolean} True if should transition to completed
+ */
+export function shouldAutoTransitionToCompleted(competition, settings = null) {
+  if (!competition) return false;
+
+  // Only applies to competitions with status 'live'
+  if (competition.status !== COMPETITION_STATUSES.LIVE) return false;
+
+  // Check finale_date from settings first, then from competition
+  const finaleDate = settings?.finale_date || competition?.finale_date || competition?.finals_date;
+
+  if (!finaleDate) return false;
+
+  const now = new Date();
+  const endDate = new Date(finaleDate);
+
+  // If finale date has passed, should transition to completed
+  return now >= endDate;
 }

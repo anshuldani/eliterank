@@ -32,19 +32,45 @@ export default function CitiesManager() {
     fetchCities();
   }, []);
 
-  // Fetch competitions for a city
+  // Fetch competitions for a city with organization names
   const fetchCityCompetitions = async (cityId) => {
     if (!supabase) return [];
 
     try {
-      const { data, error } = await supabase
+      // Fetch competitions
+      const { data: competitions, error } = await supabase
         .from('competitions')
         .select('id, season, status, organization_id')
         .eq('city_id', cityId)
         .order('season', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      if (!competitions || competitions.length === 0) return [];
+
+      // Get unique organization IDs
+      const orgIds = [...new Set(competitions.map(c => c.organization_id).filter(Boolean))];
+
+      // Fetch organization names
+      let orgsMap = {};
+      if (orgIds.length > 0) {
+        const { data: orgsData } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', orgIds);
+
+        if (orgsData) {
+          orgsMap = orgsData.reduce((acc, org) => {
+            acc[org.id] = org.name;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach organization names to competitions
+      return competitions.map(comp => ({
+        ...comp,
+        organizationName: comp.organization_id ? orgsMap[comp.organization_id] || 'Unknown' : 'No Organization',
+      }));
     } catch (err) {
       console.error('Error fetching city competitions:', err);
       return [];
@@ -445,7 +471,7 @@ export default function CitiesManager() {
                         }}
                       >
                         <span>
-                          {comp.organizations?.name} - {comp.season}
+                          {comp.organizationName} - {comp.season}
                         </span>
                         <span style={{
                           fontSize: typography.fontSize.xs,
