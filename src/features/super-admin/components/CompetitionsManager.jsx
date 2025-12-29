@@ -171,7 +171,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
       fetchData();
     } catch (err) {
       console.error('Error creating competition:', err);
-      toast.error('Failed to create competition');
+      toast.error(`Failed to create competition: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
