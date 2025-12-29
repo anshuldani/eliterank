@@ -417,13 +417,27 @@ export default function App() {
         const cityName = slugToCity(slug);
 
         try {
-          const { data: competitions, error } = await supabase
+          // Try to find competition by city column first, fallback to name
+          let { data: competitions, error } = await supabase
             .from('competitions')
             .select('*')
             .ilike('city', `%${cityName}%`)
             .limit(1);
 
-          if (!error && competitions?.[0]) {
+          // If city column doesn't exist or no results, try searching by name
+          if (error || !competitions?.length) {
+            const nameResult = await supabase
+              .from('competitions')
+              .select('*')
+              .ilike('name', `%${cityName}%`)
+              .limit(1);
+
+            if (!nameResult.error && nameResult.data?.length) {
+              competitions = nameResult.data;
+            }
+          }
+
+          if (competitions?.[0]) {
             const competition = competitions[0];
             setSelectedCompetition(
               createSafeCompetition({
