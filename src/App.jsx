@@ -29,50 +29,28 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 
 // Hooks
-import { useModals, useSupabaseAuth } from './hooks';
-
-// Layout components (eagerly loaded - needed immediately)
-import { MainLayout, PageHeader } from './components/layout';
+import { useSupabaseAuth } from './hooks';
 
 // Modals (eagerly loaded for responsiveness)
-import {
-  JudgeModal,
-  SponsorModal,
-  EventModal,
-  AnnouncementModal,
-  ConvertNomineeModal,
-  ApproveNomineeModal,
-  EliteRankCityModal,
-} from './components/modals';
+import { EliteRankCityModal } from './components/modals';
 
 // =============================================================================
 // LAZY-LOADED FEATURE PAGES (Code Splitting)
 // =============================================================================
 
-const OverviewPage = lazy(() => import('./features/overview/OverviewPage'));
-const NominationsPage = lazy(() => import('./features/nominations/NominationsPage'));
-const CommunityPage = lazy(() => import('./features/community/CommunityPage'));
-const SettingsPage = lazy(() => import('./features/settings/SettingsPage'));
-const ProfilePage = lazy(() => import('./features/profile/ProfilePage'));
 const PublicSitePage = lazy(() => import('./features/public-site/PublicSitePage'));
 const LoginPage = lazy(() => import('./features/auth/LoginPage'));
 const SuperAdminPage = lazy(() => import('./features/super-admin/SuperAdminPage'));
+const ProfilePage = lazy(() => import('./features/profile/ProfilePage'));
+
+// Shared competition dashboard for both host and superadmin
+import { CompetitionDashboard } from './features/competition-dashboard';
 
 // =============================================================================
 // CONSTANTS
 // =============================================================================
 
-import {
-  ADMIN_TABS,
-  DEFAULT_HOST_PROFILE,
-  INITIAL_NOMINEES,
-  INITIAL_CONTESTANTS,
-  INITIAL_JUDGES,
-  INITIAL_SPONSORS,
-  INITIAL_EVENTS,
-  INITIAL_ANNOUNCEMENTS,
-  COMPETITION_RANKINGS,
-} from './constants';
+import { DEFAULT_HOST_PROFILE } from './constants';
 
 // View states
 const VIEW = Object.freeze({
@@ -366,7 +344,6 @@ export default function App() {
   // ===========================================================================
 
   const [currentView, setCurrentView] = useState(VIEW.PUBLIC);
-  const [activeTab, setActiveTab] = useState('overview');
   const [showPublicSite, setShowPublicSite] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [initialUrlHandled, setInitialUrlHandled] = useState(false);
@@ -419,78 +396,12 @@ export default function App() {
     fetchHostCompetition();
   }, [user?.id]);
 
-  // Refresh host competition (called after settings changes)
-  const refreshHostCompetition = useCallback(async () => {
-    if (!user?.id || !supabase) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('competitions')
-        .select('*')
-        .eq('host_id', user.id)
-        .limit(1);
-
-      if (error) {
-        return;
-      }
-
-      const competition = data?.[0];
-      if (competition) {
-        setHostCompetition({
-          ...competition,
-          name: buildCompetitionName(competition),
-        });
-      }
-    } catch {
-      // Silent fail
-    }
-  }, [user?.id]);
-
-  // ===========================================================================
-  // DATA STATE (Dashboard mock data - will be replaced with real data)
-  // ===========================================================================
-
-  const [nominees, setNominees] = useState(INITIAL_NOMINEES);
-  const [contestants, setContestants] = useState(INITIAL_CONTESTANTS);
-  const [judges, setJudges] = useState(INITIAL_JUDGES);
-  const [sponsors, setSponsors] = useState(INITIAL_SPONSORS);
-  const [events, setEvents] = useState(INITIAL_EVENTS);
-  const [announcements, setAnnouncements] = useState(INITIAL_ANNOUNCEMENTS);
-
   // ===========================================================================
   // PROFILE EDITING STATE
   // ===========================================================================
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editingProfileData, setEditingProfileData] = useState(null);
-
-  // ===========================================================================
-  // MODAL MANAGEMENT
-  // ===========================================================================
-
-  const {
-    judgeModal,
-    sponsorModal,
-    eventModal,
-    announcementModal,
-    convertModal,
-    approveModal,
-    eliteRankCityOpen,
-    openJudgeModal,
-    closeJudgeModal,
-    openSponsorModal,
-    closeSponsorModal,
-    openEventModal,
-    closeEventModal,
-    openAnnouncementModal,
-    closeAnnouncementModal,
-    openConvertModal,
-    closeConvertModal,
-    openApproveModal,
-    closeApproveModal,
-    openEliteRankCity,
-    closeEliteRankCity,
-  } = useModals();
 
   // ===========================================================================
   // URL HANDLING
@@ -559,13 +470,11 @@ export default function App() {
 
   const handleLogin = useCallback(() => {
     setCurrentView(VIEW.PUBLIC);
-    setActiveTab('overview');
   }, []);
 
   const handleLogout = useCallback(async () => {
     await signOut();
     setCurrentView(VIEW.PUBLIC);
-    setActiveTab('overview');
     setShowPublicSite(false);
     setShowUserProfile(false);
     setIsEditingProfile(false);
@@ -672,274 +581,6 @@ export default function App() {
     setEditingProfileData(updates);
   }, []);
 
-  // ===========================================================================
-  // NOMINEE HANDLERS
-  // ===========================================================================
-
-  const handleConfirmConvert = useCallback(() => {
-    const nominee = convertModal.nominee;
-    if (!nominee) return;
-
-    setNominees((prev) =>
-      prev.map((n) => (n.id === nominee.id ? { ...n, status: 'approved' } : n))
-    );
-
-    setContestants((prev) => {
-      if (prev.find((c) => c.name === nominee.name)) return prev;
-      return [
-        ...prev,
-        {
-          id: `c${Date.now()}`,
-          name: nominee.name,
-          age: nominee.age,
-          occupation: nominee.occupation,
-          bio: nominee.bio || '',
-          votes: 0,
-          interests: nominee.interests || [],
-        },
-      ];
-    });
-
-    closeConvertModal();
-  }, [convertModal.nominee, closeConvertModal]);
-
-  const handleConfirmApprove = useCallback(() => {
-    const nominee = approveModal.nominee;
-    if (!nominee) return;
-
-    setNominees((prev) =>
-      prev.map((n) => (n.id === nominee.id ? { ...n, status: 'pending' } : n))
-    );
-
-    closeApproveModal();
-  }, [approveModal.nominee, closeApproveModal]);
-
-  // ===========================================================================
-  // JUDGE HANDLERS
-  // ===========================================================================
-
-  const handleSaveJudge = useCallback((judgeData) => {
-    if (judgeModal.judge) {
-      setJudges((prev) =>
-        prev.map((j) => (j.id === judgeModal.judge.id ? { ...j, ...judgeData } : j))
-      );
-    } else {
-      setJudges((prev) => [...prev, { id: `j${Date.now()}`, ...judgeData }]);
-    }
-    closeJudgeModal();
-  }, [judgeModal.judge, closeJudgeModal]);
-
-  const handleDeleteJudge = useCallback((judgeId) => {
-    setJudges((prev) => prev.filter((j) => j.id !== judgeId));
-  }, []);
-
-  // ===========================================================================
-  // SPONSOR HANDLERS
-  // ===========================================================================
-
-  const handleSaveSponsor = useCallback((sponsorData) => {
-    if (sponsorModal.sponsor) {
-      setSponsors((prev) =>
-        prev.map((s) => (s.id === sponsorModal.sponsor.id ? { ...s, ...sponsorData } : s))
-      );
-    } else {
-      setSponsors((prev) => [...prev, { id: `s${Date.now()}`, ...sponsorData }]);
-    }
-    closeSponsorModal();
-  }, [sponsorModal.sponsor, closeSponsorModal]);
-
-  const handleDeleteSponsor = useCallback((sponsorId) => {
-    setSponsors((prev) => prev.filter((s) => s.id !== sponsorId));
-  }, []);
-
-  // ===========================================================================
-  // EVENT HANDLERS
-  // ===========================================================================
-
-  const handleSaveEvent = useCallback((eventData) => {
-    if (!eventModal.event) return;
-    setEvents((prev) =>
-      prev.map((e) => (e.id === eventModal.event.id ? { ...e, ...eventData } : e))
-    );
-    closeEventModal();
-  }, [eventModal.event, closeEventModal]);
-
-  // ===========================================================================
-  // ANNOUNCEMENT HANDLERS
-  // ===========================================================================
-
-  const handleSaveAnnouncement = useCallback((announcementData) => {
-    if (announcementModal.announcement) {
-      setAnnouncements((prev) =>
-        prev.map((a) =>
-          a.id === announcementModal.announcement.id ? { ...a, ...announcementData } : a
-        )
-      );
-    } else {
-      setAnnouncements((prev) => [
-        ...prev,
-        {
-          id: `a${Date.now()}`,
-          date: new Date().toISOString(),
-          ...announcementData,
-        },
-      ]);
-    }
-    closeAnnouncementModal();
-  }, [announcementModal.announcement, closeAnnouncementModal]);
-
-  const handleDeleteAnnouncement = useCallback((announcementId) => {
-    setAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
-  }, []);
-
-  const handleTogglePin = useCallback((announcementId) => {
-    setAnnouncements((prev) =>
-      prev.map((a) => (a.id === announcementId ? { ...a, pinned: !a.pinned } : a))
-    );
-  }, []);
-
-  // ===========================================================================
-  // DASHBOARD CONTENT RENDERER
-  // ===========================================================================
-
-  const renderDashboardContent = useCallback(() => {
-    const profileProps = {
-      hostProfile: isEditingProfile ? editingProfileData : hostProfile,
-      isEditing: isEditingProfile,
-      onEdit: handleEditProfile,
-      onSave: handleSaveProfile,
-      onCancel: handleCancelProfile,
-      onChange: handleProfileChange,
-      hostCompetition,
-      userRole,
-      isHost: userRole === ROLE.HOST,
-    };
-
-    switch (activeTab) {
-      case 'overview':
-        return (
-          <Suspense fallback={<LoadingScreen message="Loading overview..." />}>
-            <OverviewPage
-              hostCompetition={hostCompetition}
-              contestants={contestants}
-              sponsors={sponsors}
-              events={events}
-              competitionRankings={COMPETITION_RANKINGS}
-              onViewPublicSite={() => {
-                const cityName = hostCompetition?.city || 'Your City';
-                setSelectedCompetition(
-                  createSafeCompetition({
-                    id: hostCompetition?.id,
-                    city: cityName,
-                    season: hostCompetition?.season,
-                    status: hostCompetition?.status,
-                    phase: hostCompetition?.status || 'voting',
-                    host: {
-                      name: `${hostProfile.firstName} ${hostProfile.lastName}`.trim() || 'Host',
-                      title: 'Competition Host',
-                      bio: hostProfile.bio || '',
-                      instagram: hostProfile.instagram,
-                      twitter: hostProfile.twitter,
-                      linkedin: hostProfile.linkedin,
-                    },
-                    nomination_start: hostCompetition?.nomination_start,
-                    nomination_end: hostCompetition?.nomination_end,
-                    voting_start: hostCompetition?.voting_start,
-                    voting_end: hostCompetition?.voting_end,
-                    finals_date: hostCompetition?.finals_date,
-                  })
-                );
-                setShowPublicSite(true);
-                navigate(`/c/${cityToSlug(cityName)}`);
-              }}
-              onViewEliteRankCity={openEliteRankCity}
-            />
-          </Suspense>
-        );
-
-      case 'nominations':
-        return (
-          <Suspense fallback={<LoadingScreen message="Loading nominations..." />}>
-            <NominationsPage
-              competitionId={hostCompetition?.id}
-              competitionName={hostCompetition?.name}
-            />
-          </Suspense>
-        );
-
-      case 'community':
-        return (
-          <Suspense fallback={<LoadingScreen message="Loading community..." />}>
-            <CommunityPage
-              announcements={announcements}
-              hostProfile={hostProfile}
-              onCreateAnnouncement={() => openAnnouncementModal(null)}
-              onEditAnnouncement={openAnnouncementModal}
-              onDeleteAnnouncement={handleDeleteAnnouncement}
-              onTogglePin={handleTogglePin}
-            />
-          </Suspense>
-        );
-
-      case 'settings':
-        return (
-          <Suspense fallback={<LoadingScreen message="Loading settings..." />}>
-            <SettingsPage
-              judges={judges}
-              sponsors={sponsors}
-              events={events}
-              hostCompetition={hostCompetition}
-              onAddJudge={() => openJudgeModal(null)}
-              onEditJudge={openJudgeModal}
-              onDeleteJudge={handleDeleteJudge}
-              onAddSponsor={() => openSponsorModal(null)}
-              onEditSponsor={openSponsorModal}
-              onDeleteSponsor={handleDeleteSponsor}
-              onEditEvent={openEventModal}
-              onAddEvent={() => openEventModal(null)}
-              onCompetitionUpdate={refreshHostCompetition}
-            />
-          </Suspense>
-        );
-
-      case 'profile':
-        return (
-          <Suspense fallback={<LoadingScreen message="Loading profile..." />}>
-            <ProfilePage {...profileProps} />
-          </Suspense>
-        );
-
-      default:
-        return null;
-    }
-  }, [
-    activeTab,
-    hostCompetition,
-    hostProfile,
-    contestants,
-    sponsors,
-    events,
-    announcements,
-    judges,
-    isEditingProfile,
-    editingProfileData,
-    userRole,
-    handleEditProfile,
-    handleSaveProfile,
-    handleCancelProfile,
-    handleProfileChange,
-    handleDeleteAnnouncement,
-    handleTogglePin,
-    handleDeleteJudge,
-    handleDeleteSponsor,
-    refreshHostCompetition,
-    openEliteRankCity,
-    openAnnouncementModal,
-    openJudgeModal,
-    openSponsorModal,
-    openEventModal,
-    navigate,
-  ]);
 
   // ===========================================================================
   // RENDER: LOADING STATE
@@ -982,21 +623,87 @@ export default function App() {
   // ===========================================================================
 
   if (currentView === VIEW.HOST_DASHBOARD && hasDashboardAccess) {
+    // Host must have an assigned competition to view the dashboard
+    if (!hostCompetition) {
+      return (
+        <ErrorBoundary>
+          <div
+            style={{
+              minHeight: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
+              color: '#fff',
+              padding: '2rem',
+              textAlign: 'center',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+            }}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                marginBottom: '1.5rem',
+                background: 'rgba(212, 175, 55, 0.2)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '2rem',
+              }}
+            >
+              👑
+            </div>
+            <h1 style={{ color: '#d4af37', marginBottom: '0.75rem', fontSize: '1.5rem' }}>
+              No Competition Assigned
+            </h1>
+            <p style={{ color: '#9ca3af', marginBottom: '2rem', maxWidth: '400px' }}>
+              You don't have a competition assigned yet. Contact an administrator to get started.
+            </p>
+            <button
+              onClick={handleBackToPublic}
+              style={{
+                padding: '0.75rem 1.5rem',
+                background: 'linear-gradient(135deg, #d4af37, #f4d03f)',
+                color: '#0a0a0f',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer',
+              }}
+            >
+              Back to Competitions
+            </button>
+          </div>
+        </ErrorBoundary>
+      );
+    }
+
     return (
       <ErrorBoundary>
-        <MainLayout
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          hostProfile={hostProfile}
+        <CompetitionDashboard
+          competitionId={hostCompetition.id}
+          role="host"
+          onBack={handleBackToPublic}
           onLogout={handleLogout}
-        >
-          <PageHeader
-            tab={activeTab}
-            competitionName={hostCompetition?.name}
-            showCompetitionLabel={activeTab === 'overview'}
-          />
-          {renderDashboardContent()}
-        </MainLayout>
+          currentUserId={user?.id}
+          onViewPublicSite={() => {
+            const cityName = hostCompetition?.city || 'Your City';
+            setSelectedCompetition(
+              createSafeCompetition({
+                id: hostCompetition?.id,
+                city: cityName,
+                season: hostCompetition?.season,
+                status: hostCompetition?.status,
+                phase: hostCompetition?.status || 'voting',
+              })
+            );
+            setShowPublicSite(true);
+            navigate(`/c/${cityToSlug(cityName)}`);
+          }}
+        />
 
         {/* Public Site Preview */}
         {showPublicSite && (
@@ -1007,70 +714,14 @@ export default function App() {
               city={selectedCompetition.city}
               season={selectedCompetition.season}
               phase={selectedCompetition.phase}
-              contestants={contestants}
-              events={events}
-              announcements={announcements}
-              judges={judges}
-              sponsors={sponsors}
-              host={selectedCompetition.host}
-              winners={selectedCompetition.winners}
               competition={hostCompetition}
               isAuthenticated={isAuthenticated}
               onLogin={handleShowLogin}
               userEmail={user?.email}
               userInstagram={profile?.instagram}
-              canEditEvents={userRole === ROLE.HOST || userRole === ROLE.SUPER_ADMIN}
-              onEditEvent={openEventModal}
-              onAddEvent={() => openEventModal({})}
             />
           </Suspense>
         )}
-
-        {/* Dashboard Modals */}
-        <JudgeModal
-          isOpen={judgeModal.isOpen}
-          onClose={closeJudgeModal}
-          judge={judgeModal.judge}
-          onSave={handleSaveJudge}
-        />
-        <SponsorModal
-          isOpen={sponsorModal.isOpen}
-          onClose={closeSponsorModal}
-          sponsor={sponsorModal.sponsor}
-          onSave={handleSaveSponsor}
-        />
-        <EventModal
-          isOpen={eventModal.isOpen}
-          onClose={closeEventModal}
-          event={eventModal.event}
-          onSave={handleSaveEvent}
-        />
-        <AnnouncementModal
-          isOpen={announcementModal.isOpen}
-          onClose={closeAnnouncementModal}
-          announcement={announcementModal.announcement}
-          onSave={handleSaveAnnouncement}
-        />
-        <ConvertNomineeModal
-          isOpen={convertModal.isOpen}
-          onClose={closeConvertModal}
-          nominee={convertModal.nominee}
-          onConfirm={handleConfirmConvert}
-        />
-        <ApproveNomineeModal
-          isOpen={approveModal.isOpen}
-          onClose={closeApproveModal}
-          nominee={approveModal.nominee}
-          onConfirm={handleConfirmApprove}
-        />
-        <EliteRankCityModal
-          isOpen={eliteRankCityOpen}
-          onClose={closeEliteRankCity}
-          onOpenCompetition={(competition) => {
-            closeEliteRankCity();
-            handleOpenCompetition(competition);
-          }}
-        />
       </ErrorBoundary>
     );
   }
@@ -1105,11 +756,6 @@ export default function App() {
             city={selectedCompetition.city}
             season={selectedCompetition.season}
             phase={selectedCompetition.phase}
-            contestants={contestants}
-            events={events}
-            announcements={announcements}
-            judges={judges}
-            sponsors={sponsors}
             host={selectedCompetition.host}
             winners={selectedCompetition.winners}
             competition={selectedCompetition}
@@ -1118,9 +764,6 @@ export default function App() {
             userEmail={user?.email}
             userInstagram={profile?.instagram}
             user={user}
-            canEditEvents={userRole === ROLE.HOST || userRole === ROLE.SUPER_ADMIN}
-            onEditEvent={openEventModal}
-            onAddEvent={() => openEventModal({})}
           />
         </Suspense>
       )}

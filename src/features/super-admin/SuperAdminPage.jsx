@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { Crown, MapPin, Users, Settings, ArrowLeft, Shield, Building2 } from 'lucide-react';
 import { Button, Badge } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
+import { HostAssignmentModal } from '../../components/modals';
 import CompetitionsManager from './components/CompetitionsManager';
 import HostsManager from './components/HostsManager';
 import CitiesManager from './components/CitiesManager';
 import OrganizationsManager from './components/OrganizationsManager';
 import AdvancedSettingsPanel from './components/AdvancedSettingsPanel';
-import SuperAdminCompetitionDashboard from './components/SuperAdminCompetitionDashboard';
+import { CompetitionDashboard } from '../competition-dashboard';
 
 const TABS = [
   { id: 'organizations', label: 'Organizations', icon: Building2 },
@@ -21,6 +22,8 @@ export default function SuperAdminPage({ onLogout }) {
   const [activeTab, setActiveTab] = useState('organizations');
   const [viewingCompetition, setViewingCompetition] = useState(null);
   const [settingsCompetition, setSettingsCompetition] = useState(null);
+  const [showHostAssignment, setShowHostAssignment] = useState(false);
+  const [hostAssignCallback, setHostAssignCallback] = useState(null);
 
   const handleViewCompetition = (competition) => {
     setViewingCompetition(competition);
@@ -38,14 +41,40 @@ export default function SuperAdminPage({ onLogout }) {
     setSettingsCompetition(null);
   };
 
-  // If viewing a competition, show the competition dashboard
+  const handleOpenHostAssignment = (callback) => {
+    setHostAssignCallback(() => callback);
+    setShowHostAssignment(true);
+  };
+
+  const handleCloseHostAssignment = () => {
+    setShowHostAssignment(false);
+    setHostAssignCallback(null);
+  };
+
+  // If viewing a competition, show the shared competition dashboard
   if (viewingCompetition) {
     return (
-      <SuperAdminCompetitionDashboard
-        competition={viewingCompetition}
-        onBack={handleBackToCompetitions}
-        onLogout={onLogout}
-      />
+      <>
+        <CompetitionDashboard
+          competitionId={viewingCompetition.id}
+          role="superadmin"
+          onBack={handleBackToCompetitions}
+          onLogout={onLogout}
+          onOpenHostAssignment={() => handleOpenHostAssignment(null)}
+        />
+        <HostAssignmentModal
+          isOpen={showHostAssignment}
+          onClose={handleCloseHostAssignment}
+          onAssign={async (userId) => {
+            // The assignment is handled by the dashboard's hook
+            if (hostAssignCallback) {
+              await hostAssignCallback(userId);
+            }
+            handleCloseHostAssignment();
+          }}
+          currentHostId={viewingCompetition.host_id}
+        />
+      </>
     );
   }
 
