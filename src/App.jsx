@@ -545,12 +545,8 @@ export default function App() {
       case 'nominations':
         return (
           <NominationsPage
-            nominees={nominees}
-            onConvert={openConvertModal}
-            onApprove={openApproveModal}
-            onReject={handleRejectNominee}
-            onSimulateComplete={handleSimulateComplete}
-            onResend={handleResendInvite}
+            competitionId={hostCompetition?.id}
+            competitionName={hostCompetition?.name}
           />
         );
 

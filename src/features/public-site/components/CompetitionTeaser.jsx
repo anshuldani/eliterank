@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import {
   Crown, MapPin, Calendar, Clock, Users, Briefcase, X, ChevronRight,
-  Sparkles, Star, Trophy, Mail, Phone, Building2, Globe, MessageSquare
+  Sparkles, Star, Trophy, Mail, Phone, Building2, Globe, MessageSquare,
+  Award, UserPlus
 } from 'lucide-react';
 import { Button, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import { formatTimelineDate } from '../../../utils/competitionPhase';
 import { supabase } from '../../../lib/supabase';
+import { INTEREST_TYPE } from '../../../types/competition';
 
 export default function CompetitionTeaser({
   competition,
@@ -15,7 +17,7 @@ export default function CompetitionTeaser({
   onLogin,
   user,
 }) {
-  const [activeForm, setActiveForm] = useState(null); // 'host' or 'sponsor'
+  const [activeForm, setActiveForm] = useState(null); // 'host', 'sponsor', 'compete', or 'judge'
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(null);
@@ -95,6 +97,70 @@ export default function CompetitionTeaser({
     }
   };
 
+  const handleSubmitCompeteInterest = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      if (!supabase) throw new Error('Database not configured');
+
+      const { error } = await supabase
+        .from('interest_submissions')
+        .insert({
+          competition_id: competition.id,
+          interest_type: INTEREST_TYPE.COMPETING,
+          name: formData.competeName,
+          email: formData.competeEmail,
+          phone: formData.competePhone || null,
+          message: formData.competeMessage || null,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      setSubmitSuccess('compete');
+      setFormData({});
+    } catch (err) {
+      console.error('Error submitting compete interest:', err);
+      setSubmitError(err.message || 'Failed to submit interest');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitJudgeInterest = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      if (!supabase) throw new Error('Database not configured');
+
+      const { error } = await supabase
+        .from('interest_submissions')
+        .insert({
+          competition_id: competition.id,
+          interest_type: INTEREST_TYPE.JUDGING,
+          name: formData.judgeName,
+          email: formData.judgeEmail,
+          phone: formData.judgePhone || null,
+          message: formData.judgeMessage || null,
+          status: 'pending',
+        });
+
+      if (error) throw error;
+
+      setSubmitSuccess('judge');
+      setFormData({});
+    } catch (err) {
+      console.error('Error submitting judge interest:', err);
+      setSubmitError(err.message || 'Failed to submit interest');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const inputStyle = {
     width: '100%',
     padding: spacing.md,
@@ -166,7 +232,7 @@ export default function CompetitionTeaser({
             color: '#fff',
             marginBottom: spacing.md,
           }}>
-            {submitSuccess === 'host' ? 'Application Submitted!' : 'Request Submitted!'}
+            {submitSuccess === 'host' ? 'Application Submitted!' : 'Interest Submitted!'}
           </h1>
 
           <p style={{
@@ -175,9 +241,10 @@ export default function CompetitionTeaser({
             marginBottom: spacing.xxl,
             lineHeight: 1.6,
           }}>
-            {submitSuccess === 'host'
-              ? 'Thank you for your interest in hosting! Our team will review your application and get back to you within 48 hours.'
-              : 'Thank you for your interest in sponsoring! Our team will reach out to discuss partnership opportunities.'}
+            {submitSuccess === 'host' && 'Thank you for your interest in hosting! Our team will review your application and get back to you within 48 hours.'}
+            {submitSuccess === 'sponsor' && 'Thank you for your interest in sponsoring! Our team will reach out to discuss partnership opportunities.'}
+            {submitSuccess === 'compete' && 'Thank you for your interest in competing! We\'ll notify you when nominations open and share details on how to participate.'}
+            {submitSuccess === 'judge' && 'Thank you for your interest in judging! Our team will review your application and reach out with more information.'}
           </p>
 
           <Button onClick={onClose}>
@@ -500,6 +567,257 @@ export default function CompetitionTeaser({
     );
   }
 
+  // Compete Interest Form
+  if (activeForm === 'compete') {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#0a0a0f',
+        zIndex: 100,
+        overflow: 'auto',
+      }}>
+        <header style={{
+          background: 'rgba(20,20,30,0.95)',
+          borderBottom: `1px solid ${colors.border.light}`,
+          padding: `${spacing.lg} ${spacing.xxl}`,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <Crown size={28} style={{ color: colors.gold.primary }} />
+              <span style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: '#fff' }}>
+                Compete Interest
+              </span>
+            </div>
+            <Button variant="secondary" onClick={() => setActiveForm(null)} icon={X}>
+              Back
+            </Button>
+          </div>
+        </header>
+
+        <main style={{ maxWidth: '600px', margin: '0 auto', padding: spacing.xxxl }}>
+          <div style={{ textAlign: 'center', marginBottom: spacing.xxl }}>
+            <h1 style={{
+              fontSize: typography.fontSize.xxl,
+              fontWeight: typography.fontWeight.bold,
+              color: '#fff',
+              marginBottom: spacing.md,
+            }}>
+              Compete in Most Eligible {competition?.city}
+            </h1>
+            <p style={{ color: colors.text.secondary, lineHeight: 1.6 }}>
+              Be notified when nominations open and get first access to compete in the most exciting social competition in your city.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmitCompeteInterest}>
+            <div style={{
+              background: colors.background.card,
+              border: `1px solid ${colors.border.light}`,
+              borderRadius: borderRadius.xl,
+              padding: spacing.xl,
+            }}>
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.competeName || ''}
+                  onChange={(e) => handleInputChange('competeName', e.target.value)}
+                  placeholder="Your full name"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.competeEmail || user?.email || ''}
+                  onChange={(e) => handleInputChange('competeEmail', e.target.value)}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Phone (optional)</label>
+                <input
+                  type="tel"
+                  value={formData.competePhone || ''}
+                  onChange={(e) => handleInputChange('competePhone', e.target.value)}
+                  placeholder="(555) 555-5555"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={labelStyle}>Tell us about yourself (optional)</label>
+                <textarea
+                  value={formData.competeMessage || ''}
+                  onChange={(e) => handleInputChange('competeMessage', e.target.value)}
+                  placeholder="Share a bit about yourself, your interests, and why you'd like to compete"
+                  rows={4}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+
+              {submitError && (
+                <div style={{
+                  padding: spacing.md,
+                  background: 'rgba(239,68,68,0.1)',
+                  border: `1px solid ${colors.status.error}`,
+                  borderRadius: borderRadius.lg,
+                  marginBottom: spacing.lg,
+                }}>
+                  <p style={{ color: colors.status.error, fontSize: typography.fontSize.sm }}>{submitError}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                style={{ width: '100%' }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Register Interest'}
+              </Button>
+            </div>
+          </form>
+        </main>
+      </div>
+    );
+  }
+
+  // Judge Interest Form
+  if (activeForm === 'judge') {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#0a0a0f',
+        zIndex: 100,
+        overflow: 'auto',
+      }}>
+        <header style={{
+          background: 'rgba(20,20,30,0.95)',
+          borderBottom: `1px solid ${colors.border.light}`,
+          padding: `${spacing.lg} ${spacing.xxl}`,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <Crown size={28} style={{ color: colors.gold.primary }} />
+              <span style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, color: '#fff' }}>
+                Judge Application
+              </span>
+            </div>
+            <Button variant="secondary" onClick={() => setActiveForm(null)} icon={X}>
+              Back
+            </Button>
+          </div>
+        </header>
+
+        <main style={{ maxWidth: '600px', margin: '0 auto', padding: spacing.xxxl }}>
+          <div style={{ textAlign: 'center', marginBottom: spacing.xxl }}>
+            <h1 style={{
+              fontSize: typography.fontSize.xxl,
+              fontWeight: typography.fontWeight.bold,
+              color: '#fff',
+              marginBottom: spacing.md,
+            }}>
+              Judge Most Eligible {competition?.city}
+            </h1>
+            <p style={{ color: colors.text.secondary, lineHeight: 1.6 }}>
+              Join our panel of judges and help evaluate the most eligible contestants in {competition?.city}. We're looking for individuals with diverse backgrounds and expertise.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmitJudgeInterest}>
+            <div style={{
+              background: colors.background.card,
+              border: `1px solid ${colors.border.light}`,
+              borderRadius: borderRadius.xl,
+              padding: spacing.xl,
+            }}>
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.judgeName || ''}
+                  onChange={(e) => handleInputChange('judgeName', e.target.value)}
+                  placeholder="Your full name"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={formData.judgeEmail || user?.email || ''}
+                  onChange={(e) => handleInputChange('judgeEmail', e.target.value)}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Phone (optional)</label>
+                <input
+                  type="tel"
+                  value={formData.judgePhone || ''}
+                  onChange={(e) => handleInputChange('judgePhone', e.target.value)}
+                  placeholder="(555) 555-5555"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={labelStyle}>Your Background & Experience *</label>
+                <textarea
+                  required
+                  value={formData.judgeMessage || ''}
+                  onChange={(e) => handleInputChange('judgeMessage', e.target.value)}
+                  placeholder="Tell us about your professional background, expertise, and why you'd be a great judge for this competition"
+                  rows={4}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+
+              {submitError && (
+                <div style={{
+                  padding: spacing.md,
+                  background: 'rgba(239,68,68,0.1)',
+                  border: `1px solid ${colors.status.error}`,
+                  borderRadius: borderRadius.lg,
+                  marginBottom: spacing.lg,
+                }}>
+                  <p style={{ color: colors.status.error, fontSize: typography.fontSize.sm }}>{submitError}</p>
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                style={{ width: '100%' }}
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+              </Button>
+            </div>
+          </form>
+        </main>
+      </div>
+    );
+  }
+
   // Main Teaser Page
   return (
     <div style={{
@@ -700,6 +1018,96 @@ export default function CompetitionTeaser({
 
             <Button variant="secondary" onClick={() => setActiveForm('sponsor')} style={{ width: '100%' }}>
               Request Info <ChevronRight size={18} />
+            </Button>
+          </div>
+
+          {/* Compete Card */}
+          <div style={{
+            background: colors.background.card,
+            border: `1px solid ${colors.border.light}`,
+            borderRadius: borderRadius.xxl,
+            padding: spacing.xxl,
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'rgba(245,158,11,0.2)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              marginBottom: spacing.lg,
+            }}>
+              <Trophy size={28} style={{ color: '#f59e0b' }} />
+            </div>
+
+            <h3 style={{
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.semibold,
+              color: '#fff',
+              marginBottom: spacing.sm,
+            }}>
+              Compete
+            </h3>
+
+            <p style={{
+              fontSize: typography.fontSize.md,
+              color: colors.text.secondary,
+              marginBottom: spacing.xl,
+              lineHeight: 1.6,
+            }}>
+              Be notified when nominations open and get first access to compete in this competition.
+            </p>
+
+            <Button variant="secondary" onClick={() => setActiveForm('compete')} style={{ width: '100%' }}>
+              Register Interest <ChevronRight size={18} />
+            </Button>
+          </div>
+
+          {/* Judge Card */}
+          <div style={{
+            background: colors.background.card,
+            border: `1px solid ${colors.border.light}`,
+            borderRadius: borderRadius.xxl,
+            padding: spacing.xxl,
+            textAlign: 'center',
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'rgba(59,130,246,0.2)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              marginBottom: spacing.lg,
+            }}>
+              <Award size={28} style={{ color: '#3b82f6' }} />
+            </div>
+
+            <h3 style={{
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.semibold,
+              color: '#fff',
+              marginBottom: spacing.sm,
+            }}>
+              Judge
+            </h3>
+
+            <p style={{
+              fontSize: typography.fontSize.md,
+              color: colors.text.secondary,
+              marginBottom: spacing.xl,
+              lineHeight: 1.6,
+            }}>
+              Join our panel of judges and help evaluate contestants based on your expertise.
+            </p>
+
+            <Button variant="secondary" onClick={() => setActiveForm('judge')} style={{ width: '100%' }}>
+              Apply to Judge <ChevronRight size={18} />
             </Button>
           </div>
         </div>
