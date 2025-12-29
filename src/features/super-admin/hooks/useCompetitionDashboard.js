@@ -103,7 +103,7 @@ export function useCompetitionDashboard(competitionId) {
         // Fetch all profiles to match by email for third-party nominations
         supabase
           .from('profiles')
-          .select('id, email, first_name, last_name, avatar_url, bio, instagram, city_id, gallery'),
+          .select('id, email, first_name, last_name, avatar_url, bio, instagram, city, gallery'),
       ]);
 
       // Check for errors
@@ -148,7 +148,7 @@ export function useCompetitionDashboard(competitionId) {
           bio: hostProfile.bio,
           avatar: hostProfile.avatar_url,
           instagram: hostProfile.instagram,
-          cityId: hostProfile.city_id,
+          city: hostProfile.city,
           gallery: hostProfile.gallery || [],
         };
       }
@@ -282,9 +282,7 @@ export function useCompetitionDashboard(competitionId) {
           season: competition.season,
           hostId: competition.host_id,
           organizationId: competition.organization_id,
-          cityId: competition.city_id,
-          city: competition.cities,
-          organization: competition.organizations,
+          city: competition.city,
           nominationStart: competition.nomination_start,
           nominationEnd: competition.nomination_end,
           votingStart: competition.voting_start,

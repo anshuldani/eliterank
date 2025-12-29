@@ -1137,9 +1137,9 @@ export default function CompetitionDashboard({
               <h2 style={{ fontSize: typography.fontSize.display, fontWeight: typography.fontWeight.bold }}>
                 {host.name}
               </h2>
-              {host.cityId && (
+              {host.city && (
                 <p style={{ color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm }}>
-                  <MapPin size={16} /> Location
+                  <MapPin size={16} /> {host.city}
                 </p>
               )}
               <Badge variant="gold" size="md" style={{ marginTop: spacing.md }}>
