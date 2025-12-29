@@ -1,19 +1,25 @@
 import React from 'react';
-import { MapPin, Calendar, Users, Edit2, Trash2, UserPlus, Check, Eye } from 'lucide-react';
+import { MapPin, Calendar, Users, Edit2, Trash2, UserPlus, Eye, Activity } from 'lucide-react';
 import { Button, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import { STATUS_STYLES, CATEGORY_TYPES } from '../constants/competitionConfig';
+import { computeCompetitionPhase, COMPETITION_STATUSES } from '../../../utils/competitionPhase';
 
 export default function CompetitionCard({
   template,
   onAssignHost,
-  onActivate,
   onViewDashboard,
   onEdit,
   onDelete,
 }) {
   const status = STATUS_STYLES[template.status];
   const category = CATEGORY_TYPES.find((c) => c.id === template.category);
+
+  // Compute current phase for active competitions
+  const currentPhase = template.status === COMPETITION_STATUSES.ACTIVE
+    ? computeCompetitionPhase(template)
+    : null;
+  const phaseStyle = currentPhase ? STATUS_STYLES[currentPhase] : null;
 
   return (
     <div
@@ -53,16 +59,36 @@ export default function CompetitionCard({
             </p>
           </div>
         </div>
-        <div
-          style={{
-            padding: `${spacing.xs} ${spacing.md}`,
-            background: status.bg,
-            borderRadius: borderRadius.pill,
-          }}
-        >
-          <span style={{ color: status.color, fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium }}>
-            {status.label}
-          </span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: spacing.xs }}>
+          <div
+            style={{
+              padding: `${spacing.xs} ${spacing.md}`,
+              background: status.bg,
+              borderRadius: borderRadius.pill,
+            }}
+          >
+            <span style={{ color: status.color, fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.medium }}>
+              {status.label}
+            </span>
+          </div>
+          {/* Show current phase for active competitions */}
+          {currentPhase && phaseStyle && (
+            <div
+              style={{
+                padding: `${spacing.xs} ${spacing.sm}`,
+                background: phaseStyle.bg,
+                borderRadius: borderRadius.pill,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+              }}
+            >
+              <Activity size={12} style={{ color: phaseStyle.color }} />
+              <span style={{ color: phaseStyle.color, fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>
+                {phaseStyle.label}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -130,7 +156,8 @@ export default function CompetitionCard({
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: spacing.sm, marginTop: 'auto' }}>
-        {template.status === 'draft' && (
+        {/* Assign Host - show for draft competitions without a host */}
+        {template.status === COMPETITION_STATUSES.DRAFT && !template.assignedHost && (
           <Button
             variant="primary"
             size="sm"
@@ -141,18 +168,8 @@ export default function CompetitionCard({
             Assign Host
           </Button>
         )}
-        {template.status === 'assigned' && (
-          <Button
-            variant="approve"
-            size="sm"
-            icon={Check}
-            onClick={() => onActivate(template.id)}
-            style={{ flex: 1 }}
-          >
-            Activate
-          </Button>
-        )}
-        {template.status === 'active' && onViewDashboard && (
+        {/* View Dashboard - show for any competition with a host assigned */}
+        {template.assignedHost && onViewDashboard && (
           <Button
             variant="secondary"
             size="sm"

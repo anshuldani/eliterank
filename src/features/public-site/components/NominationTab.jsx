@@ -1,19 +1,31 @@
 import React, { useState } from 'react';
-import { Crown, Sparkles, Users, Calendar, Trophy, ChevronRight, Star } from 'lucide-react';
+import { Crown, Sparkles, Users, Calendar, Trophy, ChevronRight, Star, LogIn } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import NominationForm from './NominationForm';
 
-export default function NominationTab({ city, onNominationSubmit }) {
+export default function NominationTab({ city, competitionId, onNominationSubmit, isAuthenticated = false, onLogin, userEmail, userInstagram }) {
   const [showForm, setShowForm] = useState(false);
 
-  if (showForm) {
+  // Handle "Start Your Nomination" click
+  const handleStartNomination = () => {
+    if (!isAuthenticated && onLogin) {
+      onLogin();
+    } else {
+      setShowForm(true);
+    }
+  };
+
+  if (showForm && isAuthenticated) {
     return (
       <div style={{ padding: spacing.xl }}>
         <NominationForm
           city={city}
+          competitionId={competitionId}
           onSubmit={onNominationSubmit}
           onClose={() => setShowForm(false)}
+          userEmail={userEmail}
+          userInstagram={userInstagram}
         />
       </div>
     );
@@ -64,22 +76,36 @@ export default function NominationTab({ city, onNominationSubmit }) {
           marginBottom: spacing.xxl,
           lineHeight: 1.6,
         }}>
-          Nominate yourself or someone you know to compete for the title of Most Eligible in {city}.
-          Join an exclusive community of ambitious professionals.
+          Nominate yourself or someone you know to compete for the title of Most Eligible in {city}. Join an exclusive community of ambitious professionals.
         </p>
 
-        <Button
-          size="lg"
-          onClick={() => setShowForm(true)}
-          style={{
-            padding: `${spacing.lg} ${spacing.xxxl}`,
-            fontSize: typography.fontSize.lg,
-          }}
-        >
-          <Crown size={20} />
-          Start Your Nomination
-          <ChevronRight size={20} />
-        </Button>
+        {!isAuthenticated ? (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <LogIn size={20} />
+            Sign In to Nominate
+            <ChevronRight size={20} />
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <Crown size={20} />
+            Start Your Nomination
+            <ChevronRight size={20} />
+          </Button>
+        )}
       </div>
 
       {/* How It Works */}
@@ -340,24 +366,39 @@ export default function NominationTab({ city, onNominationSubmit }) {
 
       {/* CTA */}
       <div style={{ textAlign: 'center', padding: spacing.xl }}>
-        <Button
-          size="lg"
-          onClick={() => setShowForm(true)}
-          style={{
-            padding: `${spacing.lg} ${spacing.xxxl}`,
-            fontSize: typography.fontSize.lg,
-          }}
-        >
-          <Crown size={20} />
-          Nominate Now
-          <ChevronRight size={20} />
-        </Button>
+        {!isAuthenticated ? (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <LogIn size={20} />
+            Sign In to Nominate
+            <ChevronRight size={20} />
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            onClick={handleStartNomination}
+            style={{
+              padding: `${spacing.lg} ${spacing.xxxl}`,
+              fontSize: typography.fontSize.lg,
+            }}
+          >
+            <Crown size={20} />
+            Nominate Now
+            <ChevronRight size={20} />
+          </Button>
+        )}
         <p style={{
           fontSize: typography.fontSize.sm,
           color: colors.text.muted,
           marginTop: spacing.md,
         }}>
-          Nominations close March 15, 2026
+          Don't miss your chance to compete!
         </p>
       </div>
     </div>

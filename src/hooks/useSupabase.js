@@ -61,7 +61,7 @@ export default function useSupabase(competitionId = null) {
         eventsRes,
         announcementsRes,
       ] = await Promise.all([
-        supabase.from('competitions').select('*').eq('id', competitionId).single(),
+        supabase.from('competitions').select('*').eq('id', competitionId).maybeSingle(),
         supabase.from('contestants').select('*').eq('competition_id', competitionId).order('rank'),
         supabase.from('nominees').select('*').eq('competition_id', competitionId).order('created_at', { ascending: false }),
         supabase.from('judges').select('*').eq('competition_id', competitionId).order('sort_order'),
@@ -71,6 +71,7 @@ export default function useSupabase(competitionId = null) {
       ]);
 
       if (competitionRes.error) throw competitionRes.error;
+      if (!competitionRes.data) throw new Error('Competition not found');
 
       setCompetition(competitionRes.data);
       setContestants(contestantsRes.data || []);

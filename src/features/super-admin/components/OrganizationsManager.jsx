@@ -1,44 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  MapPin, Plus, Edit2, Trash2, X, Loader, ChevronRight, Crown
+  Building2, Plus, Edit2, Trash2, X, Upload, Loader, ExternalLink,
+  Crown, ChevronRight, Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
-import { generateCitySlug, US_STATES } from '../../../types/competition';
+import { generateSlug } from '../../../types/competition';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../contexts/ToastContext';
 
-export default function CitiesManager() {
+export default function OrganizationsManager() {
   const toast = useToast();
+  const fileInputRef = useRef(null);
 
   // State
-  const [cities, setCities] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedCity, setSelectedCity] = useState(null);
-  const [expandedCity, setExpandedCity] = useState(null);
+  const [selectedOrg, setSelectedOrg] = useState(null);
+  const [expandedOrg, setExpandedOrg] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
-    state: '',
+    description: '',
+    logo_url: '',
   });
 
-  // Fetch cities
+  // Fetch organizations
   useEffect(() => {
-    fetchCities();
+    fetchOrganizations();
   }, []);
 
-  const fetchCities = async () => {
+  const fetchOrganizations = async () => {
     if (!supabase) return;
 
     setLoading(true);
     try {
+      // Fetch organizations with their competition counts
       const { data, error } = await supabase
-        .from('cities')
+        .from('organizations')
         .select(`
           *,
           competitions:competitions(count)
@@ -47,17 +52,17 @@ export default function CitiesManager() {
 
       if (error) throw error;
 
-      setCities(data || []);
+      setOrganizations(data || []);
     } catch (err) {
-      console.error('Error fetching cities:', err);
-      toast.error('Failed to load cities');
+      console.error('Error fetching organizations:', err);
+      toast.error('Failed to load organizations');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch competitions for a city
-  const fetchCityCompetitions = async (cityId) => {
+  // Fetch competitions for an organization
+  const fetchOrgCompetitions = async (orgId) => {
     if (!supabase) return [];
 
     try {
@@ -67,122 +72,167 @@ export default function CitiesManager() {
           id,
           season,
           status,
-          organizations:organization_id(name)
+          cities:city_id(name, state)
         `)
-        .eq('city_id', cityId)
+        .eq('organization_id', orgId)
         .order('season', { ascending: false });
 
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.error('Error fetching city competitions:', err);
+      console.error('Error fetching org competitions:', err);
       return [];
     }
   };
 
-  // Create city
+  // Handle logo upload
+  const handleLogoUpload = async (file) => {
+    if (!file || !supabase) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be less than 2MB');
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const timestamp = Date.now();
+      const ext = file.name.split('.').pop();
+      const filename = `org-logos/${timestamp}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from('public')
+        .upload(filename, file);
+
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('public')
+        .getPublicUrl(filename);
+
+      setFormData(prev => ({ ...prev, logo_url: urlData.publicUrl }));
+      toast.success('Logo uploaded successfully');
+    } catch (err) {
+      console.error('Error uploading logo:', err);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  // Create organization
   const handleCreate = async () => {
-    if (!formData.name.trim() || !formData.state) {
-      toast.error('City name and state are required');
+    if (!formData.name.trim()) {
+      toast.error('Organization name is required');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const slug = generateCitySlug(formData.name, formData.state);
+      const slug = generateSlug(formData.name);
 
       const { data, error } = await supabase
-        .from('cities')
+        .from('organizations')
         .insert({
           name: formData.name.trim(),
-          state: formData.state,
           slug,
+          description: formData.description.trim(),
+          logo_url: formData.logo_url,
         })
         .select()
         .single();
 
       if (error) {
         if (error.code === '23505') {
-          toast.error('This city/state combination already exists');
+          toast.error('An organization with this name already exists');
         } else {
           throw error;
         }
         return;
       }
 
-      toast.success(`${data.name}, ${data.state} added successfully`);
+      toast.success(`Organization "${data.name}" created successfully`);
       setShowCreateModal(false);
       resetForm();
-      fetchCities();
+      fetchOrganizations();
     } catch (err) {
-      console.error('Error creating city:', err);
-      toast.error('Failed to create city');
+      console.error('Error creating organization:', err);
+      toast.error('Failed to create organization');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Update city (name only - state and slug cannot be changed)
+  // Update organization
   const handleUpdate = async () => {
-    if (!selectedCity || !formData.name.trim()) return;
+    if (!selectedOrg || !formData.name.trim()) return;
 
     setIsSubmitting(true);
     try {
       const { error } = await supabase
-        .from('cities')
+        .from('organizations')
         .update({
           name: formData.name.trim(),
+          description: formData.description.trim(),
+          logo_url: formData.logo_url,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', selectedCity.id);
+        .eq('id', selectedOrg.id);
 
       if (error) throw error;
 
-      toast.success('City updated successfully');
+      toast.success('Organization updated successfully');
       setShowEditModal(false);
-      setSelectedCity(null);
+      setSelectedOrg(null);
       resetForm();
-      fetchCities();
+      fetchOrganizations();
     } catch (err) {
-      console.error('Error updating city:', err);
-      toast.error('Failed to update city');
+      console.error('Error updating organization:', err);
+      toast.error('Failed to update organization');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Delete city
+  // Delete organization
   const handleDelete = async () => {
-    if (!selectedCity) return;
+    if (!selectedOrg) return;
 
     setIsSubmitting(true);
     try {
-      // Check if city has competitions
+      // Check if org has competitions
       const { data: competitions } = await supabase
         .from('competitions')
         .select('id')
-        .eq('city_id', selectedCity.id)
+        .eq('organization_id', selectedOrg.id)
         .limit(1);
 
       if (competitions && competitions.length > 0) {
-        toast.error('Cannot delete city with existing competitions');
+        toast.error('Cannot delete organization with existing competitions');
         return;
       }
 
       const { error } = await supabase
-        .from('cities')
+        .from('organizations')
         .delete()
-        .eq('id', selectedCity.id);
+        .eq('id', selectedOrg.id);
 
       if (error) throw error;
 
-      toast.success('City deleted successfully');
+      toast.success('Organization deleted successfully');
       setShowDeleteModal(false);
-      setSelectedCity(null);
-      fetchCities();
+      setSelectedOrg(null);
+      fetchOrganizations();
     } catch (err) {
-      console.error('Error deleting city:', err);
-      toast.error('Failed to delete city');
+      console.error('Error deleting organization:', err);
+      toast.error('Failed to delete organization');
     } finally {
       setIsSubmitting(false);
     }
@@ -192,39 +242,36 @@ export default function CitiesManager() {
   const resetForm = () => {
     setFormData({
       name: '',
-      state: '',
+      description: '',
+      logo_url: '',
     });
   };
 
   // Open edit modal
-  const openEditModal = (city) => {
-    setSelectedCity(city);
+  const openEditModal = (org) => {
+    setSelectedOrg(org);
     setFormData({
-      name: city.name,
-      state: city.state,
+      name: org.name,
+      description: org.description || '',
+      logo_url: org.logo_url || '',
     });
     setShowEditModal(true);
   };
 
-  // Toggle expanded city to show competitions
-  const toggleExpandCity = async (cityId) => {
-    if (expandedCity === cityId) {
-      setExpandedCity(null);
+  // Toggle expanded org to show competitions
+  const toggleExpandOrg = async (orgId) => {
+    if (expandedOrg === orgId) {
+      setExpandedOrg(null);
     } else {
-      setExpandedCity(cityId);
-      const competitions = await fetchCityCompetitions(cityId);
-      setCities(prev =>
-        prev.map(city =>
-          city.id === cityId ? { ...city, competitionsList: competitions } : city
+      setExpandedOrg(orgId);
+      // Fetch competitions for this org
+      const competitions = await fetchOrgCompetitions(orgId);
+      setOrganizations(prev =>
+        prev.map(org =>
+          org.id === orgId ? { ...org, competitionsList: competitions } : org
         )
       );
     }
-  };
-
-  // Get state name from code
-  const getStateName = (code) => {
-    const state = US_STATES.find(s => s.code === code);
-    return state ? state.name : code;
   };
 
   // Styles
@@ -268,16 +315,6 @@ export default function CitiesManager() {
     outline: 'none',
   };
 
-  const selectStyle = {
-    ...inputStyle,
-    cursor: 'pointer',
-    appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
-    paddingRight: spacing.xl,
-  };
-
   const labelStyle = {
     display: 'block',
     fontSize: typography.fontSize.sm,
@@ -290,7 +327,7 @@ export default function CitiesManager() {
     return (
       <div style={{ padding: spacing.xl, textAlign: 'center' }}>
         <Loader size={24} style={{ animation: 'spin 1s linear infinite', color: colors.gold.primary }} />
-        <p style={{ marginTop: spacing.md, color: colors.text.secondary }}>Loading cities...</p>
+        <p style={{ marginTop: spacing.md, color: colors.text.secondary }}>Loading organizations...</p>
       </div>
     );
   }
@@ -301,59 +338,71 @@ export default function CitiesManager() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
         <div>
           <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, marginBottom: spacing.xs }}>
-            Cities
+            Organizations
           </h2>
           <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-            Manage competition cities (US only)
+            Manage organizations and their competitions
           </p>
         </div>
         <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-          Add City
+          New Organization
         </Button>
       </div>
 
-      {/* Cities List */}
-      {cities.length === 0 ? (
+      {/* Organizations List */}
+      {organizations.length === 0 ? (
         <div style={{
           ...cardStyle,
           textAlign: 'center',
           padding: spacing.xxxl,
         }}>
-          <MapPin size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
-          <h3 style={{ fontSize: typography.fontSize.lg, marginBottom: spacing.sm }}>No Cities Yet</h3>
+          <Building2 size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
+          <h3 style={{ fontSize: typography.fontSize.lg, marginBottom: spacing.sm }}>No Organizations Yet</h3>
           <p style={{ color: colors.text.secondary, marginBottom: spacing.lg }}>
-            Add your first city to create competitions
+            Create your first organization to get started
           </p>
           <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-            Add City
+            Create Organization
           </Button>
         </div>
       ) : (
-        cities.map(city => (
-          <div key={city.id} style={cardStyle}>
+        organizations.map(org => (
+          <div key={org.id} style={cardStyle}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
-              {/* Icon */}
+              {/* Logo */}
               <div style={{
-                width: '48px',
-                height: '48px',
+                width: '64px',
+                height: '64px',
                 borderRadius: borderRadius.lg,
-                background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1))',
+                background: colors.background.secondary,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                overflow: 'hidden',
                 flexShrink: 0,
               }}>
-                <MapPin size={24} style={{ color: colors.gold.primary }} />
+                {org.logo_url ? (
+                  <img
+                    src={org.logo_url}
+                    alt={org.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Building2 size={28} style={{ color: colors.text.muted }} />
+                )}
               </div>
 
               {/* Info */}
               <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
-                  {city.name}, {city.state}
+                  {org.name}
                 </h3>
+                <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm, marginBottom: spacing.xs }}>
+                  {org.description || 'No description'}
+                </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
                   <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-                    /{city.slug}
+                    /org/{org.slug}
                   </span>
                   <span style={{
                     fontSize: typography.fontSize.xs,
@@ -363,7 +412,7 @@ export default function CitiesManager() {
                     gap: spacing.xs,
                   }}>
                     <Crown size={12} />
-                    {city.competitions?.[0]?.count || 0} competitions
+                    {org.competitions?.[0]?.count || 0} competitions
                   </span>
                 </div>
               </div>
@@ -373,13 +422,13 @@ export default function CitiesManager() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => toggleExpandCity(city.id)}
+                  onClick={() => toggleExpandOrg(org.id)}
                   style={{ padding: spacing.sm }}
                 >
                   <ChevronRight
                     size={16}
                     style={{
-                      transform: expandedCity === city.id ? 'rotate(90deg)' : 'rotate(0deg)',
+                      transform: expandedOrg === org.id ? 'rotate(90deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s',
                     }}
                   />
@@ -388,7 +437,7 @@ export default function CitiesManager() {
                   variant="secondary"
                   size="sm"
                   icon={Edit2}
-                  onClick={() => openEditModal(city)}
+                  onClick={() => openEditModal(org)}
                   style={{ padding: spacing.sm }}
                 />
                 <Button
@@ -396,7 +445,7 @@ export default function CitiesManager() {
                   size="sm"
                   icon={Trash2}
                   onClick={() => {
-                    setSelectedCity(city);
+                    setSelectedOrg(org);
                     setShowDeleteModal(true);
                   }}
                   style={{ padding: spacing.sm }}
@@ -405,7 +454,7 @@ export default function CitiesManager() {
             </div>
 
             {/* Expanded Competitions List */}
-            {expandedCity === city.id && (
+            {expandedOrg === org.id && (
               <div style={{
                 marginTop: spacing.lg,
                 paddingTop: spacing.lg,
@@ -414,9 +463,9 @@ export default function CitiesManager() {
                 <h4 style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary, marginBottom: spacing.md }}>
                   Competitions
                 </h4>
-                {city.competitionsList?.length > 0 ? (
+                {org.competitionsList?.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                    {city.competitionsList.map(comp => (
+                    {org.competitionsList.map(comp => (
                       <div
                         key={comp.id}
                         style={{
@@ -429,7 +478,7 @@ export default function CitiesManager() {
                         }}
                       >
                         <span>
-                          {comp.organizations?.name} - {comp.season}
+                          {comp.cities?.name}, {comp.cities?.state} - {comp.season}
                         </span>
                         <span style={{
                           fontSize: typography.fontSize.xs,
@@ -466,7 +515,7 @@ export default function CitiesManager() {
               alignItems: 'center',
             }}>
               <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
-                Add City
+                Create Organization
               </h3>
               <button
                 onClick={() => { setShowCreateModal(false); resetForm(); }}
@@ -477,51 +526,79 @@ export default function CitiesManager() {
             </div>
 
             <div style={{ padding: spacing.xl }}>
-              {/* City Name */}
+              {/* Logo Upload */}
               <div style={{ marginBottom: spacing.lg }}>
-                <label style={labelStyle}>City Name *</label>
+                <label style={labelStyle}>Organization Logo</label>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: borderRadius.xl,
+                    border: `2px dashed ${colors.border.light}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    background: formData.logo_url ? 'transparent' : colors.background.secondary,
+                  }}
+                >
+                  {uploadingLogo ? (
+                    <Loader size={24} style={{ animation: 'spin 1s linear infinite', color: colors.gold.primary }} />
+                  ) : formData.logo_url ? (
+                    <img
+                      src={formData.logo_url}
+                      alt="Logo preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <>
+                      <Upload size={24} style={{ color: colors.text.muted, marginBottom: spacing.xs }} />
+                      <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
+                        Upload Logo
+                      </span>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleLogoUpload(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {/* Name */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Organization Name *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Chicago"
+                  placeholder="e.g., Most Eligible"
                   style={inputStyle}
                 />
+                {formData.name && (
+                  <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginTop: spacing.xs }}>
+                    URL: /org/{generateSlug(formData.name)}
+                  </p>
+                )}
               </div>
 
-              {/* State */}
-              <div style={{ marginBottom: spacing.lg }}>
-                <label style={labelStyle}>State *</label>
-                <select
-                  value={formData.state}
-                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
-                  style={selectStyle}
-                >
-                  <option value="">Select a state...</option>
-                  {US_STATES.map(state => (
-                    <option key={state.code} value={state.code}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Description */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={labelStyle}>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Brief description of the organization"
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
               </div>
-
-              {/* Preview Slug */}
-              {formData.name && formData.state && (
-                <div style={{
-                  padding: spacing.md,
-                  background: colors.background.secondary,
-                  borderRadius: borderRadius.md,
-                  marginBottom: spacing.xl,
-                }}>
-                  <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-                    URL slug:
-                  </span>
-                  <span style={{ fontSize: typography.fontSize.sm, color: colors.gold.primary, marginLeft: spacing.xs }}>
-                    /{generateCitySlug(formData.name, formData.state)}
-                  </span>
-                </div>
-              )}
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: spacing.md }}>
@@ -534,10 +611,10 @@ export default function CitiesManager() {
                 </Button>
                 <Button
                   onClick={handleCreate}
-                  disabled={isSubmitting || !formData.name.trim() || !formData.state}
+                  disabled={isSubmitting || !formData.name.trim()}
                   style={{ flex: 1 }}
                 >
-                  {isSubmitting ? 'Adding...' : 'Add City'}
+                  {isSubmitting ? 'Creating...' : 'Create Organization'}
                 </Button>
               </div>
             </div>
@@ -546,7 +623,7 @@ export default function CitiesManager() {
       )}
 
       {/* Edit Modal */}
-      {showEditModal && selectedCity && (
+      {showEditModal && selectedOrg && (
         <div style={modalOverlayStyle} onClick={() => setShowEditModal(false)}>
           <div style={modalStyle} onClick={e => e.stopPropagation()}>
             <div style={{
@@ -557,10 +634,10 @@ export default function CitiesManager() {
               alignItems: 'center',
             }}>
               <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
-                Edit City
+                Edit Organization
               </h3>
               <button
-                onClick={() => { setShowEditModal(false); setSelectedCity(null); resetForm(); }}
+                onClick={() => { setShowEditModal(false); setSelectedOrg(null); resetForm(); }}
                 style={{ background: 'none', border: 'none', color: colors.text.secondary, cursor: 'pointer' }}
               >
                 <X size={20} />
@@ -568,56 +645,83 @@ export default function CitiesManager() {
             </div>
 
             <div style={{ padding: spacing.xl }}>
-              {/* City Name */}
+              {/* Logo Upload */}
               <div style={{ marginBottom: spacing.lg }}>
-                <label style={labelStyle}>City Name *</label>
+                <label style={labelStyle}>Organization Logo</label>
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: borderRadius.xl,
+                    border: `2px dashed ${colors.border.light}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    overflow: 'hidden',
+                    background: formData.logo_url ? 'transparent' : colors.background.secondary,
+                  }}
+                >
+                  {uploadingLogo ? (
+                    <Loader size={24} style={{ animation: 'spin 1s linear infinite', color: colors.gold.primary }} />
+                  ) : formData.logo_url ? (
+                    <img
+                      src={formData.logo_url}
+                      alt="Logo preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <>
+                      <Upload size={24} style={{ color: colors.text.muted, marginBottom: spacing.xs }} />
+                      <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
+                        Upload Logo
+                      </span>
+                    </>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleLogoUpload(e.target.files[0])}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
+              {/* Name */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Organization Name *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Chicago"
+                  placeholder="e.g., Most Eligible"
                   style={inputStyle}
                 />
-              </div>
-
-              {/* State (read-only) */}
-              <div style={{ marginBottom: spacing.lg }}>
-                <label style={labelStyle}>State</label>
-                <div style={{
-                  ...inputStyle,
-                  background: 'rgba(107,114,128,0.2)',
-                  cursor: 'not-allowed',
-                }}>
-                  {getStateName(selectedCity.state)}
-                </div>
                 <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginTop: spacing.xs }}>
-                  State cannot be changed after creation
+                  URL: /org/{selectedOrg.slug} (cannot be changed)
                 </p>
               </div>
 
-              {/* Slug (read-only) */}
-              <div style={{
-                padding: spacing.md,
-                background: colors.background.secondary,
-                borderRadius: borderRadius.md,
-                marginBottom: spacing.xl,
-              }}>
-                <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-                  URL slug:
-                </span>
-                <span style={{ fontSize: typography.fontSize.sm, color: colors.gold.primary, marginLeft: spacing.xs }}>
-                  /{selectedCity.slug}
-                </span>
-                <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginTop: spacing.xs }}>
-                  Slug cannot be changed after creation
-                </p>
+              {/* Description */}
+              <div style={{ marginBottom: spacing.xl }}>
+                <label style={labelStyle}>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Brief description of the organization"
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
               </div>
 
               {/* Actions */}
               <div style={{ display: 'flex', gap: spacing.md }}>
                 <Button
                   variant="secondary"
-                  onClick={() => { setShowEditModal(false); setSelectedCity(null); resetForm(); }}
+                  onClick={() => { setShowEditModal(false); setSelectedOrg(null); resetForm(); }}
                   style={{ flex: 1 }}
                 >
                   Cancel
@@ -636,7 +740,7 @@ export default function CitiesManager() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedCity && (
+      {showDeleteModal && selectedOrg && (
         <div style={modalOverlayStyle} onClick={() => setShowDeleteModal(false)}>
           <div style={{ ...modalStyle, maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: spacing.xl, textAlign: 'center' }}>
@@ -655,16 +759,16 @@ export default function CitiesManager() {
               </div>
 
               <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.sm }}>
-                Delete City?
+                Delete Organization?
               </h3>
               <p style={{ color: colors.text.secondary, marginBottom: spacing.xl }}>
-                Are you sure you want to delete "{selectedCity.name}, {selectedCity.state}"? This action cannot be undone.
+                Are you sure you want to delete "{selectedOrg.name}"? This action cannot be undone.
               </p>
 
               <div style={{ display: 'flex', gap: spacing.md }}>
                 <Button
                   variant="secondary"
-                  onClick={() => { setShowDeleteModal(false); setSelectedCity(null); }}
+                  onClick={() => { setShowDeleteModal(false); setSelectedOrg(null); }}
                   style={{ flex: 1 }}
                 >
                   Cancel

@@ -118,22 +118,19 @@ export function useCompetitionManager() {
     let isMounted = true;
 
     const loadData = async () => {
-      console.log('CompetitionManager: Starting data load...');
       setLoading(true);
 
       // Failsafe timeout - ensure loading completes even if something hangs
       const timeout = setTimeout(() => {
         if (isMounted) {
-          console.warn('CompetitionManager: Load timeout - forcing loading to false');
           setLoading(false);
         }
       }, 10000); // 10 second timeout
 
       try {
         await Promise.all([fetchCompetitions(), fetchOrganizations()]);
-        console.log('CompetitionManager: Data load complete');
       } catch (err) {
-        console.error('CompetitionManager: Error loading data:', err);
+        console.error('Error loading competition data:', err.message);
       } finally {
         clearTimeout(timeout);
         if (isMounted) {
@@ -163,8 +160,7 @@ export function useCompetitionManager() {
         organization_id: templateData.organization?.id || null,
         city: templateData.city,
         season: templateData.season || new Date().getFullYear(),
-        status: 'upcoming',
-        phase: 'setup',
+        status: 'draft', // New competitions start as draft
         total_contestants: templateData.maxContestants || 30,
         vote_price: templateData.votePrice || 1.00,
         host_payout_percentage: templateData.hostPayoutPercentage || 20,
@@ -227,8 +223,12 @@ export function useCompetitionManager() {
       if (updates.maxContestants) dbUpdates.total_contestants = updates.maxContestants;
       if (updates.votePrice) dbUpdates.vote_price = updates.votePrice;
       if (updates.hostPayoutPercentage) dbUpdates.host_payout_percentage = updates.hostPayoutPercentage;
-
-      console.log('Updating competition:', competitionId, 'with:', dbUpdates);
+      // Timeline fields (allow null to clear dates)
+      if (updates.nominationStart !== undefined) dbUpdates.nomination_start = updates.nominationStart || null;
+      if (updates.nominationEnd !== undefined) dbUpdates.nomination_end = updates.nominationEnd || null;
+      if (updates.votingStart !== undefined) dbUpdates.voting_start = updates.votingStart || null;
+      if (updates.votingEnd !== undefined) dbUpdates.voting_end = updates.votingEnd || null;
+      if (updates.finalsDate !== undefined) dbUpdates.finals_date = updates.finalsDate || null;
 
       const { data, error } = await supabase
         .from('competitions')
@@ -236,12 +236,8 @@ export function useCompetitionManager() {
         .eq('id', competitionId)
         .select();
 
-      if (error) {
-        console.error('Supabase update error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('Update result:', data);
       await fetchCompetitions();
       return { success: true, data };
     } catch (err) {
@@ -270,16 +266,15 @@ export function useCompetitionManager() {
     }
   }, [fetchCompetitions]);
 
-  // Assign a host to a competition
+  // Assign a host to a competition (does not change status)
   const assignHost = useCallback(async (competitionId, hostId) => {
-    console.log('Assigning host:', hostId, 'to competition:', competitionId);
-    const result = await updateCompetition(competitionId, { hostId, status: 'assigned' });
+    const result = await updateCompetition(competitionId, { hostId });
     return result;
   }, [updateCompetition]);
 
-  // Activate a competition
+  // Activate a competition - sets status to 'active' so timeline dates take effect
   const activateCompetition = useCallback(async (competitionId) => {
-    await updateCompetition(competitionId, { status: 'active', phase: 'nomination' });
+    await updateCompetition(competitionId, { status: 'active' });
   }, [updateCompetition]);
 
   // Create a new organization in Supabase
@@ -310,12 +305,14 @@ export function useCompetitionManager() {
   }, [fetchOrganizations]);
 
   // Get competitions by status
+  // Status values: draft, publish, active, complete, archive
   const competitionsByStatus = useMemo(() => {
     return {
-      draft: competitions.filter((t) => t.status === 'draft' || t.status === 'upcoming'),
-      assigned: competitions.filter((t) => t.status === 'assigned'),
-      active: competitions.filter((t) => t.status === 'active' || t.status === 'nomination' || t.status === 'voting'),
-      completed: competitions.filter((t) => t.status === 'completed'),
+      draft: competitions.filter((t) => t.status === 'draft'),
+      publish: competitions.filter((t) => t.status === 'publish'),
+      active: competitions.filter((t) => t.status === 'active'),
+      complete: competitions.filter((t) => t.status === 'complete'),
+      archive: competitions.filter((t) => t.status === 'archive'),
     };
   }, [competitions]);
 
@@ -324,9 +321,10 @@ export function useCompetitionManager() {
     return {
       total: competitions.length,
       draft: competitionsByStatus.draft.length,
-      assigned: competitionsByStatus.assigned.length,
+      publish: competitionsByStatus.publish.length,
       active: competitionsByStatus.active.length,
-      completed: competitionsByStatus.completed.length,
+      complete: competitionsByStatus.complete.length,
+      archive: competitionsByStatus.archive.length,
     };
   }, [competitions, competitionsByStatus]);
 

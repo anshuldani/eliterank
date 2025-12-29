@@ -9,6 +9,7 @@ import AboutTab from './components/AboutTab';
 import NominationTab from './components/NominationTab';
 import WinnersTab from './components/WinnersTab';
 import VoteModal from './components/VoteModal';
+import CompetitionTeaser from './components/CompetitionTeaser';
 
 const VOTING_TABS = [
   { id: 'contestants', label: 'Contestants', icon: Users },
@@ -36,7 +37,7 @@ export default function PublicSitePage({
   onClose,
   city = 'New York',
   season = '2026',
-  phase = 'voting', // 'setup', 'assigned', 'nomination', 'voting', 'judging', or 'completed'
+  phase = 'voting', // Timeline phase: 'nomination', 'voting', 'judging', 'completed' or status: 'draft', 'publish', 'complete'
   contestants,
   events,
   announcements,
@@ -45,13 +46,48 @@ export default function PublicSitePage({
   host,
   winners = [],
   forceDoubleVoteDay = true,
+  competition = null, // Competition object with timeline data
+  isAuthenticated = false, // Whether user is logged in
+  onLogin, // Callback to trigger login flow
+  userEmail, // User's email for pre-filling forms
+  userInstagram, // User's instagram for pre-filling forms
+  user, // Full user object for forms
 }) {
-  // Determine phase categories
-  const isSetupPhase = phase === 'setup' || phase === 'assigned';
+  // Check if this is a teaser page (publish status)
+  // Defensive: check both isTeaser prop AND status to ensure published competitions show teaser
+  const isTeaser = competition?.isTeaser === true || competition?.status === 'publish';
+
+  // Debug logging for troubleshooting
+  if (isOpen) {
+    console.log('[PublicSitePage] Rendering with:', {
+      isOpen,
+      isTeaser,
+      competitionStatus: competition?.status,
+      competitionIsTeaser: competition?.isTeaser,
+      city: competition?.city,
+    });
+  }
+
+  // If teaser mode, render the teaser component
+  if (isOpen && isTeaser) {
+    return (
+      <CompetitionTeaser
+        competition={competition}
+        onClose={onClose}
+        isAuthenticated={isAuthenticated}
+        onLogin={onLogin}
+        user={user}
+      />
+    );
+  }
+
+  // Determine phase categories based on computed phase from timeline
+  // 'draft' status shouldn't reach here (not accessible), but handle gracefully
+  const isDraftPhase = phase === 'draft';
   const isNominationPhase = phase === 'nomination';
-  const isVotingPhase = phase === 'voting' || phase === 'active';
+  const isVotingPhase = phase === 'voting';
   const isJudgingPhase = phase === 'judging';
-  const isCompletedPhase = phase === 'completed';
+  const isCompletedPhase = phase === 'completed' || phase === 'complete';
 
   // Determine which tabs to show based on phase
   let TABS;
@@ -60,8 +96,8 @@ export default function PublicSitePage({
   if (isCompletedPhase) {
     TABS = COMPLETED_TABS;
     defaultTab = 'winners';
-  } else if (isNominationPhase || isSetupPhase) {
-    // Show nomination tabs for setup/assigned phases (coming soon state)
+  } else if (isNominationPhase || isDraftPhase) {
+    // Show nomination tabs for nomination phase
     TABS = NOMINATION_TABS;
     defaultTab = 'nominate';
   } else {
@@ -77,9 +113,9 @@ export default function PublicSitePage({
   useEffect(() => {
     // Determine correct default tab based on phase
     let newDefaultTab;
-    if (phase === 'completed') {
+    if (phase === 'completed' || phase === 'complete') {
       newDefaultTab = 'winners';
-    } else if (phase === 'nomination' || phase === 'setup' || phase === 'assigned') {
+    } else if (phase === 'nomination' || phase === 'draft') {
       newDefaultTab = 'nominate';
     } else {
       newDefaultTab = 'contestants';
@@ -216,13 +252,13 @@ export default function PublicSitePage({
               <Badge variant="info" size="md" pill>
                 <Award size={12} /> JUDGING IN PROGRESS
               </Badge>
-            ) : isSetupPhase ? (
-              <Badge variant="warning" size="md" pill>
-                <Clock size={12} /> COMING SOON
-              </Badge>
             ) : isNominationPhase ? (
               <Badge variant="warning" size="md" pill>
                 <Sparkles size={12} /> NOMINATIONS OPEN
+              </Badge>
+            ) : isVotingPhase ? (
+              <Badge variant="success" size="md" pill>
+                ● VOTING LIVE
               </Badge>
             ) : (
               <Badge variant="success" size="md" pill>
@@ -262,7 +298,12 @@ export default function PublicSitePage({
         {activeTab === 'nominate' && (
           <NominationTab
             city={city}
-            onNominationSubmit={(data) => console.log('Nomination submitted:', data)}
+            competitionId={competition?.id}
+            onNominationSubmit={onClose}
+            isAuthenticated={isAuthenticated}
+            onLogin={onLogin}
+            userEmail={userEmail}
+            userInstagram={userInstagram}
           />
         )}
         {activeTab === 'contestants' && (
@@ -271,6 +312,9 @@ export default function PublicSitePage({
             events={events}
             forceDoubleVoteDay={forceDoubleVoteDay}
             onVote={setSelectedContestant}
+            isAuthenticated={isAuthenticated}
+            onLogin={onLogin}
+            isJudgingPhase={isJudgingPhase}
           />
         )}
         {activeTab === 'events' && <EventsTab events={events} city={city} season={season} phase={phase} />}
@@ -282,6 +326,7 @@ export default function PublicSitePage({
             events={events}
             host={host}
             city={city}
+            competition={competition}
           />
         )}
       </main>
@@ -294,6 +339,8 @@ export default function PublicSitePage({
         voteCount={voteCount}
         onVoteCountChange={setVoteCount}
         forceDoubleVoteDay={forceDoubleVoteDay}
+        isAuthenticated={isAuthenticated}
+        onLogin={onLogin}
       />
     </div>
   );
