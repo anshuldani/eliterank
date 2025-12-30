@@ -48,6 +48,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
   const [formData, setFormData] = useState({
     organization_id: '',
     city_id: '',
+    name: '', // Custom competition name
     season: new Date().getFullYear() + 1,
     has_events: false,
     number_of_winners: 5,
@@ -66,43 +67,44 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
 
     setLoading(true);
     try {
-      // Fetch all data in parallel
-      const [competitionsRes, orgsRes, citiesRes, hostsRes] = await Promise.all([
-        supabase
-          .from('competitions')
-          .select(`
-            *,
-            organization:organizations(*),
-            city:cities(*),
-            host:profiles!competitions_host_id_fkey(id, email, first_name, last_name),
-            settings:competition_settings(*)
-          `)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('organizations')
-          .select('*')
-          .order('name'),
-        supabase
-          .from('cities')
-          .select('*')
-          .order('name'),
-        supabase
-          .from('profiles')
-          .select('id, email, first_name, last_name')
-          .eq('is_host', true),
-      ]);
+      // Fetch data separately for better error handling
+      // Organizations
+      const { data: orgsData, error: orgsError } = await supabase
+        .from('organizations')
+        .select('*')
+        .order('name');
 
-      if (competitionsRes.error) throw competitionsRes.error;
-      if (orgsRes.error) throw orgsRes.error;
-      if (citiesRes.error) throw citiesRes.error;
+      if (!orgsError) setOrganizations(orgsData || []);
 
-      setCompetitions(competitionsRes.data || []);
-      setOrganizations(orgsRes.data || []);
-      setCities(citiesRes.data || []);
-      setHosts(hostsRes.data || []);
+      // Cities
+      const { data: citiesData, error: citiesError } = await supabase
+        .from('cities')
+        .select('*')
+        .order('name');
+
+      if (!citiesError) setCities(citiesData || []);
+
+      // Hosts
+      const { data: hostsData } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name')
+        .eq('is_host', true);
+
+      setHosts(hostsData || []);
+
+      // Competitions - simple query first
+      const { data: compsData, error: compsError } = await supabase
+        .from('competitions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!compsError) {
+        setCompetitions(compsData || []);
+      } else {
+        setCompetitions([]);
+      }
     } catch (err) {
-      console.error('Error fetching data:', err);
-      toast.error('Failed to load data');
+      toast.error(`Failed to load data: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -138,6 +140,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
         .insert({
           organization_id: formData.organization_id,
           city_id: formData.city_id,
+          name: formData.name || null, // Custom competition name
           season: formData.season,
           status: COMPETITION_STATUS.DRAFT,
           entry_type: 'nominations',
@@ -167,8 +170,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
       resetForm();
       fetchData();
     } catch (err) {
-      console.error('Error creating competition:', err);
-      toast.error('Failed to create competition');
+      toast.error(`Failed to create competition: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -186,8 +188,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
 
       toast.success(`Status changed to ${STATUS_CONFIG[newStatus].label}`);
       fetchData();
-    } catch (err) {
-      console.error('Error updating status:', err);
+    } catch {
       toast.error('Failed to update status');
     }
   };
@@ -208,8 +209,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
       setShowAssignHostModal(false);
       setSelectedCompetition(null);
       fetchData();
-    } catch (err) {
-      console.error('Error assigning host:', err);
+    } catch {
       toast.error('Failed to assign host');
     }
   };
@@ -238,8 +238,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
       setShowDeleteModal(false);
       setSelectedCompetition(null);
       fetchData();
-    } catch (err) {
-      console.error('Error deleting competition:', err);
+    } catch {
       toast.error('Failed to delete competition');
     } finally {
       setIsSubmitting(false);
@@ -251,6 +250,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
     setFormData({
       organization_id: '',
       city_id: '',
+      name: '',
       season: new Date().getFullYear() + 1,
       has_events: false,
       number_of_winners: 5,
@@ -263,10 +263,13 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
 
   // Get display name for competition
   const getCompetitionName = (comp) => {
-    const org = comp.organization?.name || 'Unknown Org';
-    const city = comp.city?.name || 'Unknown City';
-    const state = comp.city?.state || '';
-    return `${org} ${city}${state ? `, ${state}` : ''} ${comp.season}`;
+    // Use custom name if set, otherwise generate from org/city
+    if (comp.name) return comp.name;
+    const org = organizations.find(o => o.id === comp.organization_id);
+    const city = cities.find(c => c.id === comp.city_id);
+    const orgName = org?.name || 'Unknown Org';
+    const cityName = city?.name || 'Unknown City';
+    return `${orgName} ${cityName}`;
   };
 
   // Get host display name
@@ -457,6 +460,21 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                 })}
               </select>
             </div>
+
+            {/* Competition Name */}
+            <div style={{ marginBottom: spacing.lg }}>
+              <label style={labelStyle}>Competition Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g., Most Eligible Miami"
+                style={inputStyle}
+              />
+              <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginTop: spacing.xs }}>
+                Custom name for the competition. Leave blank to auto-generate from organization and city.
+              </p>
+            </div>
           </div>
         );
 
@@ -591,6 +609,12 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                 <p style={{ fontWeight: typography.fontWeight.medium }}>{selectedOrg?.name || 'Not selected'}</p>
               </div>
               <div style={{ marginBottom: spacing.md }}>
+                <span style={{ color: colors.text.muted, fontSize: typography.fontSize.sm }}>Competition Name:</span>
+                <p style={{ fontWeight: typography.fontWeight.medium }}>
+                  {formData.name || `${selectedOrg?.name || ''} ${selectedCity?.name || ''}`.trim() || 'Auto-generated'}
+                </p>
+              </div>
+              <div style={{ marginBottom: spacing.md }}>
                 <span style={{ color: colors.text.muted, fontSize: typography.fontSize.sm }}>Location:</span>
                 <p style={{ fontWeight: typography.fontWeight.medium }}>
                   {selectedCity ? `${selectedCity.name}, ${selectedCity.state}` : 'Not selected'}
@@ -689,7 +713,10 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
       ) : (
         competitions.map(comp => {
           const statusConfig = STATUS_CONFIG[comp.status] || STATUS_CONFIG[COMPETITION_STATUS.DRAFT];
-          const hostName = getHostName(comp.host);
+          const host = hosts.find(h => h.id === comp.host_id);
+          const hostName = getHostName(host);
+          const org = organizations.find(o => o.id === comp.organization_id);
+          const city = cities.find(c => c.id === comp.city_id);
 
           return (
             <div key={comp.id} style={cardStyle}>
@@ -706,10 +733,10 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                   overflow: 'hidden',
                   flexShrink: 0,
                 }}>
-                  {comp.organization?.logo_url ? (
+                  {org?.logo_url ? (
                     <img
-                      src={comp.organization.logo_url}
-                      alt={comp.organization.name}
+                      src={org.logo_url}
+                      alt={org.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (
@@ -737,7 +764,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.sm }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
                       <MapPin size={14} />
-                      {comp.city?.name}, {comp.city?.state}
+                      {city?.name || 'No City'}, {city?.state || ''}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
                       <Calendar size={14} />
@@ -781,7 +808,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
 
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: spacing.sm }}>
-                  {!comp.host && (
+                  {!comp.host_id && (
                     <Button
                       variant="primary"
                       size="sm"
@@ -799,7 +826,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                       variant="secondary"
                       size="sm"
                       icon={Eye}
-                      onClick={() => onViewDashboard(comp)}
+                      onClick={() => onViewDashboard({ ...comp, name: getCompetitionName(comp) })}
                     />
                   )}
                   {onOpenAdvancedSettings && (
@@ -807,7 +834,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                       variant="secondary"
                       size="sm"
                       icon={Settings}
-                      onClick={() => onOpenAdvancedSettings(comp)}
+                      onClick={() => onOpenAdvancedSettings({ ...comp, name: getCompetitionName(comp) })}
                     />
                   )}
                   <Button

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Crown, Users, Calendar, Sparkles, Award, UserPlus, Trophy, Clock } from 'lucide-react';
-import { Button, Badge } from '../../components/ui';
+import { Button, Badge, OrganizationLogo } from '../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../styles/theme';
+import { supabase } from '../../lib/supabase';
 import ContestantsTab from './components/ContestantsTab';
 import EventsTab from './components/EventsTab';
 import AnnouncementsTab from './components/AnnouncementsTab';
@@ -10,6 +11,7 @@ import NominationTab from './components/NominationTab';
 import WinnersTab from './components/WinnersTab';
 import VoteModal from './components/VoteModal';
 import CompetitionTeaser from './components/CompetitionTeaser';
+import PublicProfileView from './components/PublicProfileView';
 
 const VOTING_TABS = [
   { id: 'contestants', label: 'Contestants', icon: Users },
@@ -38,11 +40,11 @@ export default function PublicSitePage({
   city = 'New York',
   season = '2026',
   phase = 'voting', // Timeline phase: 'nomination', 'voting', 'judging', 'completed' or status: 'draft', 'publish', 'complete'
-  contestants,
-  events,
-  announcements,
-  judges,
-  sponsors,
+  contestants = [],
+  events = [],
+  announcements = [],
+  judges = [],
+  sponsors = [],
   host,
   winners = [],
   forceDoubleVoteDay = true,
@@ -52,21 +54,152 @@ export default function PublicSitePage({
   userEmail, // User's email for pre-filling forms
   userInstagram, // User's instagram for pre-filling forms
   user, // Full user object for forms
+  canEditEvents = false, // Whether user can edit events (host/superadmin)
+  onEditEvent, // Callback to edit an event
+  onAddEvent, // Callback to add a new event
 }) {
-  // Check if this is a teaser page (publish status)
-  // Defensive: check both isTeaser prop AND status to ensure published competitions show teaser
-  const isTeaser = competition?.isTeaser === true || competition?.status === 'publish';
+  // State for fetched data from database
+  const [fetchedData, setFetchedData] = useState({
+    contestants: [],
+    events: [],
+    announcements: [],
+    judges: [],
+    sponsors: [],
+    host: null,
+    loading: true,
+  });
 
-  // Debug logging for troubleshooting
-  if (isOpen) {
-    console.log('[PublicSitePage] Rendering with:', {
-      isOpen,
-      isTeaser,
-      competitionStatus: competition?.status,
-      competitionIsTeaser: competition?.isTeaser,
-      city: competition?.city,
-    });
-  }
+  // Fetch competition data from database
+  useEffect(() => {
+    const fetchCompetitionData = async () => {
+      const competitionId = competition?.id;
+      if (!competitionId || !supabase) {
+        setFetchedData(prev => ({ ...prev, loading: false }));
+        return;
+      }
+
+      try {
+        // Fetch all data in parallel
+        const [
+          contestantsResult,
+          eventsResult,
+          announcementsResult,
+          judgesResult,
+          sponsorsResult,
+          hostResult,
+        ] = await Promise.all([
+          supabase
+            .from('contestants')
+            .select('*')
+            .eq('competition_id', competitionId)
+            .order('votes', { ascending: false }),
+          supabase
+            .from('events')
+            .select('*')
+            .eq('competition_id', competitionId)
+            .order('date'),
+          supabase
+            .from('announcements')
+            .select('*')
+            .eq('competition_id', competitionId)
+            .order('pinned', { ascending: false })
+            .order('published_at', { ascending: false }),
+          supabase
+            .from('judges')
+            .select('*')
+            .eq('competition_id', competitionId)
+            .order('sort_order'),
+          supabase
+            .from('sponsors')
+            .select('*')
+            .eq('competition_id', competitionId)
+            .order('sort_order'),
+          // Get host profile if host_id exists
+          competition?.host_id
+            ? supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', competition.host_id)
+                .single()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        // Transform host data
+        const hostProfile = hostResult.data;
+        const transformedHost = hostProfile ? {
+          id: hostProfile.id,
+          name: `${hostProfile.first_name || ''} ${hostProfile.last_name || ''}`.trim() || 'Host',
+          title: 'Competition Host',
+          bio: hostProfile.bio || '',
+          avatar: hostProfile.avatar_url,
+          instagram: hostProfile.instagram,
+        } : null;
+
+        setFetchedData({
+          contestants: (contestantsResult.data || []).map((c, idx) => ({
+            id: c.id,
+            name: c.name,
+            age: c.age,
+            occupation: c.occupation,
+            bio: c.bio,
+            votes: c.votes || 0,
+            rank: idx + 1,
+            avatarUrl: c.avatar_url,
+            instagram: c.instagram,
+          })),
+          events: (eventsResult.data || []).map(e => ({
+            id: e.id,
+            name: e.name,
+            date: e.date,
+            endDate: e.end_date,
+            time: e.time,
+            location: e.location,
+            status: e.status,
+            featured: e.featured,
+          })),
+          announcements: (announcementsResult.data || []).map(a => ({
+            id: a.id,
+            title: a.title,
+            content: a.content,
+            date: a.published_at,
+            pinned: a.pinned,
+          })),
+          judges: (judgesResult.data || []).map(j => ({
+            id: j.id,
+            name: j.name,
+            title: j.title,
+            bio: j.bio,
+            avatarUrl: j.avatar_url,
+          })),
+          sponsors: (sponsorsResult.data || []).map(s => ({
+            id: s.id,
+            name: s.name,
+            tier: s.tier,
+            logo: s.logo_url,
+            website: s.website,
+          })),
+          host: transformedHost,
+          loading: false,
+        });
+      } catch (error) {
+        console.error('Error fetching competition data:', error);
+        setFetchedData(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchCompetitionData();
+  }, [competition?.id, competition?.host_id]);
+
+  // Use fetched data if available, otherwise fall back to props
+  const displayContestants = fetchedData.contestants.length > 0 ? fetchedData.contestants : contestants;
+  const displayEvents = fetchedData.events.length > 0 ? fetchedData.events : events;
+  const displayAnnouncements = fetchedData.announcements.length > 0 ? fetchedData.announcements : announcements;
+  const displayJudges = fetchedData.judges.length > 0 ? fetchedData.judges : judges;
+  const displaySponsors = fetchedData.sponsors.length > 0 ? fetchedData.sponsors : sponsors;
+  const displayHost = fetchedData.host || host;
+
+  // Check if this is a teaser page (publish status)
+  const isTeaser = competition?.isTeaser === true || competition?.status === 'publish';
 
   // If teaser mode, render the teaser component
   if (isOpen && isTeaser) {
@@ -109,6 +242,21 @@ export default function PublicSitePage({
   const [selectedContestant, setSelectedContestant] = useState(null);
   const [voteCount, setVoteCount] = useState(1);
 
+  // State for viewing profiles in full-page mode
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [viewingProfileRole, setViewingProfileRole] = useState('fan');
+
+  // Handler for viewing a profile
+  const handleViewProfile = (profile, role = 'fan') => {
+    setViewingProfile(profile);
+    setViewingProfileRole(role);
+  };
+
+  const handleCloseProfile = () => {
+    setViewingProfile(null);
+    setViewingProfileRole('fan');
+  };
+
   // Reset active tab when phase or city changes
   useEffect(() => {
     // Determine correct default tab based on phase
@@ -125,7 +273,7 @@ export default function PublicSitePage({
 
   if (!isOpen) return null;
 
-  const platinumSponsor = sponsors.find((s) => s.tier === 'Platinum');
+  const platinumSponsor = displaySponsors.find((s) => s.tier === 'Platinum');
 
   const headerStyle = {
     background: 'linear-gradient(135deg, rgba(212,175,55,0.1), transparent)',
@@ -175,19 +323,11 @@ export default function PublicSitePage({
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  background: 'linear-gradient(135deg, #d4af37, #f4d03f)',
-                  borderRadius: borderRadius.md,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Crown size={22} style={{ color: '#0a0a0f' }} />
-              </div>
+              <OrganizationLogo
+                logo={competition?.organization?.logo_url}
+                size={40}
+                style={{ borderRadius: borderRadius.md }}
+              />
               <div>
                 <p style={{ fontSize: typography.fontSize.xs, color: colors.gold.primary, fontWeight: typography.fontWeight.semibold, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Most Eligible
@@ -293,6 +433,8 @@ export default function PublicSitePage({
             city={city}
             season={season}
             winners={winners}
+            competitionId={competition?.id}
+            onViewProfile={(profile) => handleViewProfile(profile, 'winner')}
           />
         )}
         {activeTab === 'nominate' && (
@@ -308,25 +450,37 @@ export default function PublicSitePage({
         )}
         {activeTab === 'contestants' && (
           <ContestantsTab
-            contestants={contestants}
-            events={events}
+            contestants={displayContestants}
+            events={displayEvents}
             forceDoubleVoteDay={forceDoubleVoteDay}
             onVote={setSelectedContestant}
             isAuthenticated={isAuthenticated}
             onLogin={onLogin}
             isJudgingPhase={isJudgingPhase}
+            onViewProfile={(profile) => handleViewProfile(profile, 'contestant')}
           />
         )}
-        {activeTab === 'events' && <EventsTab events={events} city={city} season={season} phase={phase} />}
-        {activeTab === 'announcements' && <AnnouncementsTab announcements={announcements} />}
+        {activeTab === 'events' && (
+          <EventsTab
+            events={displayEvents}
+            city={city}
+            season={season}
+            phase={phase}
+            canEdit={canEditEvents}
+            onEditEvent={onEditEvent}
+            onAddEvent={onAddEvent}
+          />
+        )}
+        {activeTab === 'announcements' && <AnnouncementsTab announcements={displayAnnouncements} city={city} season={season} />}
         {activeTab === 'about' && (
           <AboutTab
-            judges={judges}
-            sponsors={sponsors}
-            events={events}
-            host={host}
+            judges={displayJudges}
+            sponsors={displaySponsors}
+            events={displayEvents}
+            host={displayHost}
             city={city}
             competition={competition}
+            onViewProfile={handleViewProfile}
           />
         )}
       </main>
@@ -342,6 +496,15 @@ export default function PublicSitePage({
         isAuthenticated={isAuthenticated}
         onLogin={onLogin}
       />
+
+      {/* Full-page Profile View */}
+      {viewingProfile && (
+        <PublicProfileView
+          profile={viewingProfile}
+          role={viewingProfileRole}
+          onBack={handleCloseProfile}
+        />
+      )}
     </div>
   );
 }

@@ -392,6 +392,10 @@ export default function LoginPage({ onLogin, onBack }) {
                 style={inputStyle}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
+                autoComplete="email"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
             </div>
           </div>
@@ -408,6 +412,7 @@ export default function LoginPage({ onLogin, onBack }) {
                 style={{ ...inputStyle, paddingRight: '44px' }}
                 onFocus={handleInputFocus}
                 onBlur={handleInputBlur}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               />
               <button
                 type="button"

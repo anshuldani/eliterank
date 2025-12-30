@@ -1,14 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Award, Calendar, FileText, Trophy, Building, Crown, Check, Star, Instagram, Linkedin, Twitter, User, UserPlus, Vote, Clock } from 'lucide-react';
 import { Avatar, Badge } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
 import { formatEventDateRange } from '../../../utils/formatters';
-import ProfileModal from './ProfileModal';
 
-export default function AboutTab({ judges, sponsors, events, host, city = 'New York', competition }) {
-  const [selectedProfile, setSelectedProfile] = useState(null);
-  const [profileType, setProfileType] = useState('host');
-
+export default function AboutTab({ judges, sponsors, events, host, city = 'New York', competition, onViewProfile }) {
   const platinumSponsor = sponsors.find((s) => s.tier === 'Platinum');
   const otherSponsors = sponsors.filter((s) => s.tier !== 'Platinum');
   const publicEvents = events.filter((e) => e.publicVisible !== false);
@@ -48,11 +44,6 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
     competition.finals_date
   );
 
-  const handleViewProfile = (profile, type) => {
-    setSelectedProfile(profile);
-    setProfileType(type);
-  };
-
   return (
     <div>
       <div style={{ textAlign: 'center', marginBottom: spacing.xxxl }}>
@@ -85,7 +76,7 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
           </div>
 
           <div
-            onClick={() => handleViewProfile(host, 'host')}
+            onClick={() => onViewProfile?.(host, 'host')}
             style={{
               background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(212,175,55,0.05))',
               border: `1px solid rgba(139,92,246,0.3)`,
@@ -96,6 +87,14 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
               alignItems: 'center',
               cursor: 'pointer',
               transition: 'all 0.3s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(139,92,246,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           >
             {/* Host Avatar */}
@@ -490,7 +489,7 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
           {judges.map((judge) => (
             <div
               key={judge.id}
-              onClick={() => handleViewProfile(judge, 'judge')}
+              onClick={() => onViewProfile?.(judge, 'judge')}
               style={{
                 background: colors.background.card,
                 border: `1px solid ${colors.border.light}`,
@@ -500,8 +499,18 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
                 cursor: 'pointer',
                 transition: 'all 0.3s',
               }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(212,175,55,0.2)';
+                e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = colors.border.light;
+              }}
             >
-              <Avatar name={judge.name} size={100} style={{ margin: '0 auto 16px' }} />
+              <Avatar name={judge.name} src={judge.avatarUrl || judge.avatar_url} size={100} style={{ margin: '0 auto 16px' }} />
               <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
                 {judge.name}
               </h3>
@@ -636,14 +645,6 @@ export default function AboutTab({ judges, sponsors, events, host, city = 'New Y
           ))}
         </div>
       </div>
-
-      {/* Profile Modal */}
-      <ProfileModal
-        isOpen={!!selectedProfile}
-        onClose={() => setSelectedProfile(null)}
-        profile={selectedProfile}
-        type={profileType}
-      />
     </div>
   );
 }

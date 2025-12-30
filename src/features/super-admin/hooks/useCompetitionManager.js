@@ -1,5 +1,9 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import {
+  shouldAutoTransitionToLive,
+  shouldAutoTransitionToCompleted,
+} from '../../../utils/competitionPhase';
 
 export function useCompetitionManager() {
   const [competitions, setCompetitions] = useState([]);
@@ -14,16 +18,58 @@ export function useCompetitionManager() {
     }
 
     try {
-      // Fetch competitions
-      const { data, error } = await supabase
-        .from('competitions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch competitions and settings
+      const [compsResult, settingsResult] = await Promise.all([
+        supabase.from('competitions').select('*').order('created_at', { ascending: false }),
+        supabase.from('competition_settings').select('*'),
+      ]);
 
-      if (error) {
-        console.error('Error fetching competitions:', error);
+      if (compsResult.error) {
         setCompetitions([]);
         return;
+      }
+
+      let data = compsResult.data;
+
+      // Create lookup map for settings
+      const settingsMap = (settingsResult.data || []).reduce((acc, s) => {
+        acc[s.competition_id] = s;
+        return acc;
+      }, {});
+
+      // Check for auto-transitions and update if needed
+      const competitionsToTransition = [];
+      for (const comp of (data || [])) {
+        const settings = settingsMap[comp.id];
+
+        // Check if should transition from publish to live
+        if (shouldAutoTransitionToLive(comp, settings)) {
+          competitionsToTransition.push({ id: comp.id, newStatus: 'live' });
+        }
+        // Check if should transition from live to completed
+        else if (shouldAutoTransitionToCompleted(comp, settings)) {
+          competitionsToTransition.push({ id: comp.id, newStatus: 'completed' });
+        }
+      }
+
+      // Apply auto-transitions if any
+      if (competitionsToTransition.length > 0) {
+        for (const { id, newStatus } of competitionsToTransition) {
+          await supabase
+            .from('competitions')
+            .update({ status: newStatus })
+            .eq('id', id);
+        }
+
+        // Re-fetch competitions to get updated data
+        const { data: updatedData } = await supabase
+          .from('competitions')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (updatedData) {
+          data = updatedData;
+        }
       }
 
       // Get unique host IDs to fetch host profiles
@@ -52,39 +98,25 @@ export function useCompetitionManager() {
       // Transform data to match expected format
       const transformed = (data || []).map(comp => ({
         id: comp.id,
-        name: comp.city || 'Unnamed Competition',
-        city: comp.city,
+        name: `Competition ${comp.season}`,
         season: comp.season,
-        status: comp.status || 'upcoming',
-        phase: comp.phase,
+        status: comp.status || 'draft',
         // Form fields
-        category: comp.category,
-        contestantType: comp.contestant_type,
-        hasHost: comp.has_host ?? true,
-        hasEvents: comp.has_events ?? true,
+        hasEvents: comp.has_events ?? false,
         numberOfWinners: comp.number_of_winners || 5,
-        selectionCriteria: comp.selection_criteria,
-        voteWeight: comp.vote_weight || 50,
-        judgeWeight: comp.judge_weight || 50,
-        maxContestants: comp.total_contestants || 30,
-        votePrice: comp.vote_price || 1.00,
-        hostPayoutPercentage: comp.host_payout_percentage || 20,
+        selectionCriteria: comp.selection_criteria || 'votes',
+        entryType: comp.entry_type || 'nominations',
+        description: comp.description || '',
+        rulesDocUrl: comp.rules_doc_url,
         // IDs for related data
         hostId: comp.host_id,
         organizationId: comp.organization_id,
-        organization: null, // Will be populated separately if needed
+        cityId: comp.city_id,
         assignedHost: comp.host_id ? hostsMap[comp.host_id] || null : null,
-        // Dates
-        nominationStart: comp.nomination_start,
-        nominationEnd: comp.nomination_end,
-        votingStart: comp.voting_start,
-        votingEnd: comp.voting_end,
-        finalsDate: comp.finals_date,
       }));
 
       setCompetitions(transformed);
-    } catch (err) {
-      console.error('Error fetching competitions:', err);
+    } catch {
       setCompetitions([]);
     }
   }, []);
@@ -100,15 +132,11 @@ export function useCompetitionManager() {
         .order('name');
 
       if (error) {
-        // Table might not exist yet - that's ok
-        console.warn('Organizations table error:', error);
         setOrganizations([]);
         return;
       }
       setOrganizations(data || []);
-    } catch (err) {
-      console.error('Error fetching organizations:', err);
-      // Don't set error for organizations - not critical
+    } catch {
       setOrganizations([]);
     }
   }, []);
@@ -129,8 +157,8 @@ export function useCompetitionManager() {
 
       try {
         await Promise.all([fetchCompetitions(), fetchOrganizations()]);
-      } catch (err) {
-        console.error('Error loading competition data:', err.message);
+      } catch {
+        // Silent fail
       } finally {
         clearTimeout(timeout);
         if (isMounted) {
@@ -149,33 +177,23 @@ export function useCompetitionManager() {
   // Create a new competition in Supabase
   const createCompetition = useCallback(async (templateData, hostId) => {
     if (!supabase) {
-      console.error('Supabase not configured');
       return null;
     }
 
     try {
-      // Build insert object with only columns that exist in the table
+      // Build insert object with current schema columns
       const insertData = {
         host_id: hostId,
-        organization_id: templateData.organization?.id || null,
-        city: templateData.city,
+        organization_id: templateData.organizationId || templateData.organization?.id || null,
+        city_id: templateData.cityId || null,
         season: templateData.season || new Date().getFullYear(),
-        status: 'draft', // New competitions start as draft
-        total_contestants: templateData.maxContestants || 30,
-        vote_price: templateData.votePrice || 1.00,
-        host_payout_percentage: templateData.hostPayoutPercentage || 20,
+        status: 'draft',
+        entry_type: templateData.entryType || 'nominations',
+        has_events: templateData.hasEvents ?? false,
+        number_of_winners: templateData.numberOfWinners || 5,
+        selection_criteria: templateData.selectionCriteria || 'votes',
+        description: templateData.description || '',
       };
-
-      // Add optional columns if they exist in the database
-      // These will fail gracefully if columns don't exist
-      if (templateData.category) insertData.category = templateData.category;
-      if (templateData.contestantType) insertData.contestant_type = templateData.contestantType;
-      if (templateData.hasHost !== undefined) insertData.has_host = templateData.hasHost;
-      if (templateData.hasEvents !== undefined) insertData.has_events = templateData.hasEvents;
-      if (templateData.numberOfWinners) insertData.number_of_winners = templateData.numberOfWinners;
-      if (templateData.selectionCriteria) insertData.selection_criteria = templateData.selectionCriteria;
-      if (templateData.voteWeight !== undefined) insertData.vote_weight = templateData.voteWeight;
-      if (templateData.judgeWeight !== undefined) insertData.judge_weight = templateData.judgeWeight;
 
       const { data, error } = await supabase
         .from('competitions')
@@ -189,7 +207,6 @@ export function useCompetitionManager() {
       await fetchCompetitions();
       return data;
     } catch (err) {
-      console.error('Error creating competition:', err);
       setError(err.message);
       return null;
     }
@@ -198,37 +215,25 @@ export function useCompetitionManager() {
   // Update an existing competition in Supabase
   const updateCompetition = useCallback(async (competitionId, updates) => {
     if (!supabase) {
-      console.error('Supabase not configured');
       return { success: false, error: 'Supabase not configured' };
     }
 
     try {
       const dbUpdates = {};
       // Basic fields
-      if (updates.city) dbUpdates.city = updates.city;
       if (updates.season) dbUpdates.season = updates.season;
       if (updates.status) dbUpdates.status = updates.status;
-      if (updates.phase) dbUpdates.phase = updates.phase;
+      if (updates.organizationId) dbUpdates.organization_id = updates.organizationId;
       if (updates.organization?.id) dbUpdates.organization_id = updates.organization.id;
+      if (updates.cityId) dbUpdates.city_id = updates.cityId;
       if (updates.hostId) dbUpdates.host_id = updates.hostId;
       // Form fields
-      if (updates.category) dbUpdates.category = updates.category;
-      if (updates.contestantType) dbUpdates.contestant_type = updates.contestantType;
-      if (updates.hasHost !== undefined) dbUpdates.has_host = updates.hasHost;
       if (updates.hasEvents !== undefined) dbUpdates.has_events = updates.hasEvents;
       if (updates.numberOfWinners) dbUpdates.number_of_winners = updates.numberOfWinners;
       if (updates.selectionCriteria) dbUpdates.selection_criteria = updates.selectionCriteria;
-      if (updates.voteWeight !== undefined) dbUpdates.vote_weight = updates.voteWeight;
-      if (updates.judgeWeight !== undefined) dbUpdates.judge_weight = updates.judgeWeight;
-      if (updates.maxContestants) dbUpdates.total_contestants = updates.maxContestants;
-      if (updates.votePrice) dbUpdates.vote_price = updates.votePrice;
-      if (updates.hostPayoutPercentage) dbUpdates.host_payout_percentage = updates.hostPayoutPercentage;
-      // Timeline fields (allow null to clear dates)
-      if (updates.nominationStart !== undefined) dbUpdates.nomination_start = updates.nominationStart || null;
-      if (updates.nominationEnd !== undefined) dbUpdates.nomination_end = updates.nominationEnd || null;
-      if (updates.votingStart !== undefined) dbUpdates.voting_start = updates.votingStart || null;
-      if (updates.votingEnd !== undefined) dbUpdates.voting_end = updates.votingEnd || null;
-      if (updates.finalsDate !== undefined) dbUpdates.finals_date = updates.finalsDate || null;
+      if (updates.entryType) dbUpdates.entry_type = updates.entryType;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.rulesDocUrl !== undefined) dbUpdates.rules_doc_url = updates.rulesDocUrl;
 
       const { data, error } = await supabase
         .from('competitions')
@@ -241,7 +246,6 @@ export function useCompetitionManager() {
       await fetchCompetitions();
       return { success: true, data };
     } catch (err) {
-      console.error('Error updating competition:', err);
       setError(err.message);
       return { success: false, error: err.message };
     }
@@ -261,7 +265,6 @@ export function useCompetitionManager() {
 
       await fetchCompetitions();
     } catch (err) {
-      console.error('Error deleting competition:', err);
       setError(err.message);
     }
   }, [fetchCompetitions]);
@@ -298,20 +301,19 @@ export function useCompetitionManager() {
       await fetchOrganizations();
       return data;
     } catch (err) {
-      console.error('Error creating organization:', err);
       setError(err.message);
       return null;
     }
   }, [fetchOrganizations]);
 
   // Get competitions by status
-  // Status values: draft, publish, active, complete, archive
+  // Status values: draft, publish, live, completed, archive
   const competitionsByStatus = useMemo(() => {
     return {
       draft: competitions.filter((t) => t.status === 'draft'),
       publish: competitions.filter((t) => t.status === 'publish'),
-      active: competitions.filter((t) => t.status === 'active'),
-      complete: competitions.filter((t) => t.status === 'complete'),
+      live: competitions.filter((t) => t.status === 'live'),
+      completed: competitions.filter((t) => t.status === 'completed'),
       archive: competitions.filter((t) => t.status === 'archive'),
     };
   }, [competitions]);
@@ -322,8 +324,8 @@ export function useCompetitionManager() {
       total: competitions.length,
       draft: competitionsByStatus.draft.length,
       publish: competitionsByStatus.publish.length,
-      active: competitionsByStatus.active.length,
-      complete: competitionsByStatus.complete.length,
+      live: competitionsByStatus.live.length,
+      completed: competitionsByStatus.completed.length,
       archive: competitionsByStatus.archive.length,
     };
   }, [competitions, competitionsByStatus]);

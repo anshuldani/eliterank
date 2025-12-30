@@ -31,6 +31,21 @@ export default function OrganizationsManager() {
     logo_url: '',
   });
 
+  // Get competition count for an organization
+  const getCompetitionCount = async (orgId) => {
+    if (!supabase) return 0;
+    try {
+      const { count, error } = await supabase
+        .from('competitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId);
+      if (error) return 0;
+      return count || 0;
+    } catch {
+      return 0;
+    }
+  };
+
   // Fetch organizations
   useEffect(() => {
     fetchOrganizations();
@@ -41,53 +56,79 @@ export default function OrganizationsManager() {
 
     setLoading(true);
     try {
-      // Fetch organizations with their competition counts
       const { data, error } = await supabase
         .from('organizations')
-        .select(`
-          *,
-          competitions:competitions(count)
-        `)
+        .select('*')
         .order('name');
 
       if (error) throw error;
 
-      setOrganizations(data || []);
+      // Get competition counts for each organization
+      const orgsWithCounts = await Promise.all(
+        (data || []).map(async (org) => {
+          const count = await getCompetitionCount(org.id);
+          return { ...org, competitionCount: count };
+        })
+      );
+
+      setOrganizations(orgsWithCounts);
     } catch (err) {
       console.error('Error fetching organizations:', err);
-      toast.error('Failed to load organizations');
+      toast.error(`Failed to load organizations: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch competitions for an organization
+  // Fetch competitions for an organization with city names
   const fetchOrgCompetitions = async (orgId) => {
     if (!supabase) return [];
 
     try {
-      const { data, error } = await supabase
+      // Fetch competitions
+      const { data: competitions, error } = await supabase
         .from('competitions')
-        .select(`
-          id,
-          season,
-          status,
-          cities:city_id(name, state)
-        `)
+        .select('id, season, status, city_id')
         .eq('organization_id', orgId)
         .order('season', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      if (!competitions || competitions.length === 0) return [];
+
+      // Get unique city IDs
+      const cityIds = [...new Set(competitions.map(c => c.city_id).filter(Boolean))];
+
+      // Fetch city names
+      let citiesMap = {};
+      if (cityIds.length > 0) {
+        const { data: citiesData } = await supabase
+          .from('cities')
+          .select('id, name, state')
+          .in('id', cityIds);
+
+        if (citiesData) {
+          citiesMap = citiesData.reduce((acc, city) => {
+            acc[city.id] = { name: city.name, state: city.state };
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach city names to competitions
+      return competitions.map(comp => ({
+        ...comp,
+        cityName: comp.city_id ? citiesMap[comp.city_id]?.name || 'Unknown' : 'No City',
+        cityState: comp.city_id ? citiesMap[comp.city_id]?.state || '' : '',
+      }));
     } catch (err) {
       console.error('Error fetching org competitions:', err);
       return [];
     }
   };
 
-  // Handle logo upload
+  // Handle logo upload via Vercel Blob
   const handleLogoUpload = async (file) => {
-    if (!file || !supabase) return;
+    if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -107,21 +148,22 @@ export default function OrganizationsManager() {
       const ext = file.name.split('.').pop();
       const filename = `org-logos/${timestamp}.${ext}`;
 
-      const { data, error } = await supabase.storage
-        .from('public')
-        .upload(filename, file);
+      const response = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
+        method: 'POST',
+        body: file,
+      });
 
-      if (error) throw error;
+      const data = await response.json();
 
-      const { data: urlData } = supabase.storage
-        .from('public')
-        .getPublicUrl(filename);
+      if (!response.ok) {
+        throw new Error(data.error || 'Upload failed');
+      }
 
-      setFormData(prev => ({ ...prev, logo_url: urlData.publicUrl }));
+      setFormData(prev => ({ ...prev, logo_url: data.url }));
       toast.success('Logo uploaded successfully');
     } catch (err) {
       console.error('Error uploading logo:', err);
-      toast.error('Failed to upload logo');
+      toast.warning('Logo upload failed. You can create the organization without a logo.');
     } finally {
       setUploadingLogo(false);
     }
@@ -164,7 +206,7 @@ export default function OrganizationsManager() {
       fetchOrganizations();
     } catch (err) {
       console.error('Error creating organization:', err);
-      toast.error('Failed to create organization');
+      toast.error(`Failed to create organization: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -412,7 +454,7 @@ export default function OrganizationsManager() {
                     gap: spacing.xs,
                   }}>
                     <Crown size={12} />
-                    {org.competitions?.[0]?.count || 0} competitions
+                    {org.competitionCount || 0} competitions
                   </span>
                 </div>
               </div>
@@ -478,7 +520,7 @@ export default function OrganizationsManager() {
                         }}
                       >
                         <span>
-                          {comp.cities?.name}, {comp.cities?.state} - {comp.season}
+                          {comp.cityName}{comp.cityState ? `, ${comp.cityState}` : ''} - {comp.season}
                         </span>
                         <span style={{
                           fontSize: typography.fontSize.xs,

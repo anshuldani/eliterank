@@ -25,8 +25,20 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
   const uploadImage = async (file, folder) => {
     if (!file) return null;
 
+    // Validate file size (max 4.5MB for Vercel Blob free tier)
+    const maxSize = 4.5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert('Image too large. Please choose an image under 4.5MB.');
+      return null;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return null;
+    }
+
     try {
-      // Generate unique filename with folder prefix
       const timestamp = Date.now();
       const ext = file.name.split('.').pop();
       const filename = `${folder}/${timestamp}.${ext}`;
@@ -44,8 +56,7 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
 
       return data.url;
     } catch (error) {
-      console.error('Upload error:', error);
-      alert(`Upload failed: ${error.message}`);
+      alert(`Upload failed: ${error.message}. Please try again.`);
       return null;
     }
   };
@@ -138,7 +149,7 @@ export default function ProfileEdit({ hostProfile, onSave, onCancel, onChange, u
               Edit Profile
             </h2>
             <p style={{ fontSize: typography.fontSize.base, color: colors.text.secondary }}>
-              Update your public host profile
+              Update your public profile
             </p>
           </div>
         </div>

@@ -10,7 +10,7 @@ const TYPE_CONFIG = {
   news: { icon: FileText, color: colors.status.info, bgColor: 'rgba(59,130,246,0.15)' },
 };
 
-export default function AnnouncementsTab({ announcements }) {
+export default function AnnouncementsTab({ announcements = [], city = 'Your City', season }) {
   const sortedAnnouncements = [...announcements].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
@@ -19,6 +19,8 @@ export default function AnnouncementsTab({ announcements }) {
 
   const getTypeConfig = (type) => TYPE_CONFIG[type] || TYPE_CONFIG.announcement;
 
+  const competitionName = season ? `Most Eligible ${city} ${season}` : `Most Eligible ${city}`;
+
   return (
     <div>
       <div style={{ textAlign: 'center', marginBottom: spacing.xxxl }}>
@@ -26,12 +28,29 @@ export default function AnnouncementsTab({ announcements }) {
           Announcements
         </h1>
         <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
-          Stay updated with the latest news from Most Eligible NYC
+          Stay updated with the latest news from {competitionName}
         </p>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xl }}>
-        {sortedAnnouncements.map((post, i) => {
+      {sortedAnnouncements.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: spacing.xxxl,
+          background: colors.background.card,
+          borderRadius: borderRadius.xxl,
+          border: `1px solid ${colors.border.light}`,
+        }}>
+          <Sparkles size={48} style={{ color: colors.text.muted, marginBottom: spacing.lg, opacity: 0.5 }} />
+          <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.lg }}>
+            No announcements yet
+          </p>
+          <p style={{ color: colors.text.muted, fontSize: typography.fontSize.md, marginTop: spacing.sm }}>
+            Check back soon for updates from {competitionName}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xl }}>
+          {sortedAnnouncements.map((post, i) => {
           const typeConfig = getTypeConfig(post.type);
           const TypeIcon = typeConfig.icon;
           const postDate = new Date(post.date);
@@ -86,7 +105,8 @@ export default function AnnouncementsTab({ announcements }) {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

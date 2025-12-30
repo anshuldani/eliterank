@@ -27,8 +27,6 @@ export default function HostsManager() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // is_host column might not exist - that's ok
-        console.warn('Error fetching hosts (is_host column may not exist):', error);
         setHosts([]);
         return;
       }
@@ -46,9 +44,7 @@ export default function HostsManager() {
         totalRevenue: 0, // Would need to sum from transactions
         status: 'active',
       })));
-    } catch (err) {
-      console.error('Error fetching hosts:', err);
-      // Don't set error - just show empty hosts
+    } catch {
       setHosts([]);
     }
   }, []);
@@ -65,8 +61,6 @@ export default function HostsManager() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        // Table might not exist yet
-        console.warn('Host applications table not found or empty:', error);
         setApplications([]);
         return;
       }
@@ -85,9 +79,7 @@ export default function HostsManager() {
         status: app.status,
         appliedAt: app.created_at?.split('T')[0] || 'Unknown',
       })));
-    } catch (err) {
-      console.error('Error fetching applications:', err);
-      // Don't set error for missing table
+    } catch {
       setApplications([]);
     }
   }, []);
@@ -97,22 +89,18 @@ export default function HostsManager() {
     let isMounted = true;
 
     const loadData = async () => {
-      console.log('HostsManager: Starting data load...');
       setLoading(true);
 
-      // Failsafe timeout
       const timeout = setTimeout(() => {
         if (isMounted) {
-          console.warn('HostsManager: Load timeout - forcing loading to false');
           setLoading(false);
         }
       }, 10000);
 
       try {
         await Promise.all([fetchHosts(), fetchApplications()]);
-        console.log('HostsManager: Data load complete');
-      } catch (err) {
-        console.error('HostsManager: Error loading data:', err);
+      } catch {
+        // Silent fail
       } finally {
         clearTimeout(timeout);
         if (isMounted) {
@@ -156,7 +144,6 @@ export default function HostsManager() {
       await Promise.all([fetchHosts(), fetchApplications()]);
       setSelectedApplication(null);
     } catch (err) {
-      console.error('Error approving application:', err);
       setError(err.message);
     }
   };
@@ -176,7 +163,6 @@ export default function HostsManager() {
       await fetchApplications();
       setSelectedApplication(null);
     } catch (err) {
-      console.error('Error rejecting application:', err);
       setError(err.message);
     }
   };

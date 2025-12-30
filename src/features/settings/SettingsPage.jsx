@@ -19,6 +19,7 @@ export default function SettingsPage({
   onEditSponsor,
   onDeleteSponsor,
   onEditEvent,
+  onAddEvent,
   onShowSponsorInfo,
   onCompetitionUpdate,
 }) {
@@ -128,13 +129,13 @@ export default function SettingsPage({
           padding: spacing.lg,
           marginBottom: spacing.xl,
           borderRadius: borderRadius.xl,
-          background: hostCompetition.status === COMPETITION_STATUSES.ACTIVE
+          background: hostCompetition.status === COMPETITION_STATUSES.LIVE
             ? 'linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05))'
             : hostCompetition.status === COMPETITION_STATUSES.PUBLISH
               ? 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05))'
               : 'linear-gradient(135deg, rgba(100,100,100,0.15), rgba(100,100,100,0.05))',
           border: `1px solid ${
-            hostCompetition.status === COMPETITION_STATUSES.ACTIVE
+            hostCompetition.status === COMPETITION_STATUSES.LIVE
               ? 'rgba(34,197,94,0.3)'
               : hostCompetition.status === COMPETITION_STATUSES.PUBLISH
                 ? 'rgba(251,191,36,0.3)'
@@ -143,7 +144,7 @@ export default function SettingsPage({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
-              {hostCompetition.status === COMPETITION_STATUSES.ACTIVE ? (
+              {hostCompetition.status === COMPETITION_STATUSES.LIVE ? (
                 <Zap size={24} style={{ color: '#22c55e' }} />
               ) : (
                 <AlertCircle size={24} style={{ color: hostCompetition.status === COMPETITION_STATUSES.PUBLISH ? '#fbbf24' : colors.text.muted }} />
@@ -152,30 +153,30 @@ export default function SettingsPage({
                 <p style={{
                   fontSize: typography.fontSize.lg,
                   fontWeight: typography.fontWeight.semibold,
-                  color: hostCompetition.status === COMPETITION_STATUSES.ACTIVE ? '#22c55e' : hostCompetition.status === COMPETITION_STATUSES.PUBLISH ? '#fbbf24' : colors.text.secondary,
+                  color: hostCompetition.status === COMPETITION_STATUSES.LIVE ? '#22c55e' : hostCompetition.status === COMPETITION_STATUSES.PUBLISH ? '#fbbf24' : colors.text.secondary,
                   marginBottom: spacing.xs,
                 }}>
-                  {hostCompetition.status === COMPETITION_STATUSES.ACTIVE
+                  {hostCompetition.status === COMPETITION_STATUSES.LIVE
                     ? `Competition is LIVE — Current Phase: ${computeCompetitionPhase(hostCompetition).toUpperCase()}`
                     : hostCompetition.status === COMPETITION_STATUSES.PUBLISH
                       ? 'Competition is Published (Coming Soon)'
-                      : hostCompetition.status === COMPETITION_STATUSES.COMPLETE
+                      : hostCompetition.status === COMPETITION_STATUSES.COMPLETED
                         ? 'Competition Complete'
                         : 'Competition is in Draft Mode'}
                 </p>
                 <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
-                  {hostCompetition.status === COMPETITION_STATUSES.ACTIVE
+                  {hostCompetition.status === COMPETITION_STATUSES.LIVE
                     ? 'Your timeline dates are active and controlling the competition phases.'
                     : hostCompetition.status === COMPETITION_STATUSES.PUBLISH
                       ? 'Visible to public as "Coming Soon". Contact admin to activate when ready.'
-                      : hostCompetition.status === COMPETITION_STATUSES.COMPLETE
+                      : hostCompetition.status === COMPETITION_STATUSES.COMPLETED
                         ? 'Winners have been announced.'
                         : 'Timeline dates are saved but not active. Contact admin to publish or activate.'}
                 </p>
               </div>
             </div>
             <Badge
-              variant={hostCompetition.status === COMPETITION_STATUSES.ACTIVE ? 'success' : hostCompetition.status === COMPETITION_STATUSES.PUBLISH ? 'warning' : 'secondary'}
+              variant={hostCompetition.status === COMPETITION_STATUSES.LIVE ? 'success' : hostCompetition.status === COMPETITION_STATUSES.PUBLISH ? 'warning' : 'secondary'}
               size="lg"
             >
               {hostCompetition.status?.toUpperCase() || 'DRAFT'}
@@ -721,7 +722,17 @@ export default function SettingsPage({
       </Panel>
 
       {/* Event Timeline Section */}
-      <Panel title="Event Timeline" icon={Calendar}>
+      <Panel
+        title="Event Timeline"
+        icon={Calendar}
+        action={
+          onAddEvent && (
+            <Button size="sm" icon={Plus} onClick={onAddEvent}>
+              Add Event
+            </Button>
+          )
+        }
+      >
         <div style={{ padding: spacing.xl }}>
           {events.map((event, i) => (
             <div

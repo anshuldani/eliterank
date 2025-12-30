@@ -15,8 +15,8 @@ export default function CompetitionCard({
   const status = STATUS_STYLES[template.status];
   const category = CATEGORY_TYPES.find((c) => c.id === template.category);
 
-  // Compute current phase for active competitions
-  const currentPhase = template.status === COMPETITION_STATUSES.ACTIVE
+  // Compute current phase for live competitions
+  const currentPhase = template.status === COMPETITION_STATUSES.LIVE
     ? computeCompetitionPhase(template)
     : null;
   const phaseStyle = currentPhase ? STATUS_STYLES[currentPhase] : null;

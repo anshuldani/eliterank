@@ -62,9 +62,14 @@ export const WIZARD_STEPS = [
 // Status styles for competition cards
 export const STATUS_STYLES = {
   draft: { bg: 'rgba(100,100,100,0.2)', color: '#9ca3af', label: 'Draft' },
-  assigned: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6', label: 'Host Assigned' },
-  active: { bg: 'rgba(34,197,94,0.2)', color: '#22c55e', label: 'Active' },
+  publish: { bg: 'rgba(212,175,55,0.2)', color: '#d4af37', label: 'Published' },
+  live: { bg: 'rgba(34,197,94,0.2)', color: '#22c55e', label: 'Live' },
   completed: { bg: 'rgba(139,92,246,0.2)', color: '#8b5cf6', label: 'Completed' },
+  archive: { bg: 'rgba(100,100,100,0.2)', color: '#6b7280', label: 'Archived' },
+  // Timeline phases (for live competitions)
+  nomination: { bg: 'rgba(251,191,36,0.2)', color: '#fbbf24', label: 'Nominations' },
+  voting: { bg: 'rgba(34,197,94,0.2)', color: '#22c55e', label: 'Voting' },
+  judging: { bg: 'rgba(59,130,246,0.2)', color: '#3b82f6', label: 'Judging' },
 };
 
 // Logo options for organization creation

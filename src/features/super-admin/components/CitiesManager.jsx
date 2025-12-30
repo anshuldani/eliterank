@@ -27,11 +27,72 @@ export default function CitiesManager() {
     state: '',
   });
 
-  // Fetch cities
+  // Fetch cities on mount
   useEffect(() => {
     fetchCities();
   }, []);
 
+  // Fetch competitions for a city with organization names
+  const fetchCityCompetitions = async (cityId) => {
+    if (!supabase) return [];
+
+    try {
+      // Fetch competitions
+      const { data: competitions, error } = await supabase
+        .from('competitions')
+        .select('id, season, status, organization_id')
+        .eq('city_id', cityId)
+        .order('season', { ascending: false });
+
+      if (error) throw error;
+      if (!competitions || competitions.length === 0) return [];
+
+      // Get unique organization IDs
+      const orgIds = [...new Set(competitions.map(c => c.organization_id).filter(Boolean))];
+
+      // Fetch organization names
+      let orgsMap = {};
+      if (orgIds.length > 0) {
+        const { data: orgsData } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .in('id', orgIds);
+
+        if (orgsData) {
+          orgsMap = orgsData.reduce((acc, org) => {
+            acc[org.id] = org.name;
+            return acc;
+          }, {});
+        }
+      }
+
+      // Attach organization names to competitions
+      return competitions.map(comp => ({
+        ...comp,
+        organizationName: comp.organization_id ? orgsMap[comp.organization_id] || 'Unknown' : 'No Organization',
+      }));
+    } catch (err) {
+      console.error('Error fetching city competitions:', err);
+      return [];
+    }
+  };
+
+  // Get competition count for a city
+  const getCompetitionCount = async (cityId) => {
+    if (!supabase) return 0;
+    try {
+      const { count, error } = await supabase
+        .from('competitions')
+        .select('*', { count: 'exact', head: true })
+        .eq('city_id', cityId);
+      if (error) return 0;
+      return count || 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Fetch cities with competition counts
   const fetchCities = async () => {
     if (!supabase) return;
 
@@ -39,44 +100,25 @@ export default function CitiesManager() {
     try {
       const { data, error } = await supabase
         .from('cities')
-        .select(`
-          *,
-          competitions:competitions(count)
-        `)
+        .select('*')
         .order('name');
 
       if (error) throw error;
 
-      setCities(data || []);
+      // Get competition counts for each city
+      const citiesWithCounts = await Promise.all(
+        (data || []).map(async (city) => {
+          const count = await getCompetitionCount(city.id);
+          return { ...city, competitionCount: count };
+        })
+      );
+
+      setCities(citiesWithCounts);
     } catch (err) {
       console.error('Error fetching cities:', err);
-      toast.error('Failed to load cities');
+      toast.error(`Failed to load cities: ${err.message}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fetch competitions for a city
-  const fetchCityCompetitions = async (cityId) => {
-    if (!supabase) return [];
-
-    try {
-      const { data, error } = await supabase
-        .from('competitions')
-        .select(`
-          id,
-          season,
-          status,
-          organizations:organization_id(name)
-        `)
-        .eq('city_id', cityId)
-        .order('season', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (err) {
-      console.error('Error fetching city competitions:', err);
-      return [];
     }
   };
 
@@ -116,7 +158,7 @@ export default function CitiesManager() {
       fetchCities();
     } catch (err) {
       console.error('Error creating city:', err);
-      toast.error('Failed to create city');
+      toast.error(`Failed to create city: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -363,7 +405,7 @@ export default function CitiesManager() {
                     gap: spacing.xs,
                   }}>
                     <Crown size={12} />
-                    {city.competitions?.[0]?.count || 0} competitions
+                    {city.competitionCount || 0} competitions
                   </span>
                 </div>
               </div>
@@ -429,7 +471,7 @@ export default function CitiesManager() {
                         }}
                       >
                         <span>
-                          {comp.organizations?.name} - {comp.season}
+                          {comp.organizationName} - {comp.season}
                         </span>
                         <span style={{
                           fontSize: typography.fontSize.xs,
