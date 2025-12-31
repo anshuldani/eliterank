@@ -54,9 +54,10 @@ export function computeCompetitionPhase(competition) {
 /**
  * Compute the timeline-based phase for an active competition.
  *
- * Supports both:
- * - Flat voting_start/voting_end fields
- * - voting_rounds array (takes precedence if present)
+ * Supports:
+ * - Flat fields on competition (nomination_start, voting_start, etc.)
+ * - Nested settings object (competition.settings.nomination_start, etc.)
+ * - voting_rounds array (takes precedence for voting phase)
  *
  * @param {Object} competition - Competition with timeline fields
  * @returns {string} The timeline phase
@@ -64,9 +65,18 @@ export function computeCompetitionPhase(competition) {
 export function computeTimelinePhase(competition) {
   const now = new Date();
 
-  const nominationStart = competition.nomination_start ? new Date(competition.nomination_start) : null;
-  const nominationEnd = competition.nomination_end ? new Date(competition.nomination_end) : null;
-  const finalsDate = competition.finals_date ? new Date(competition.finals_date) : null;
+  // Get settings - could be nested under .settings or flat on competition
+  const settings = competition.settings || {};
+
+  // Helper to get date from either settings or competition (settings takes priority)
+  const getDate = (settingsKey, compKey) => {
+    const value = settings[settingsKey] || competition[compKey || settingsKey];
+    return value ? new Date(value) : null;
+  };
+
+  const nominationStart = getDate('nomination_start');
+  const nominationEnd = getDate('nomination_end');
+  const finalsDate = getDate('finale_date', 'finals_date') || getDate('finals_date');
 
   // Get voting dates - from voting_rounds if available, otherwise from flat fields
   let votingStart = null;
@@ -92,9 +102,9 @@ export function computeTimelinePhase(competition) {
     votingStart = firstRound?.start_date ? new Date(firstRound.start_date) : null;
     votingEnd = lastRound?.end_date ? new Date(lastRound.end_date) : null;
   } else {
-    // Fall back to flat fields
-    votingStart = competition.voting_start ? new Date(competition.voting_start) : null;
-    votingEnd = competition.voting_end ? new Date(competition.voting_end) : null;
+    // Fall back to flat fields or settings
+    votingStart = getDate('voting_start');
+    votingEnd = getDate('voting_end');
   }
 
   // Phase 1: Completed - after finals date
