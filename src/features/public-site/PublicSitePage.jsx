@@ -93,18 +93,34 @@ export default function PublicSitePage({
 
         const hostProfile = hostResult.data;
         const transformedHost = hostProfile ? {
+          // Pass through all original fields for full profile view
+          ...hostProfile,
+          // Add transformed/aliased fields for component compatibility
           id: hostProfile.id,
           name: `${hostProfile.first_name || ''} ${hostProfile.last_name || ''}`.trim() || 'Host',
-          title: 'Competition Host',
+          first_name: hostProfile.first_name,
+          last_name: hostProfile.last_name,
+          title: hostProfile.occupation || 'Competition Host',
           bio: hostProfile.bio || '',
           avatar: hostProfile.avatar_url,
+          avatar_url: hostProfile.avatar_url,
           instagram: hostProfile.instagram,
+          twitter: hostProfile.twitter,
+          linkedin: hostProfile.linkedin,
+          city: hostProfile.city,
+          hobbies: hostProfile.hobbies || [],
+          gallery: hostProfile.gallery || [],
+          occupation: hostProfile.occupation,
         } : null;
 
         setFetchedData({
           contestants: (contestantsResult.data || []).map((c, idx) => ({
+            ...c, // Pass through all fields for full profile view
             id: c.id, name: c.name, age: c.age, occupation: c.occupation, bio: c.bio,
-            votes: c.votes || 0, rank: idx + 1, avatarUrl: c.avatar_url, instagram: c.instagram,
+            votes: c.votes || 0, rank: idx + 1,
+            avatarUrl: c.avatar_url, avatar_url: c.avatar_url,
+            instagram: c.instagram, twitter: c.twitter, linkedin: c.linkedin,
+            city: c.city, hobbies: c.hobbies || [], gallery: c.gallery || [],
           })),
           events: (eventsResult.data || []).map(e => ({
             id: e.id, name: e.name, date: e.date, endDate: e.end_date, time: e.time,
@@ -114,7 +130,11 @@ export default function PublicSitePage({
             id: a.id, title: a.title, content: a.content, date: a.published_at, pinned: a.pinned,
           })),
           judges: (judgesResult.data || []).map(j => ({
-            id: j.id, name: j.name, title: j.title, bio: j.bio, avatarUrl: j.avatar_url,
+            ...j, // Pass through all fields for full profile view
+            id: j.id, name: j.name, title: j.title, bio: j.bio,
+            avatarUrl: j.avatar_url, avatar_url: j.avatar_url,
+            instagram: j.instagram, twitter: j.twitter, linkedin: j.linkedin,
+            city: j.city, hobbies: j.hobbies || [], gallery: j.gallery || [],
           })),
           sponsors: (sponsorsResult.data || []).map(s => ({
             id: s.id, name: s.name, tier: s.tier, logo: s.logo_url, website: s.website,
