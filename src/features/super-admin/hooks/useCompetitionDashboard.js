@@ -330,6 +330,44 @@ export function useCompetitionDashboard(competitionId) {
 
       if (updateError) throw updateError;
 
+      // Find profile to link to contestant
+      let linkedUserId = nominee.userId || null;
+
+      if (!linkedUserId) {
+        // Try to find profile by email first
+        if (nominee.email) {
+          const { data: profileByEmail } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('email', nominee.email)
+            .limit(1)
+            .single();
+
+          if (profileByEmail?.id) {
+            linkedUserId = profileByEmail.id;
+          }
+        }
+
+        // If not found by email, try instagram
+        if (!linkedUserId && nominee.instagram) {
+          const normalizedInstagram = nominee.instagram.replace('@', '').toLowerCase();
+          const { data: profileByInstagram } = await supabase
+            .from('profiles')
+            .select('id, instagram')
+            .not('instagram', 'is', null)
+            .limit(100); // Get profiles with instagram set
+
+          if (profileByInstagram) {
+            const match = profileByInstagram.find(p =>
+              p.instagram && p.instagram.replace('@', '').toLowerCase() === normalizedInstagram
+            );
+            if (match) {
+              linkedUserId = match.id;
+            }
+          }
+        }
+      }
+
       const contestantData = {
         competition_id: competitionId,
         name: nominee.name,
@@ -340,7 +378,7 @@ export function useCompetitionDashboard(competitionId) {
         city: nominee.city,
         status: 'active',
         votes: 0,
-        user_id: nominee.userId,
+        user_id: linkedUserId,
       };
 
       const { error: insertError } = await supabase
@@ -348,6 +386,36 @@ export function useCompetitionDashboard(competitionId) {
         .insert(contestantData);
 
       if (insertError) throw insertError;
+
+      // Update profile's competition count if linked
+      if (linkedUserId) {
+        try {
+          const { error: rpcError } = await supabase.rpc('increment_profile_competitions', {
+            p_user_id: linkedUserId,
+          });
+
+          if (rpcError) {
+            // Fallback to manual update
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('total_competitions')
+              .eq('id', linkedUserId)
+              .single();
+
+            if (profile) {
+              await supabase
+                .from('profiles')
+                .update({
+                  total_competitions: (profile.total_competitions || 0) + 1,
+                })
+                .eq('id', linkedUserId);
+            }
+          }
+        } catch (profileErr) {
+          console.warn('Error updating profile competition count:', profileErr);
+          // Non-critical, don't fail the approval
+        }
+      }
 
       await fetchDashboardData();
       return { success: true };

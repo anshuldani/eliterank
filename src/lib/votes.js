@@ -142,7 +142,7 @@ export async function submitFreeVote({
       // Get current votes and update
       const { data: contestant, error: fetchError } = await supabase
         .from('contestants')
-        .select('votes')
+        .select('votes, user_id')
         .eq('id', contestantId)
         .single();
 
@@ -161,12 +161,69 @@ export async function submitFreeVote({
         console.error('Error updating contestant votes:', manualUpdateError);
         return { success: true, votesAdded: voteValue, warning: 'Vote recorded but count may be delayed' };
       }
+
+      // Update profile stats if contestant is linked to a profile
+      if (contestant.user_id) {
+        await updateProfileVotes(contestant.user_id, voteValue);
+      }
+    } else {
+      // RPC succeeded, now update profile stats
+      // Get contestant's user_id to update their profile stats
+      const { data: contestant } = await supabase
+        .from('contestants')
+        .select('user_id')
+        .eq('id', contestantId)
+        .single();
+
+      if (contestant?.user_id) {
+        await updateProfileVotes(contestant.user_id, voteValue);
+      }
     }
 
     return { success: true, votesAdded: voteValue };
   } catch (err) {
     console.error('Error submitting vote:', err);
     return { success: false, error: 'An unexpected error occurred' };
+  }
+}
+
+/**
+ * Update profile's total votes received
+ * @param {string} userId - The profile's user ID
+ * @param {number} voteValue - Number of votes to add
+ */
+async function updateProfileVotes(userId, voteValue) {
+  if (!supabase || !userId) return;
+
+  try {
+    // Try RPC first
+    const { error } = await supabase.rpc('increment_profile_votes', {
+      p_user_id: userId,
+      p_votes: voteValue,
+    });
+
+    if (error) {
+      // Fallback to manual update
+      console.warn('RPC increment_profile_votes failed, using fallback:', error);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('total_votes_received')
+        .eq('id', userId)
+        .single();
+
+      if (profile) {
+        await supabase
+          .from('profiles')
+          .update({
+            total_votes_received: (profile.total_votes_received || 0) + voteValue,
+          })
+          .eq('id', userId);
+      }
+    }
+  } catch (err) {
+    console.error('Error updating profile votes:', err);
+    // Non-critical, don't fail the vote
   }
 }
 
