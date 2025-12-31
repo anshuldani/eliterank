@@ -223,13 +223,15 @@ export default function EliteRankCityModal({
         onMouseLeave={() => setHoveredCard(null)}
         style={{
           position: 'relative',
-          borderRadius: borderRadius.xl,
+          borderRadius: isMobile ? borderRadius.xxl : borderRadius.xl,
           overflow: 'hidden',
           cursor: isClickable ? 'pointer' : 'default',
-          transform: isHovered && isClickable ? 'scale(1.02)' : 'scale(1)',
-          transition: `all ${transitions.normal} ${transitions.ease}`,
-          boxShadow: isHovered ? shadows.xl : shadows.md,
-          aspectRatio: isMobile ? '4/5' : '16/9',
+          transform: isHovered && isClickable ? 'translateY(-8px) scale(1.01)' : 'translateY(0) scale(1)',
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          boxShadow: isHovered
+            ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.2)'
+            : '0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+          aspectRatio: isMobile ? '16/10' : '16/9',
           background: colors.background.card,
         }}
       >
@@ -239,76 +241,129 @@ export default function EliteRankCityModal({
           backgroundImage: `url(${cityImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          transition: `transform ${transitions.slow}`,
-          transform: isHovered ? 'scale(1.05)' : 'scale(1)',
+          transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: isHovered ? 'scale(1.08)' : 'scale(1)',
         }} />
 
         {/* Gradient Overlay */}
         <div style={{
           ...styleHelpers.absoluteFill,
-          background: 'linear-gradient(0deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.4) 40%, rgba(0,0,0,0.2) 100%)',
+          background: isMobile
+            ? 'linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.1) 100%)'
+            : 'linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.15) 100%)',
+          transition: 'opacity 0.3s',
+          opacity: isHovered ? 0.9 : 1,
         }} />
+
+        {/* Shine effect on hover */}
+        {isHovered && (
+          <div style={{
+            ...styleHelpers.absoluteFill,
+            background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.03) 45%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.03) 55%, transparent 60%)',
+            animation: 'shine 1.5s ease-in-out',
+          }} />
+        )}
 
         {/* Content */}
         <div style={{
           position: 'relative',
           height: '100%',
-          padding: isMobile ? spacing.sm : spacing.xl,
+          padding: isMobile ? spacing.lg : spacing.xl,
           display: 'flex',
           flexDirection: 'column',
         }}>
           {/* Top Row */}
           <div style={{ ...styleHelpers.flexBetween }}>
-            <Badge variant={config.variant} size="xs" pill dot={config.pulse}>
-              {isMobile ? config.label.split(' ')[0] : config.label}
+            <Badge variant={config.variant} size={isMobile ? 'sm' : 'md'} pill dot={config.pulse}>
+              {config.label}
             </Badge>
-            {org && !isMobile && (
+            {org && (
               <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: borderRadius.md,
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
+                borderRadius: borderRadius.lg,
                 background: 'rgba(255,255,255,0.15)',
                 backdropFilter: 'blur(10px)',
+                WebkitBackdropFilter: 'blur(10px)',
                 ...styleHelpers.flexCenter,
+                transition: 'transform 0.3s, background 0.3s',
+                transform: isHovered ? 'scale(1.1)' : 'scale(1)',
               }}>
-                <OrganizationLogo logo={org.logo_url || org.logo} size={24} />
+                <OrganizationLogo logo={org.logo_url || org.logo} size={isMobile ? 28 : 32} />
               </div>
             )}
           </div>
 
           {/* Bottom Content */}
           <div style={{ marginTop: 'auto' }}>
+            {org && (
+              <p style={{
+                fontSize: typography.fontSize.xs,
+                color: colors.gold.primary,
+                fontWeight: typography.fontWeight.medium,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                marginBottom: spacing.xs,
+                opacity: 0.9,
+              }}>
+                {org.name}
+              </p>
+            )}
+
             <h3 style={{
-              fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.lg,
+              fontSize: isMobile ? typography.fontSize.xl : typography.fontSize['2xl'],
               fontWeight: typography.fontWeight.bold,
               color: colors.text.primary,
-              marginBottom: isMobile ? spacing.xs : spacing.sm,
+              marginBottom: spacing.sm,
               lineHeight: typography.lineHeight.tight,
-              ...styleHelpers.lineClamp(2),
+              textShadow: '0 2px 10px rgba(0,0,0,0.3)',
             }}>
               {competition.name}
             </h3>
 
             <div style={{
               ...styleHelpers.flexStart,
-              gap: isMobile ? spacing.xs : spacing.md,
-              flexWrap: 'wrap',
+              gap: spacing.lg,
+              marginBottom: spacing.md,
             }}>
-              <div style={{ ...styleHelpers.flexStart, gap: '2px' }}>
-                <MapPin size={isMobile ? 10 : 12} style={{ color: colors.text.secondary }} />
-                <span style={{ fontSize: isMobile ? '10px' : typography.fontSize.xs, color: colors.text.secondary }}>
+              <div style={{ ...styleHelpers.flexStart, gap: spacing.xs }}>
+                <MapPin size={14} style={{ color: colors.gold.primary }} />
+                <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
                   {competition.city}
                 </span>
               </div>
-              {!isMobile && (
-                <div style={{ ...styleHelpers.flexStart, gap: '2px' }}>
-                  <Calendar size={12} style={{ color: colors.text.secondary }} />
-                  <span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
-                    S{competition.season}
-                  </span>
-                </div>
-              )}
+              <div style={{ ...styleHelpers.flexStart, gap: spacing.xs }}>
+                <Calendar size={14} style={{ color: colors.text.secondary }} />
+                <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                  Season {competition.season}
+                </span>
+              </div>
             </div>
+
+            {/* CTA Button */}
+            {isClickable && (
+              <div style={{
+                ...styleHelpers.flexCenter,
+                gap: spacing.sm,
+                padding: `${spacing.sm} ${spacing.lg}`,
+                background: isHovered ? colors.gold.primary : 'rgba(212, 175, 55, 0.15)',
+                border: `1.5px solid ${colors.gold.primary}`,
+                borderRadius: borderRadius.lg,
+                color: isHovered ? colors.text.inverse : colors.gold.primary,
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.semibold,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                width: 'fit-content',
+                transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
+              }}>
+                {competition.phase === 'voting' && <Play size={14} />}
+                {getCtaText()}
+                <ArrowRight size={14} style={{
+                  transition: 'transform 0.3s',
+                  transform: isHovered ? 'translateX(4px)' : 'translateX(0)',
+                }} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -457,11 +512,11 @@ export default function EliteRankCityModal({
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: isMobile
-                  ? 'repeat(2, 1fr)'
+                  ? '1fr'
                   : isTablet
-                    ? 'repeat(3, 1fr)'
-                    : `repeat(auto-fill, minmax(260px, 1fr))`,
-                gap: isMobile ? spacing.sm : spacing.lg,
+                    ? 'repeat(2, 1fr)'
+                    : `repeat(auto-fill, minmax(380px, 1fr))`,
+                gap: isMobile ? spacing.lg : spacing.xl,
                 maxWidth: '1400px',
                 margin: '0 auto',
               }}>
@@ -951,6 +1006,14 @@ export default function EliteRankCityModal({
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+        @keyframes shine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         * {
           box-sizing: border-box;
