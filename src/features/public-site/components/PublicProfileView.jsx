@@ -1,7 +1,7 @@
 import React from 'react';
-import { ArrowLeft, MapPin, FileText, Heart, Camera, Globe, Trophy, Crown, Award, Star, Instagram, Twitter, Linkedin, ChevronLeft } from 'lucide-react';
-import { Panel, Button, Badge, InterestTag } from '../../../components/ui';
-import { colors, spacing, borderRadius, typography, transitions, gradients, components, styleHelpers } from '../../../styles/theme';
+import { MapPin, FileText, Heart, Camera, Globe, Trophy, Crown, Award, Star, Instagram, Twitter, Linkedin, ChevronLeft, Briefcase } from 'lucide-react';
+import { Button, Badge } from '../../../components/ui';
+import { colors, spacing, borderRadius, typography, transitions, styleHelpers } from '../../../styles/theme';
 import { useResponsive } from '../../../hooks/useResponsive';
 
 // Role display configuration
@@ -14,20 +14,21 @@ const ROLE_CONFIG = {
 };
 
 export default function PublicProfileView({ profile, role = 'fan', onBack }) {
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile } = useResponsive();
 
   if (!profile) return null;
 
-  // Get profile data with fallbacks
+  // Get profile data with fallbacks - try many field variations
   const firstName = profile.first_name || profile.firstName || profile.name?.split(' ')[0] || '';
   const lastName = profile.last_name || profile.lastName || profile.name?.split(' ').slice(1).join(' ') || '';
   const fullName = profile.name || `${firstName} ${lastName}`.trim() || 'Unknown';
-  const bio = profile.bio || '';
+  const bio = profile.bio || profile.description || '';
   const city = profile.city || profile.location || '';
+  const occupation = profile.occupation || profile.title || '';
+  const age = profile.age || '';
   const avatarUrl = profile.avatar_url || profile.avatarUrl || profile.avatar || profile.image || '';
-  const coverImage = profile.cover_image || profile.coverImage || '';
   const hobbies = profile.hobbies || profile.interests || [];
-  const gallery = profile.gallery || [];
+  const gallery = profile.gallery || profile.photos || [];
 
   const initials = fullName
     .split(' ')
@@ -57,7 +58,7 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
       handle: profile.twitter.startsWith('@') ? profile.twitter : `@${profile.twitter}`,
       icon: Twitter,
       url: `https://twitter.com/${profile.twitter.replace('@', '')}`,
-      background: colors.background.elevated,
+      background: '#000',
     });
   }
   if (profile.linkedin) {
@@ -69,6 +70,9 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
       background: '#0A66C2',
     });
   }
+
+  // Check if we have any extra info to show
+  const hasExtraInfo = bio || city || occupation || age || (hobbies && hobbies.length > 0) || socialLinks.length > 0;
 
   return (
     <div style={{
@@ -90,9 +94,9 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
         borderBottom: `1px solid ${colors.border.secondary}`,
       }}>
         <div style={{
-          maxWidth: '800px',
+          maxWidth: '600px',
           margin: '0 auto',
-          padding: isMobile ? `${spacing.md} ${spacing.lg}` : `${spacing.lg} ${spacing.xxl}`,
+          padding: isMobile ? `${spacing.md} ${spacing.lg}` : `${spacing.lg} ${spacing.xl}`,
           ...styleHelpers.flexBetween,
         }}>
           <button
@@ -120,94 +124,67 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
       </header>
 
       <div style={{
-        maxWidth: '800px',
+        maxWidth: '600px',
         margin: '0 auto',
-        padding: isMobile ? spacing.lg : spacing.xxl,
+        padding: isMobile ? spacing.lg : spacing.xl,
         paddingBottom: isMobile ? '100px' : spacing.xxxl,
       }}>
-        {/* Hero Section */}
+        {/* Profile Header - Avatar Centered */}
         <div style={{
-          background: colors.background.card,
-          borderRadius: borderRadius.xl,
-          overflow: 'hidden',
+          textAlign: 'center',
           marginBottom: spacing.xl,
-          border: `1px solid ${colors.border.primary}`,
         }}>
-          {/* Cover */}
+          {/* Large Avatar */}
           <div style={{
-            height: isMobile ? '120px' : '180px',
-            background: coverImage
-              ? `url(${coverImage}) center/cover`
-              : `linear-gradient(135deg, ${roleConfig.color}40, ${roleConfig.color}10)`,
-          }} />
-
-          {/* Profile Info */}
-          <div style={{
-            padding: isMobile ? spacing.lg : spacing.xl,
-            paddingTop: 0,
-            marginTop: isMobile ? '-40px' : '-50px',
+            width: isMobile ? '120px' : '150px',
+            height: isMobile ? '120px' : '150px',
+            borderRadius: borderRadius.full,
+            background: avatarUrl
+              ? `url(${avatarUrl}) center/cover`
+              : `linear-gradient(135deg, ${roleConfig.color}60, ${roleConfig.color}30)`,
+            border: `4px solid ${roleConfig.color}`,
+            margin: '0 auto',
+            marginBottom: spacing.lg,
+            ...styleHelpers.flexCenter,
+            fontSize: isMobile ? typography.fontSize['4xl'] : typography.fontSize['5xl'],
+            fontWeight: typography.fontWeight.bold,
+            color: roleConfig.color,
+            boxShadow: `0 8px 32px ${roleConfig.color}40`,
           }}>
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? spacing.md : spacing.xl,
-              alignItems: isMobile ? 'center' : 'flex-end',
-            }}>
-              {/* Avatar */}
-              <div style={{
-                width: isMobile ? '80px' : '100px',
-                height: isMobile ? '80px' : '100px',
-                borderRadius: borderRadius.xl,
-                background: avatarUrl
-                  ? `url(${avatarUrl}) center/cover`
-                  : `linear-gradient(135deg, ${roleConfig.color}60, ${roleConfig.color}30)`,
-                border: `4px solid ${colors.background.card}`,
-                ...styleHelpers.flexCenter,
-                fontSize: isMobile ? typography.fontSize['2xl'] : typography.fontSize['3xl'],
-                fontWeight: typography.fontWeight.bold,
-                color: roleConfig.color,
-                flexShrink: 0,
-              }}>
-                {!avatarUrl && initials}
-              </div>
+            {!avatarUrl && initials}
+          </div>
 
-              {/* Name and Details */}
-              <div style={{
-                flex: 1,
-                textAlign: isMobile ? 'center' : 'left',
-                paddingBottom: spacing.sm,
-              }}>
-                <h1 style={{
-                  fontSize: isMobile ? typography.fontSize['2xl'] : typography.fontSize['3xl'],
-                  fontWeight: typography.fontWeight.bold,
-                  color: colors.text.primary,
-                  marginBottom: spacing.xs,
-                }}>
-                  {fullName}
-                </h1>
+          {/* Name */}
+          <h1 style={{
+            fontSize: isMobile ? typography.fontSize['2xl'] : typography.fontSize['3xl'],
+            fontWeight: typography.fontWeight.bold,
+            color: colors.text.primary,
+            marginBottom: spacing.sm,
+          }}>
+            {fullName}
+          </h1>
 
-                <div style={{
-                  ...styleHelpers.flexStart,
-                  gap: spacing.md,
-                  justifyContent: isMobile ? 'center' : 'flex-start',
-                  flexWrap: 'wrap',
-                  color: colors.text.secondary,
-                  fontSize: typography.fontSize.sm,
-                }}>
-                  {city && (
-                    <span style={{ ...styleHelpers.flexStart, gap: spacing.xs }}>
-                      <MapPin size={14} /> {city}
-                    </span>
-                  )}
-                  {profile.occupation && (
-                    <span>{profile.occupation}</span>
-                  )}
-                  {profile.age && (
-                    <span>{profile.age} years old</span>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* Quick Info Row */}
+          <div style={{
+            ...styleHelpers.flexCenter,
+            gap: spacing.md,
+            flexWrap: 'wrap',
+            color: colors.text.secondary,
+            fontSize: typography.fontSize.sm,
+          }}>
+            {city && (
+              <span style={{ ...styleHelpers.flexCenter, gap: spacing.xs }}>
+                <MapPin size={14} style={{ color: roleConfig.color }} /> {city}
+              </span>
+            )}
+            {occupation && (
+              <span style={{ ...styleHelpers.flexCenter, gap: spacing.xs }}>
+                <Briefcase size={14} /> {occupation}
+              </span>
+            )}
+            {age && (
+              <span>{age} years old</span>
+            )}
           </div>
         </div>
 
@@ -235,6 +212,7 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
               color: colors.text.secondary,
               fontSize: typography.fontSize.md,
               lineHeight: typography.lineHeight.relaxed,
+              whiteSpace: 'pre-wrap',
             }}>
               {bio}
             </p>
@@ -262,9 +240,9 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
               Interests
             </h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
-              {hobbies.map((hobby) => (
+              {hobbies.map((hobby, idx) => (
                 <span
-                  key={hobby}
+                  key={idx}
                   style={{
                     padding: `${spacing.xs} ${spacing.md}`,
                     background: `${roleConfig.color}15`,
@@ -346,31 +324,31 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
           </div>
         )}
 
-        {/* Gallery */}
-        <div style={{
-          background: colors.background.card,
-          borderRadius: borderRadius.xl,
-          padding: isMobile ? spacing.lg : spacing.xl,
-          border: `1px solid ${colors.border.primary}`,
-        }}>
-          <h3 style={{
-            ...styleHelpers.flexStart,
-            gap: spacing.sm,
-            fontSize: typography.fontSize.md,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: spacing.md,
-          }}>
-            <Camera size={18} style={{ color: roleConfig.color }} />
-            Photos
-          </h3>
+        {/* Gallery - Only show if there are actual images */}
+        {gallery && gallery.length > 0 && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-            gap: spacing.sm,
+            background: colors.background.card,
+            borderRadius: borderRadius.xl,
+            padding: isMobile ? spacing.lg : spacing.xl,
+            border: `1px solid ${colors.border.primary}`,
           }}>
-            {gallery.length > 0 ? (
-              gallery.map((imageUrl, index) => (
+            <h3 style={{
+              ...styleHelpers.flexStart,
+              gap: spacing.sm,
+              fontSize: typography.fontSize.md,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              marginBottom: spacing.md,
+            }}>
+              <Camera size={18} style={{ color: roleConfig.color }} />
+              Photos
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: spacing.sm,
+            }}>
+              {gallery.map((imageUrl, index) => (
                 <div
                   key={index}
                   style={{
@@ -379,24 +357,21 @@ export default function PublicProfileView({ profile, role = 'fan', onBack }) {
                     borderRadius: borderRadius.lg,
                   }}
                 />
-              ))
-            ) : (
-              [1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  style={{
-                    aspectRatio: '1',
-                    background: colors.background.tertiary,
-                    borderRadius: borderRadius.lg,
-                    ...styleHelpers.flexCenter,
-                  }}
-                >
-                  <Camera size={24} style={{ color: colors.text.muted }} />
-                </div>
-              ))
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Empty state if no extra info */}
+        {!hasExtraInfo && (
+          <div style={{
+            textAlign: 'center',
+            padding: spacing.xxl,
+            color: colors.text.muted,
+          }}>
+            <p>No additional profile information available.</p>
+          </div>
+        )}
       </div>
     </div>
   );
