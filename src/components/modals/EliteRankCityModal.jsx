@@ -229,7 +229,7 @@ export default function EliteRankCityModal({
           transform: isHovered && isClickable ? 'scale(1.02)' : 'scale(1)',
           transition: `all ${transitions.normal} ${transitions.ease}`,
           boxShadow: isHovered ? shadows.xl : shadows.md,
-          aspectRatio: isMobile ? '4/5' : '16/10',
+          aspectRatio: isMobile ? '4/5' : '16/9',
           background: colors.background.card,
         }}
       >
@@ -253,89 +253,62 @@ export default function EliteRankCityModal({
         <div style={{
           position: 'relative',
           height: '100%',
-          padding: isMobile ? spacing.lg : spacing.xl,
+          padding: isMobile ? spacing.sm : spacing.xl,
           display: 'flex',
           flexDirection: 'column',
         }}>
           {/* Top Row */}
           <div style={{ ...styleHelpers.flexBetween }}>
-            <Badge variant={config.variant} size="sm" pill dot={config.pulse}>
-              {config.label}
+            <Badge variant={config.variant} size="xs" pill dot={config.pulse}>
+              {isMobile ? config.label.split(' ')[0] : config.label}
             </Badge>
-            {org && (
+            {org && !isMobile && (
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: borderRadius.md,
                 background: 'rgba(255,255,255,0.15)',
                 backdropFilter: 'blur(10px)',
                 ...styleHelpers.flexCenter,
               }}>
-                <OrganizationLogo logo={org.logo_url || org.logo} size={28} />
+                <OrganizationLogo logo={org.logo_url || org.logo} size={24} />
               </div>
             )}
           </div>
 
           {/* Bottom Content */}
           <div style={{ marginTop: 'auto' }}>
-            {org && (
-              <p style={{
-                fontSize: typography.fontSize.xs,
-                color: colors.gold.primary,
-                fontWeight: typography.fontWeight.medium,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: spacing.xs,
-              }}>
-                {org.name}
-              </p>
-            )}
-
             <h3 style={{
-              fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
+              fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.lg,
               fontWeight: typography.fontWeight.bold,
               color: colors.text.primary,
-              marginBottom: spacing.sm,
+              marginBottom: isMobile ? spacing.xs : spacing.sm,
               lineHeight: typography.lineHeight.tight,
+              ...styleHelpers.lineClamp(2),
             }}>
               {competition.name}
             </h3>
 
-            <div style={{ ...styleHelpers.flexStart, gap: spacing.lg, marginBottom: spacing.md }}>
-              <div style={{ ...styleHelpers.flexStart, gap: spacing.xs }}>
-                <MapPin size={14} style={{ color: colors.text.secondary }} />
-                <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+            <div style={{
+              ...styleHelpers.flexStart,
+              gap: isMobile ? spacing.xs : spacing.md,
+              flexWrap: 'wrap',
+            }}>
+              <div style={{ ...styleHelpers.flexStart, gap: '2px' }}>
+                <MapPin size={isMobile ? 10 : 12} style={{ color: colors.text.secondary }} />
+                <span style={{ fontSize: isMobile ? '10px' : typography.fontSize.xs, color: colors.text.secondary }}>
                   {competition.city}
                 </span>
               </div>
-              <div style={{ ...styleHelpers.flexStart, gap: spacing.xs }}>
-                <Calendar size={14} style={{ color: colors.text.secondary }} />
-                <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
-                  Season {competition.season}
-                </span>
-              </div>
+              {!isMobile && (
+                <div style={{ ...styleHelpers.flexStart, gap: '2px' }}>
+                  <Calendar size={12} style={{ color: colors.text.secondary }} />
+                  <span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+                    S{competition.season}
+                  </span>
+                </div>
+              )}
             </div>
-
-            {/* CTA */}
-            {isClickable && (
-              <div style={{
-                ...styleHelpers.flexCenter,
-                gap: spacing.sm,
-                padding: `${spacing.sm} ${spacing.lg}`,
-                background: isHovered ? colors.gold.primary : 'rgba(212, 175, 55, 0.2)',
-                border: `1.5px solid ${colors.gold.primary}`,
-                borderRadius: borderRadius.lg,
-                color: isHovered ? colors.text.inverse : colors.gold.primary,
-                fontSize: typography.fontSize.sm,
-                fontWeight: typography.fontWeight.semibold,
-                transition: `all ${transitions.fast}`,
-                width: 'fit-content',
-              }}>
-                {competition.phase === 'voting' && <Play size={14} />}
-                {getCtaText()}
-                <ArrowRight size={14} />
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -484,11 +457,11 @@ export default function EliteRankCityModal({
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: isMobile
-                  ? '1fr'
+                  ? 'repeat(2, 1fr)'
                   : isTablet
-                    ? 'repeat(2, 1fr)'
-                    : `repeat(auto-fill, minmax(340px, 1fr))`,
-                gap: isMobile ? spacing.lg : spacing.xl,
+                    ? 'repeat(3, 1fr)'
+                    : `repeat(auto-fill, minmax(260px, 1fr))`,
+                gap: isMobile ? spacing.sm : spacing.lg,
                 maxWidth: '1400px',
                 margin: '0 auto',
               }}>
