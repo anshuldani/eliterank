@@ -54,17 +54,58 @@ export function computeCompetitionPhase(competition) {
 /**
  * Compute the timeline-based phase for an active competition.
  *
+ * Supports:
+ * - Flat fields on competition (nomination_start, voting_start, etc.)
+ * - Nested settings object (competition.settings.nomination_start, etc.)
+ * - voting_rounds array (takes precedence for voting phase)
+ *
  * @param {Object} competition - Competition with timeline fields
  * @returns {string} The timeline phase
  */
 export function computeTimelinePhase(competition) {
   const now = new Date();
 
-  const nominationStart = competition.nomination_start ? new Date(competition.nomination_start) : null;
-  const nominationEnd = competition.nomination_end ? new Date(competition.nomination_end) : null;
-  const votingStart = competition.voting_start ? new Date(competition.voting_start) : null;
-  const votingEnd = competition.voting_end ? new Date(competition.voting_end) : null;
-  const finalsDate = competition.finals_date ? new Date(competition.finals_date) : null;
+  // Get settings - could be nested under .settings or flat on competition
+  const settings = competition.settings || {};
+
+  // Helper to get date from either settings or competition (settings takes priority)
+  const getDate = (settingsKey, compKey) => {
+    const value = settings[settingsKey] || competition[compKey || settingsKey];
+    return value ? new Date(value) : null;
+  };
+
+  const nominationStart = getDate('nomination_start');
+  const nominationEnd = getDate('nomination_end');
+  const finalsDate = getDate('finale_date', 'finals_date') || getDate('finals_date');
+
+  // Get voting dates - from voting_rounds if available, otherwise from flat fields
+  let votingStart = null;
+  let votingEnd = null;
+
+  const votingRounds = competition.voting_rounds || [];
+  if (votingRounds.length > 0) {
+    // Sort rounds by order
+    const sortedRounds = [...votingRounds].sort((a, b) => (a.round_order || 0) - (b.round_order || 0));
+
+    // Check if currently in any voting round
+    for (const round of sortedRounds) {
+      const roundStart = round.start_date ? new Date(round.start_date) : null;
+      const roundEnd = round.end_date ? new Date(round.end_date) : null;
+      if (roundStart && roundEnd && now >= roundStart && now < roundEnd) {
+        return TIMELINE_PHASES.VOTING;
+      }
+    }
+
+    // Get overall voting window from first and last round
+    const firstRound = sortedRounds[0];
+    const lastRound = sortedRounds[sortedRounds.length - 1];
+    votingStart = firstRound?.start_date ? new Date(firstRound.start_date) : null;
+    votingEnd = lastRound?.end_date ? new Date(lastRound.end_date) : null;
+  } else {
+    // Fall back to flat fields or settings
+    votingStart = getDate('voting_start');
+    votingEnd = getDate('voting_end');
+  }
 
   // Phase 1: Completed - after finals date
   if (finalsDate && now >= finalsDate) {
@@ -76,7 +117,7 @@ export function computeTimelinePhase(competition) {
     return TIMELINE_PHASES.JUDGING;
   }
 
-  // Phase 3: Voting - between voting start and end
+  // Phase 3: Voting - between voting start and end (if not using rounds)
   if (votingStart && now >= votingStart) {
     if (!votingEnd || now < votingEnd) {
       return TIMELINE_PHASES.VOTING;
@@ -458,4 +499,20 @@ export function shouldAutoTransitionToCompleted(competition, settings = null) {
 
   // If finale date has passed, should transition to completed
   return now >= endDate;
+}
+
+/**
+ * Get UI permissions based on the current phase.
+ * Use this to determine what actions are allowed in the UI.
+ *
+ * @param {string} phase - The current phase (from computeCompetitionPhase)
+ * @returns {Object} Permission flags for UI controls
+ */
+export function getPhasePermissions(phase) {
+  return {
+    allowVoting: phase === TIMELINE_PHASES.VOTING,
+    allowNominations: phase === TIMELINE_PHASES.NOMINATION,
+    showResults: phase === TIMELINE_PHASES.COMPLETED || phase === 'completed',
+    isActive: phase !== COMPETITION_STATUSES.DRAFT && phase !== COMPETITION_STATUSES.ARCHIVE,
+  };
 }

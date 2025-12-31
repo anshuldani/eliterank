@@ -6,11 +6,13 @@ import {
   Pin, MapPin, Clock, Sparkles
 } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../components/ui';
-import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal } from '../../components/modals';
+import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, AddPersonModal } from '../../components/modals';
 import { colors, gradients, spacing, borderRadius, typography, transitions } from '../../styles/theme';
+import { useToast } from '../../contexts/ToastContext';
 import { useCompetitionDashboard } from '../super-admin/hooks/useCompetitionDashboard';
 import { formatRelativeTime, formatEventDateRange } from '../../utils/formatters';
 import WinnersManager from '../super-admin/components/WinnersManager';
+import TimelineSettings from './components/TimelineSettings';
 
 // Reusable components from overview
 import CurrentPhaseCard from '../overview/components/CurrentPhaseCard';
@@ -33,6 +35,7 @@ export default function CompetitionDashboard({
   onViewPublicSite,
   currentUserId,
 }) {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [showHostAssignment, setShowHostAssignment] = useState(false);
   const isSuperAdmin = role === 'superadmin';
@@ -45,10 +48,13 @@ export default function CompetitionDashboard({
     error,
     refresh,
     // Nominee operations
+    addNominee,
     approveNominee,
     rejectNominee,
     archiveNominee,
     restoreNominee,
+    // Contestant operations
+    addContestant,
     // Judge operations
     addJudge,
     updateJudge,
@@ -96,6 +102,41 @@ export default function CompetitionDashboard({
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
   const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '' });
+
+  // Add person modal state (for manual nominee/contestant entry)
+  const [addPersonModal, setAddPersonModal] = useState({ isOpen: false, type: 'nominee' });
+
+  const openAddPersonModal = (type) => {
+    setAddPersonModal({ isOpen: true, type });
+  };
+
+  const closeAddPersonModal = () => {
+    setAddPersonModal({ isOpen: false, type: 'nominee' });
+  };
+
+  const handleAddPerson = async (personData) => {
+    const { type } = addPersonModal;
+    try {
+      if (type === 'contestant') {
+        const result = await addContestant(personData);
+        if (!result.success) {
+          toast.error(result.error || 'Failed to add contestant');
+          throw new Error(result.error);
+        }
+        toast.success(`${personData.name} added as contestant`);
+      } else {
+        const result = await addNominee(personData);
+        if (!result.success) {
+          toast.error(result.error || 'Failed to add nominee');
+          throw new Error(result.error);
+        }
+        toast.success(`${personData.name} added as nominee`);
+      }
+    } catch (err) {
+      console.error('Error adding person:', err);
+      throw err;
+    }
+  };
 
   // Entity modals
   const [judgeModal, setJudgeModal] = useState({ isOpen: false, judge: null });
@@ -504,8 +545,8 @@ export default function CompetitionDashboard({
 
     return (
       <div>
-        {/* Winners Manager */}
-        <WinnersManager competition={competition} onUpdate={refresh} />
+        {/* Winners Manager - always accessible for host/superadmin */}
+        <WinnersManager competition={competition} onUpdate={refresh} allowEdit={true} />
 
         {/* Stats Row */}
         <div style={{
@@ -535,13 +576,18 @@ export default function CompetitionDashboard({
           marginBottom: spacing.lg,
           overflow: 'hidden',
         }}>
-          <SectionHeader title="Contestants" count={approvedContestants.length} icon={Crown} iconColor="#22c55e" sectionKey="contestants" badge="success" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: spacing.lg }}>
+            <SectionHeader title="Contestants" count={approvedContestants.length} icon={Crown} iconColor="#22c55e" sectionKey="contestants" badge="success" />
+            <Button size="sm" icon={Plus} onClick={() => openAddPersonModal('contestant')}>
+              Add Contestant
+            </Button>
+          </div>
           {expandedSections.contestants && (
             <div style={{ padding: `0 ${spacing.lg} ${spacing.lg}` }}>
               {approvedContestants.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.text.secondary }}>
                   <Crown size={32} style={{ marginBottom: spacing.sm, opacity: 0.5 }} />
-                  <p>No contestants yet. Approve nominees to add them.</p>
+                  <p>No contestants yet. Approve nominees or add manually.</p>
                 </div>
               ) : approvedContestants.map(c => <ContestantRow key={c.id} contestant={c} />)}
             </div>
@@ -556,7 +602,12 @@ export default function CompetitionDashboard({
           marginBottom: spacing.lg,
           overflow: 'hidden',
         }}>
-          <SectionHeader title="Nominees with Profile" count={nomineesWithProfile.length} icon={UserCheck} iconColor="#3b82f6" sectionKey="withProfile" badge="info" />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: spacing.lg }}>
+            <SectionHeader title="Nominees with Profile" count={nomineesWithProfile.length} icon={UserCheck} iconColor="#3b82f6" sectionKey="withProfile" badge="info" />
+            <Button size="sm" variant="secondary" icon={Plus} onClick={() => openAddPersonModal('nominee')}>
+              Add Nominee
+            </Button>
+          </div>
           {expandedSections.withProfile && (
             <div style={{ padding: `0 ${spacing.lg} ${spacing.lg}` }}>
               {nomineesWithProfile.length === 0 ? (
@@ -819,59 +870,15 @@ export default function CompetitionDashboard({
   // ============================================================================
 
   const renderSettings = () => {
-    // Event status based on date
-    const getEventStatus = (event) => {
-      if (!event.date) return 'upcoming';
-      const eventDate = new Date(event.date);
-      const now = new Date();
-      if (event.endDate) {
-        const endDate = new Date(event.endDate);
-        if (now > endDate) return 'completed';
-        if (now >= eventDate && now <= endDate) return 'active';
-      } else {
-        if (now > eventDate) return 'completed';
-        if (now.toDateString() === eventDate.toDateString()) return 'active';
-      }
-      return 'upcoming';
-    };
-
     return (
       <div>
-        {/* Timeline Section */}
-        <Panel title="Competition Timeline" icon={Calendar}>
+        {/* Timeline & Status Settings */}
+        <Panel title="Timeline & Status" icon={Calendar}>
           <div style={{ padding: spacing.xl }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: spacing.lg }}>
-              {[
-                { label: 'Nominations Start', key: 'nominationStart', value: competition?.nominationStart },
-                { label: 'Nominations End', key: 'nominationEnd', value: competition?.nominationEnd },
-                { label: 'Voting Start', key: 'votingStart', value: competition?.votingStart },
-                { label: 'Voting End', key: 'votingEnd', value: competition?.votingEnd },
-                { label: 'Finals Date', key: 'finalsDate', value: competition?.finalsDate },
-              ].map((item) => (
-                <div key={item.key}>
-                  <label style={{ display: 'block', color: colors.text.secondary, fontSize: typography.fontSize.sm, marginBottom: spacing.xs }}>
-                    {item.label}
-                  </label>
-                  <input
-                    type="datetime-local"
-                    defaultValue={item.value ? new Date(item.value).toISOString().slice(0, 16) : ''}
-                    onBlur={(e) => {
-                      const newValue = e.target.value ? new Date(e.target.value).toISOString() : null;
-                      updateTimeline({ ...competition, [item.key]: newValue });
-                    }}
-                    style={{
-                      width: '100%',
-                      background: colors.background.secondary,
-                      border: `1px solid ${colors.border.light}`,
-                      borderRadius: borderRadius.md,
-                      padding: spacing.md,
-                      color: '#fff',
-                      fontSize: typography.fontSize.md,
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
+            <TimelineSettings
+              competition={competition}
+              onSave={refresh}
+            />
           </div>
         </Panel>
 
@@ -1348,6 +1355,12 @@ export default function CompetitionDashboard({
           }
           setEventModal({ isOpen: false, event: null });
         }}
+      />
+      <AddPersonModal
+        isOpen={addPersonModal.isOpen}
+        onClose={closeAddPersonModal}
+        onAdd={handleAddPerson}
+        type={addPersonModal.type}
       />
     </>
   );

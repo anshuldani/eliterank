@@ -28,6 +28,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 // Supabase client
 import { supabase } from './lib/supabase';
 
+// Phase utilities
+import { computeCompetitionPhase, COMPETITION_STATUSES } from './utils/competitionPhase';
+
 // Hooks
 import { useSupabaseAuth } from './hooks';
 
@@ -428,10 +431,10 @@ export default function App() {
           let competitions = [];
 
           if (cities?.length) {
-            // Found city, search by city_id
+            // Found city, search by city_id with settings and voting rounds
             const { data } = await supabase
               .from('competitions')
-              .select('*')
+              .select('*, settings:competition_settings(*), voting_rounds(*)')
               .eq('city_id', cities[0].id)
               .limit(1);
             competitions = data || [];
@@ -441,7 +444,7 @@ export default function App() {
           if (!competitions?.length) {
             const { data } = await supabase
               .from('competitions')
-              .select('*')
+              .select('*, settings:competition_settings(*), voting_rounds(*)')
               .ilike('name', `%${cityName}%`)
               .limit(1);
             competitions = data || [];
@@ -459,12 +462,23 @@ export default function App() {
               if (cityData) competitionCityName = cityData.name;
             }
             const competition = competitions[0];
+            // Merge settings and voting_rounds onto competition for phase calculation
+            const settings = competition.settings || {};
+            const competitionWithSettings = {
+              ...competition,
+              nomination_start: settings.nomination_start || competition.nomination_start,
+              nomination_end: settings.nomination_end || competition.nomination_end,
+              voting_start: settings.voting_start || competition.voting_start,
+              voting_end: settings.voting_end || competition.voting_end,
+              finals_date: settings.finale_date || competition.finals_date,
+              voting_rounds: competition.voting_rounds || [],
+            };
             setSelectedCompetition(
               createSafeCompetition({
-                ...competition,
+                ...competitionWithSettings,
                 city: competitionCityName,
-                phase: competition.status === 'live' ? 'voting' : competition.status,
-                isTeaser: competition.status !== 'live',
+                phase: computeCompetitionPhase(competitionWithSettings),
+                isTeaser: competition.status !== COMPETITION_STATUSES.LIVE,
               })
             );
             setShowPublicSite(true);
