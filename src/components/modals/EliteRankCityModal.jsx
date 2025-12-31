@@ -121,13 +121,17 @@ export default function EliteRankCityModal({
               visible,
               accessible,
               organizationId: comp.organization_id,
+              host_id: comp.host_id,
               host: hostProfile ? {
                 id: hostProfile.id,
                 name: `${hostProfile.first_name || ''} ${hostProfile.last_name || ''}`.trim() || hostProfile.email,
                 avatar: hostProfile.avatar_url,
               } : null,
+              winners: comp.winners || [],
               nomination_start: comp.nomination_start,
+              nomination_end: comp.nomination_end,
               voting_start: comp.voting_start,
+              voting_end: comp.voting_end,
               finals_date: comp.finals_date,
             };
           }));
