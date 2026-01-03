@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Crown, ArrowLeft, Star, LogOut, BarChart3, UserPlus, FileText, Settings as SettingsIcon,
   User, Calendar, Eye, Loader, AlertCircle, Archive, RotateCcw, ExternalLink,
@@ -9,6 +9,7 @@ import { Button, Badge, Avatar, Panel } from '../../components/ui';
 import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, AddPersonModal } from '../../components/modals';
 import { colors, gradients, spacing, borderRadius, typography, transitions } from '../../styles/theme';
 import { useToast } from '../../contexts/ToastContext';
+import { supabase } from '../../lib/supabase';
 import { useCompetitionDashboard } from '../super-admin/hooks/useCompetitionDashboard';
 import { formatRelativeTime, formatEventDateRange } from '../../utils/formatters';
 import WinnersManager from '../super-admin/components/WinnersManager';
@@ -21,8 +22,8 @@ import Leaderboard from '../overview/components/Leaderboard';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'advancement', label: 'Advancement', icon: UserPlus },
-  { id: 'nominations', label: 'Nominations', icon: Crown },
+  { id: 'contestants', label: 'Contestants', icon: Users },
+  { id: 'advancement', label: 'Advancement', icon: TrendingUp },
   { id: 'community', label: 'Community', icon: FileText },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
   { id: 'profile', label: 'Host Profile', icon: User },
@@ -121,6 +122,40 @@ export default function CompetitionDashboard({
 
   // Add person modal state (for manual nominee/contestant entry)
   const [addPersonModal, setAddPersonModal] = useState({ isOpen: false, type: 'nominee' });
+
+  // Advancement tab state
+  const [voteInputs, setVoteInputs] = useState({});
+  const [savingVotes, setSavingVotes] = useState({});
+  const [activeRound, setActiveRound] = useState(null);
+  const [votingRounds, setVotingRounds] = useState([]);
+  const [showTieResolver, setShowTieResolver] = useState(false);
+  const [tiedContestants, setTiedContestants] = useState([]);
+  const [advanceCount, setAdvanceCount] = useState(10);
+
+  // Fetch voting rounds for advancement tab
+  useEffect(() => {
+    const fetchRounds = async () => {
+      if (!supabase || !competitionId) return;
+      const { data: rounds } = await supabase
+        .from('voting_rounds')
+        .select('*')
+        .eq('competition_id', competitionId)
+        .order('round_order');
+      if (rounds && rounds.length > 0) {
+        setVotingRounds(rounds);
+        // Set active round to current/latest
+        const now = new Date();
+        const active = rounds.find(r => {
+          const start = r.start_date ? new Date(r.start_date) : null;
+          const end = r.end_date ? new Date(r.end_date) : null;
+          return start && end && start <= now && now <= end;
+        }) || rounds[rounds.length - 1];
+        setActiveRound(active);
+        setAdvanceCount(active?.contestants_advance || 10);
+      }
+    };
+    fetchRounds();
+  }, [competitionId]);
 
   const openAddPersonModal = (type) => {
     setAddPersonModal({ isOpen: true, type });
@@ -397,10 +432,10 @@ export default function CompetitionDashboard({
   };
 
   // ============================================================================
-  // NOMINATIONS TAB
+  // CONTESTANTS TAB
   // ============================================================================
 
-  const renderNominations = () => {
+  const renderContestants = () => {
     // Categorize nominees
     const activeNominees = data.nominees.filter(n =>
       n.status === 'pending' || n.status === 'profile_complete' || n.status === 'awaiting_profile'
@@ -676,6 +711,354 @@ export default function CompetitionDashboard({
             </div>
           )}
         </div>
+      </div>
+    );
+  };
+
+  // ============================================================================
+  // ADVANCEMENT TAB
+  // ============================================================================
+
+  const renderAdvancement = () => {
+    // Sort contestants by votes
+    const sortedContestants = [...data.contestants].sort((a, b) => (b.votes || 0) - (a.votes || 0));
+
+    // Detect ties at the advancement cutoff
+    const detectTies = () => {
+      if (sortedContestants.length <= advanceCount) return [];
+
+      const cutoffVotes = sortedContestants[advanceCount - 1]?.votes || 0;
+      const tied = sortedContestants.filter((c, idx) => {
+        // Include contestants at the cutoff position who share the same vote count
+        return c.votes === cutoffVotes && (idx >= advanceCount - 1);
+      });
+
+      // Only return if there's an actual tie (more than one at the cutoff)
+      return tied.length > 1 ? tied : [];
+    };
+
+    const ties = detectTies();
+
+    // Handle adding votes to a contestant
+    const handleAddVotes = async (contestantId) => {
+      const votesToAdd = parseInt(voteInputs[contestantId]) || 0;
+      if (votesToAdd === 0) return;
+
+      setSavingVotes(prev => ({ ...prev, [contestantId]: true }));
+
+      try {
+        const contestant = data.contestants.find(c => c.id === contestantId);
+        const newVotes = (contestant?.votes || 0) + votesToAdd;
+
+        const { error } = await supabase
+          .from('contestants')
+          .update({ votes: newVotes })
+          .eq('id', contestantId);
+
+        if (error) throw error;
+
+        toast.success(`Added ${votesToAdd} votes to ${contestant?.name}`);
+        setVoteInputs(prev => ({ ...prev, [contestantId]: '' }));
+        refresh();
+      } catch (err) {
+        console.error('Error adding votes:', err);
+        toast.error('Failed to add votes');
+      } finally {
+        setSavingVotes(prev => ({ ...prev, [contestantId]: false }));
+      }
+    };
+
+    // Handle tie resolution - advance selected contestant
+    const handleResolveTie = async (selectedContestantId) => {
+      // Add 1 vote to break the tie
+      try {
+        const contestant = data.contestants.find(c => c.id === selectedContestantId);
+        const { error } = await supabase
+          .from('contestants')
+          .update({ votes: (contestant?.votes || 0) + 1 })
+          .eq('id', selectedContestantId);
+
+        if (error) throw error;
+
+        toast.success(`${contestant?.name} will advance`);
+        setShowTieResolver(false);
+        refresh();
+      } catch (err) {
+        console.error('Error resolving tie:', err);
+        toast.error('Failed to resolve tie');
+      }
+    };
+
+    return (
+      <div>
+        {/* Tie Alert */}
+        {ties.length > 0 && (
+          <div style={{
+            background: 'rgba(245,158,11,0.1)',
+            border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: borderRadius.xl,
+            padding: spacing.lg,
+            marginBottom: spacing.xl,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+              <Scale size={24} style={{ color: '#f59e0b' }} />
+              <div>
+                <p style={{ fontWeight: typography.fontWeight.semibold, color: '#f59e0b' }}>
+                  Tie Detected at Position {advanceCount}
+                </p>
+                <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                  {ties.length} contestants are tied with {ties[0]?.votes} votes. Select who advances.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="warning"
+              onClick={() => {
+                setTiedContestants(ties);
+                setShowTieResolver(true);
+              }}
+            >
+              Resolve Tie
+            </Button>
+          </div>
+        )}
+
+        {/* Voting Round Selector */}
+        {votingRounds.length > 0 && (
+          <div style={{
+            background: colors.background.card,
+            border: `1px solid ${colors.border.light}`,
+            borderRadius: borderRadius.xl,
+            padding: spacing.lg,
+            marginBottom: spacing.xl,
+          }}>
+            <h4 style={{ fontSize: typography.fontSize.md, marginBottom: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+              <Hash size={18} />
+              Voting Round
+            </h4>
+            <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
+              {votingRounds.map((round) => (
+                <button
+                  key={round.id}
+                  onClick={() => {
+                    setActiveRound(round);
+                    setAdvanceCount(round.contestants_advance || 10);
+                  }}
+                  style={{
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    background: activeRound?.id === round.id ? 'rgba(212,175,55,0.2)' : 'transparent',
+                    border: `1px solid ${activeRound?.id === round.id ? colors.gold.primary : colors.border.light}`,
+                    borderRadius: borderRadius.md,
+                    color: activeRound?.id === round.id ? colors.gold.primary : colors.text.secondary,
+                    cursor: 'pointer',
+                    fontSize: typography.fontSize.sm,
+                  }}
+                >
+                  {round.title}
+                  <span style={{ marginLeft: spacing.sm, opacity: 0.7 }}>
+                    (Top {round.contestants_advance} advance)
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Contestants Leaderboard with Vote Management */}
+        <Panel title="Contestant Performance & Vote Management" icon={TrendingUp}>
+          <div style={{ padding: spacing.lg }}>
+            {sortedContestants.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: spacing.xxl, color: colors.text.secondary }}>
+                <Users size={48} style={{ marginBottom: spacing.md, opacity: 0.5 }} />
+                <p>No contestants yet</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+                {sortedContestants.map((contestant, index) => {
+                  const isInAdvanceZone = index < advanceCount;
+                  const isTied = ties.some(t => t.id === contestant.id);
+
+                  return (
+                    <div
+                      key={contestant.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.lg,
+                        padding: spacing.lg,
+                        background: isTied
+                          ? 'rgba(245,158,11,0.1)'
+                          : isInAdvanceZone
+                            ? 'rgba(34,197,94,0.05)'
+                            : colors.background.secondary,
+                        border: `1px solid ${isTied ? 'rgba(245,158,11,0.3)' : isInAdvanceZone ? 'rgba(34,197,94,0.2)' : colors.border.light}`,
+                        borderRadius: borderRadius.lg,
+                      }}
+                    >
+                      {/* Rank */}
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: borderRadius.full,
+                        background: index < 3 ? 'linear-gradient(135deg, #d4af37, #f4d03f)' : colors.background.card,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: typography.fontWeight.bold,
+                        color: index < 3 ? '#0a0a0f' : colors.text.primary,
+                      }}>
+                        {index + 1}
+                      </div>
+
+                      {/* Avatar & Name */}
+                      <Avatar name={contestant.name} size={48} avatarUrl={contestant.avatarUrl} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                          <p style={{ fontWeight: typography.fontWeight.medium }}>{contestant.name}</p>
+                          {isInAdvanceZone && !isTied && (
+                            <Badge variant="success" size="sm">Advancing</Badge>
+                          )}
+                          {isTied && (
+                            <Badge variant="warning" size="sm">Tied</Badge>
+                          )}
+                        </div>
+                        <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                          {contestant.instagram && `@${contestant.instagram.replace('@', '')}`}
+                        </p>
+                      </div>
+
+                      {/* Current Votes */}
+                      <div style={{ textAlign: 'center', minWidth: 80 }}>
+                        <p style={{
+                          fontSize: typography.fontSize.xl,
+                          fontWeight: typography.fontWeight.bold,
+                          color: colors.gold.primary,
+                        }}>
+                          {contestant.votes || 0}
+                        </p>
+                        <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>votes</p>
+                      </div>
+
+                      {/* Add Votes */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={voteInputs[contestant.id] || ''}
+                          onChange={(e) => setVoteInputs(prev => ({
+                            ...prev,
+                            [contestant.id]: e.target.value
+                          }))}
+                          style={{
+                            width: 70,
+                            padding: spacing.sm,
+                            background: colors.background.card,
+                            border: `1px solid ${colors.border.light}`,
+                            borderRadius: borderRadius.md,
+                            color: '#fff',
+                            fontSize: typography.fontSize.sm,
+                            textAlign: 'center',
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleAddVotes(contestant.id)}
+                          disabled={savingVotes[contestant.id] || !voteInputs[contestant.id]}
+                        >
+                          {savingVotes[contestant.id] ? (
+                            <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                          ) : (
+                            <Plus size={14} />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        {/* Tie Resolver Modal */}
+        {showTieResolver && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}>
+            <div style={{
+              background: colors.background.primary,
+              border: `1px solid ${colors.border.gold}`,
+              borderRadius: borderRadius.xl,
+              padding: spacing.xxl,
+              maxWidth: 500,
+              width: '90%',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xl }}>
+                <Scale size={24} style={{ color: colors.gold.primary }} />
+                <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold }}>
+                  Resolve Tie
+                </h3>
+              </div>
+
+              <p style={{ color: colors.text.secondary, marginBottom: spacing.xl }}>
+                The following contestants are tied at position {advanceCount} with {tiedContestants[0]?.votes} votes.
+                Select who should advance to the next round.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md, marginBottom: spacing.xl }}>
+                {tiedContestants.map((contestant) => (
+                  <button
+                    key={contestant.id}
+                    onClick={() => handleResolveTie(contestant.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      padding: spacing.lg,
+                      background: colors.background.secondary,
+                      border: `1px solid ${colors.border.light}`,
+                      borderRadius: borderRadius.lg,
+                      cursor: 'pointer',
+                      transition: `all ${transitions.fast}`,
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = colors.gold.primary;
+                      e.currentTarget.style.background = 'rgba(212,175,55,0.1)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = colors.border.light;
+                      e.currentTarget.style.background = colors.background.secondary;
+                    }}
+                  >
+                    <Avatar name={contestant.name} size={48} avatarUrl={contestant.avatarUrl} />
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <p style={{ fontWeight: typography.fontWeight.medium, color: '#fff' }}>{contestant.name}</p>
+                      <p style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
+                        {contestant.votes} votes
+                      </p>
+                    </div>
+                    <Award size={20} style={{ color: colors.gold.primary }} />
+                  </button>
+                ))}
+              </div>
+
+              <Button variant="secondary" onClick={() => setShowTieResolver(false)} style={{ width: '100%' }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1303,7 +1686,8 @@ export default function CompetitionDashboard({
 
     switch (activeTab) {
       case 'overview': return renderOverview();
-      case 'nominations': return renderNominations();
+      case 'contestants': return renderContestants();
+      case 'advancement': return renderAdvancement();
       case 'community': return renderCommunity();
       case 'settings': return renderSettings();
       case 'profile': return renderHostProfile();
