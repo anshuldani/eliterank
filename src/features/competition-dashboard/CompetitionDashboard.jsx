@@ -1498,10 +1498,11 @@ export default function CompetitionDashboard({
                             borderRadius: borderRadius.md,
                             color: '#ef4444',
                             cursor: 'pointer',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                     <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>{rule.sectionContent || 'No content'}</p>
                   </div>
