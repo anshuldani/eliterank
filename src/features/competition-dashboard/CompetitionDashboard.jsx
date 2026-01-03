@@ -3,7 +3,7 @@ import {
   Crown, ArrowLeft, Star, LogOut, BarChart3, UserPlus, FileText, Settings as SettingsIcon,
   User, Calendar, Eye, Loader, AlertCircle, Archive, RotateCcw, ExternalLink,
   UserCheck, Users, CheckCircle, XCircle, ChevronDown, ChevronUp, Plus, Edit, Trash2,
-  Pin, MapPin, Clock, Sparkles
+  Pin, MapPin, Clock, Sparkles, TrendingUp, Hash, Award, Scale
 } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../components/ui';
 import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, AddPersonModal } from '../../components/modals';
@@ -21,11 +21,27 @@ import Leaderboard from '../overview/components/Leaderboard';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
-  { id: 'nominations', label: 'Nominations', icon: UserPlus },
+  { id: 'advancement', label: 'Advancement', icon: UserPlus },
+  { id: 'nominations', label: 'Nominations', icon: Crown },
   { id: 'community', label: 'Community', icon: FileText },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
   { id: 'profile', label: 'Host Profile', icon: User },
 ];
+
+// Helper to determine event status
+const getEventStatus = (event) => {
+  if (event.status === 'completed') return 'completed';
+  if (!event.date && !event.startDate) return 'upcoming';
+  const eventDate = new Date(event.date || event.startDate);
+  const now = new Date();
+  if (eventDate < now) return 'completed';
+  // Check if event is currently active (started but not ended)
+  if (event.endDate) {
+    const endDate = new Date(event.endDate);
+    if (eventDate <= now && now <= endDate) return 'active';
+  }
+  return 'upcoming';
+};
 
 export default function CompetitionDashboard({
   competitionId,
