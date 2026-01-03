@@ -255,6 +255,53 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
     setCurrentStep(1);
   };
 
+  // Open edit modal with competition data
+  const openEditModal = (comp) => {
+    setSelectedCompetition(comp);
+    setFormData({
+      organization_id: comp.organization_id,
+      city_id: comp.city_id,
+      name: comp.name || '',
+      season: comp.season,
+      number_of_winners: comp.number_of_winners,
+      host_id: comp.host_id || '',
+      description: comp.description || '',
+    });
+    setShowEditModal(true);
+  };
+
+  // Update competition
+  const handleUpdate = async () => {
+    if (!selectedCompetition) return;
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('competitions')
+        .update({
+          name: formData.name || null,
+          season: formData.season,
+          number_of_winners: formData.number_of_winners,
+          host_id: formData.host_id || null,
+          description: formData.description || '',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedCompetition.id);
+
+      if (error) throw error;
+
+      toast.success('Competition updated successfully');
+      setShowEditModal(false);
+      setSelectedCompetition(null);
+      resetForm();
+      fetchData();
+    } catch (err) {
+      toast.error(`Failed to update competition: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Get display name for competition
   const getCompetitionName = (comp) => {
     // Use custom name if set, otherwise generate from org/city
@@ -754,6 +801,12 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                   <Button
                     variant="secondary"
                     size="sm"
+                    icon={Edit2}
+                    onClick={() => openEditModal(comp)}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     icon={Trash2}
                     onClick={() => {
                       setSelectedCompetition(comp);
@@ -1040,6 +1093,123 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
                   {isSubmitting ? 'Deleting...' : 'Delete'}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Competition Modal */}
+      {showEditModal && selectedCompetition && (
+        <div style={modalOverlayStyle} onClick={() => { setShowEditModal(false); setSelectedCompetition(null); resetForm(); }}>
+          <div style={{ ...modalStyle, maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              padding: spacing.xl,
+              borderBottom: `1px solid ${colors.border.light}`,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
+                Edit Competition
+              </h3>
+              <button
+                onClick={() => { setShowEditModal(false); setSelectedCompetition(null); resetForm(); }}
+                style={{ background: 'none', border: 'none', color: colors.text.secondary, cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: spacing.xl }}>
+              {/* Competition Name */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Competition Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Most Eligible Miami"
+                  style={inputStyle}
+                />
+                <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted, marginTop: spacing.xs }}>
+                  Leave blank to auto-generate from organization and city.
+                </p>
+              </div>
+
+              {/* Season */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Season</label>
+                <input
+                  type="number"
+                  value={formData.season}
+                  onChange={(e) => setFormData(prev => ({ ...prev, season: parseInt(e.target.value) }))}
+                  style={inputStyle}
+                />
+              </div>
+
+              {/* Number of Winners */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Number of Winners</label>
+                <select
+                  value={formData.number_of_winners}
+                  onChange={(e) => setFormData(prev => ({ ...prev, number_of_winners: parseInt(e.target.value) }))}
+                  style={selectStyle}
+                >
+                  {[1, 3, 5, 10, 15, 20].map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assign Host */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Host</label>
+                <select
+                  value={formData.host_id}
+                  onChange={(e) => setFormData(prev => ({ ...prev, host_id: e.target.value }))}
+                  style={selectStyle}
+                >
+                  <option value="">No host assigned</option>
+                  {hosts.map(host => (
+                    <option key={host.id} value={host.id}>
+                      {getHostName(host) || host.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom: spacing.lg }}>
+                <label style={labelStyle}>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Competition description..."
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical' }}
+                />
+              </div>
+            </div>
+
+            <div style={{
+              padding: spacing.xl,
+              borderTop: `1px solid ${colors.border.light}`,
+              display: 'flex',
+              gap: spacing.md,
+              justifyContent: 'flex-end',
+            }}>
+              <Button
+                variant="secondary"
+                onClick={() => { setShowEditModal(false); setSelectedCompetition(null); resetForm(); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdate}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
         </div>
