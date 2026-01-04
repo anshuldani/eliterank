@@ -19,9 +19,11 @@ export default function VoteModal({
   competitionId,
   user,
   onVoteSuccess,
+  currentRound,
 }) {
   const userId = user?.id;
   const toast = useToast();
+  const hasActiveRound = currentRound?.isActive;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [freeVoteUsed, setFreeVoteUsed] = useState(false);
   const [votedContestantId, setVotedContestantId] = useState(null);
@@ -55,6 +57,12 @@ export default function VoteModal({
   // Handle free vote submission
   const handleFreeVote = async () => {
     if (!contestant || !userId || !competitionId || freeVoteUsed || isSubmitting) {
+      return;
+    }
+
+    // Block voting if no active round
+    if (!hasActiveRound) {
+      toast.error('Voting is not currently active. Please wait for the next voting round.');
       return;
     }
 
@@ -201,7 +209,12 @@ export default function VoteModal({
       {/* Free Vote Section */}
       <div style={{ marginBottom: spacing.xl }}>
         <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.base, marginBottom: spacing.md, textAlign: 'center' }}>
-          {freeVoteUsed ? (
+          {!hasActiveRound ? (
+            <>
+              <Clock size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: spacing.xs }} />
+              Voting is not currently active
+            </>
+          ) : freeVoteUsed ? (
             <>
               <Clock size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: spacing.xs }} />
               Free vote resets in {getTimeUntilReset()}
@@ -219,20 +232,25 @@ export default function VoteModal({
           fullWidth
           size="xl"
           onClick={handleFreeVote}
-          disabled={freeVoteUsed || isSubmitting || checkingVoteStatus}
+          disabled={!hasActiveRound || freeVoteUsed || isSubmitting || checkingVoteStatus}
           style={{
-            background: freeVoteUsed
+            background: (!hasActiveRound || freeVoteUsed)
               ? 'rgba(255,255,255,0.05)'
               : 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.1))',
-            borderColor: freeVoteUsed ? 'rgba(255,255,255,0.1)' : 'rgba(34,197,94,0.4)',
-            color: freeVoteUsed ? colors.text.muted : colors.status.success,
-            cursor: freeVoteUsed ? 'not-allowed' : 'pointer',
+            borderColor: (!hasActiveRound || freeVoteUsed) ? 'rgba(255,255,255,0.1)' : 'rgba(34,197,94,0.4)',
+            color: (!hasActiveRound || freeVoteUsed) ? colors.text.muted : colors.status.success,
+            cursor: (!hasActiveRound || freeVoteUsed) ? 'not-allowed' : 'pointer',
           }}
         >
           {checkingVoteStatus ? (
             <>
               <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
               Checking...
+            </>
+          ) : !hasActiveRound ? (
+            <>
+              <Clock size={18} />
+              Voting Not Active
             </>
           ) : isSubmitting ? (
             <>

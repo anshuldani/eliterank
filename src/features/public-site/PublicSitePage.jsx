@@ -646,6 +646,7 @@ export default function PublicSitePage({
         competitionId={competition?.id}
         user={user}
         onVoteSuccess={handleVoteSuccess}
+        currentRound={currentRound}
       />
 
       {/* Full-page Profile View */}

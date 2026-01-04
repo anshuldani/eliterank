@@ -1,6 +1,45 @@
 import { supabase } from './supabase';
 
 /**
+ * Check if there's an active voting round for the competition
+ * @param {string} competitionId - The competition ID
+ * @returns {Promise<{isActive: boolean, round?: object, error?: string}>}
+ */
+export async function checkActiveVotingRound(competitionId) {
+  if (!supabase || !competitionId) {
+    return { isActive: false, error: 'Missing required parameters' };
+  }
+
+  try {
+    const now = new Date().toISOString();
+
+    const { data: rounds, error } = await supabase
+      .from('voting_rounds')
+      .select('*')
+      .eq('competition_id', competitionId)
+      .eq('round_type', 'voting') // Only check voting rounds, not judging rounds
+      .lte('start_date', now)
+      .gt('end_date', now)
+      .limit(1);
+
+    if (error) {
+      console.warn('Error checking active voting round:', error.message);
+      // Return false to be safe - don't allow votes if we can't verify
+      return { isActive: false, error: error.message };
+    }
+
+    if (rounds && rounds.length > 0) {
+      return { isActive: true, round: rounds[0] };
+    }
+
+    return { isActive: false };
+  } catch (err) {
+    console.error('Error checking active voting round:', err);
+    return { isActive: false, error: 'Failed to check voting round status' };
+  }
+}
+
+/**
  * Check if user has used their free vote today for this competition
  * Uses RPC function (SECURITY DEFINER) to bypass RLS issues
  * @param {string} userId - The user's ID
@@ -118,13 +157,19 @@ export async function submitFreeVote({
   const voteValue = isDoubleVoteDay ? 2 : 1;
 
   try {
-    // 1. Check if already voted today (prevent race condition)
+    // 1. Check if there's an active voting round (server-side validation)
+    const roundCheck = await checkActiveVotingRound(competitionId);
+    if (!roundCheck.isActive) {
+      return { success: false, error: 'Voting is not currently active. Please wait for the next voting round.' };
+    }
+
+    // 2. Check if already voted today (prevent race condition)
     const alreadyVoted = await hasUsedFreeVoteToday(userId, competitionId);
     if (alreadyVoted) {
       return { success: false, error: 'You have already used your free vote today' };
     }
 
-    // 2. Insert the vote record
+    // 3. Insert the vote record
     const { error: voteError } = await supabase
       .from('votes')
       .insert({
@@ -147,7 +192,7 @@ export async function submitFreeVote({
       return { success: false, error: voteError.message };
     }
 
-    // 3. Increment contestant's vote count using RPC (atomic operation)
+    // 4. Increment contestant's vote count using RPC (atomic operation)
     const { error: updateError } = await supabase.rpc('increment_contestant_votes', {
       p_contestant_id: contestantId,
       p_vote_count: voteValue,

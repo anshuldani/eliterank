@@ -15,6 +15,7 @@ export default function ContestantsTab({ contestants, events, forceDoubleVoteDay
   // Handle vote button click - require authentication
   const handleVoteClick = (contestant) => {
     if (isJudgingPhase) return; // Voting disabled during judging
+    if (!hasActiveRound) return; // Voting disabled when no active round
     if (!isAuthenticated && onLogin) {
       onLogin();
     } else {
@@ -303,6 +304,10 @@ export default function ContestantsTab({ contestants, events, forceDoubleVoteDay
               {isJudgingPhase ? (
                 <Badge variant="info" size="md">
                   <Award size={12} /> Judging
+                </Badge>
+              ) : !hasActiveRound ? (
+                <Badge variant="secondary" size="md">
+                  No Active Round
                 </Badge>
               ) : !isAuthenticated ? (
                 <Button
