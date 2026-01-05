@@ -85,10 +85,11 @@ export default function PublicSitePage({
 
       try {
         const [contestantsResult, eventsResult, announcementsResult, judgesResult, sponsorsResult, hostResult, votingRoundsResult] = await Promise.all([
-          supabase.from('contestants').select('*').eq('competition_id', competitionId).order('votes', { ascending: false }),
+          // Join with profiles to get full profile data when contestant is linked to a user
+          supabase.from('contestants').select('*, profile:profiles!user_id(*)').eq('competition_id', competitionId).order('votes', { ascending: false }),
           supabase.from('events').select('*').eq('competition_id', competitionId).order('date'),
           supabase.from('announcements').select('*').eq('competition_id', competitionId).order('pinned', { ascending: false }).order('published_at', { ascending: false }),
-          supabase.from('judges').select('*').eq('competition_id', competitionId).order('sort_order'),
+          supabase.from('judges').select('*, profile:profiles!user_id(*)').eq('competition_id', competitionId).order('sort_order'),
           supabase.from('sponsors').select('*').eq('competition_id', competitionId).order('sort_order'),
           competition?.host_id ? supabase.from('profiles').select('*').eq('id', competition.host_id).single() : Promise.resolve({ data: null }),
           supabase.from('voting_rounds').select('*').eq('competition_id', competitionId).order('round_order'),
@@ -111,20 +112,34 @@ export default function PublicSitePage({
           twitter: hostProfile.twitter,
           linkedin: hostProfile.linkedin,
           city: hostProfile.city,
-          hobbies: hostProfile.hobbies || [],
+          hobbies: hostProfile.interests || [],
           gallery: hostProfile.gallery || [],
           occupation: hostProfile.occupation,
         } : null;
 
         setFetchedData({
-          contestants: (contestantsResult.data || []).map((c, idx) => ({
-            ...c, // Pass through all fields for full profile view
-            id: c.id, name: c.name, age: c.age, occupation: c.occupation, bio: c.bio,
-            votes: c.votes || 0, rank: idx + 1,
-            avatarUrl: c.avatar_url, avatar_url: c.avatar_url,
-            instagram: c.instagram, twitter: c.twitter, linkedin: c.linkedin,
-            city: c.city, hobbies: c.hobbies || [], gallery: c.gallery || [],
-          })),
+          contestants: (contestantsResult.data || []).map((c, idx) => {
+            // Merge profile data with contestant data (profile has more fields like city, twitter, linkedin, gallery)
+            const profile = c.profile || {};
+            return {
+              ...c, // Pass through all contestant fields
+              id: c.id,
+              name: c.name,
+              age: c.age || profile.age,
+              occupation: c.occupation || profile.occupation,
+              bio: c.bio || profile.bio,
+              votes: c.votes || 0,
+              rank: idx + 1,
+              avatarUrl: c.avatar_url || profile.avatar_url,
+              avatar_url: c.avatar_url || profile.avatar_url,
+              instagram: c.instagram || profile.instagram,
+              twitter: c.twitter || profile.twitter,
+              linkedin: c.linkedin || profile.linkedin,
+              city: c.city || profile.city,
+              hobbies: c.interests || profile.interests || [],
+              gallery: c.gallery || profile.gallery || [],
+            };
+          }),
           events: (eventsResult.data || []).map(e => ({
             id: e.id, name: e.name, date: e.date, endDate: e.end_date, time: e.time,
             location: e.location, status: e.status, featured: e.featured,
@@ -133,13 +148,25 @@ export default function PublicSitePage({
           announcements: (announcementsResult.data || []).map(a => ({
             id: a.id, title: a.title, content: a.content, date: a.published_at, pinned: a.pinned,
           })),
-          judges: (judgesResult.data || []).map(j => ({
-            ...j, // Pass through all fields for full profile view
-            id: j.id, name: j.name, title: j.title, bio: j.bio,
-            avatarUrl: j.avatar_url, avatar_url: j.avatar_url,
-            instagram: j.instagram, twitter: j.twitter, linkedin: j.linkedin,
-            city: j.city, hobbies: j.hobbies || [], gallery: j.gallery || [],
-          })),
+          judges: (judgesResult.data || []).map(j => {
+            // Merge profile data with judge data (profile has more fields)
+            const profile = j.profile || {};
+            return {
+              ...j,
+              id: j.id,
+              name: j.name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
+              title: j.title || profile.occupation,
+              bio: j.bio || profile.bio,
+              avatarUrl: j.avatar_url || profile.avatar_url,
+              avatar_url: j.avatar_url || profile.avatar_url,
+              instagram: j.instagram || profile.instagram,
+              twitter: j.twitter || profile.twitter,
+              linkedin: j.linkedin || profile.linkedin,
+              city: j.city || profile.city,
+              hobbies: j.interests || profile.interests || [],
+              gallery: j.gallery || profile.gallery || [],
+            };
+          }),
           sponsors: (sponsorsResult.data || []).map(s => ({
             id: s.id, name: s.name, tier: s.tier, logo: s.logo_url, website: s.website,
           })),
@@ -213,31 +240,34 @@ export default function PublicSitePage({
     try {
       const { data: contestantsData } = await supabase
         .from('contestants')
-        .select('*')
+        .select('*, profile:profiles!user_id(*)')
         .eq('competition_id', competitionId)
         .order('votes', { ascending: false });
 
       if (contestantsData) {
         setFetchedData((prev) => ({
           ...prev,
-          contestants: contestantsData.map((c, idx) => ({
-            ...c,
-            id: c.id,
-            name: c.name,
-            age: c.age,
-            occupation: c.occupation,
-            bio: c.bio,
-            votes: c.votes || 0,
-            rank: idx + 1,
-            avatarUrl: c.avatar_url,
-            avatar_url: c.avatar_url,
-            instagram: c.instagram,
-            twitter: c.twitter,
-            linkedin: c.linkedin,
-            city: c.city,
-            hobbies: c.hobbies || [],
-            gallery: c.gallery || [],
-          })),
+          contestants: contestantsData.map((c, idx) => {
+            const profile = c.profile || {};
+            return {
+              ...c,
+              id: c.id,
+              name: c.name,
+              age: c.age || profile.age,
+              occupation: c.occupation || profile.occupation,
+              bio: c.bio || profile.bio,
+              votes: c.votes || 0,
+              rank: idx + 1,
+              avatarUrl: c.avatar_url || profile.avatar_url,
+              avatar_url: c.avatar_url || profile.avatar_url,
+              instagram: c.instagram || profile.instagram,
+              twitter: c.twitter || profile.twitter,
+              linkedin: c.linkedin || profile.linkedin,
+              city: c.city || profile.city,
+              hobbies: c.interests || profile.interests || [],
+              gallery: c.gallery || profile.gallery || [],
+            };
+          }),
         }));
       }
     } catch (error) {
@@ -646,6 +676,7 @@ export default function PublicSitePage({
         competitionId={competition?.id}
         user={user}
         onVoteSuccess={handleVoteSuccess}
+        currentRound={currentRound}
       />
 
       {/* Full-page Profile View */}
