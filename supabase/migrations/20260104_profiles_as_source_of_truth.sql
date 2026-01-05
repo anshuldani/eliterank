@@ -11,16 +11,7 @@
 -- ============================================================================
 
 -- ============================================================================
--- STEP 1: Add missing columns to profiles table
--- ============================================================================
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS age INTEGER;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS occupation TEXT;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS linkedin TEXT;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tiktok TEXT;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS phone TEXT;
-
--- ============================================================================
--- STEP 2: Link contestants to existing profiles by email match
+-- STEP 1: Link contestants to existing profiles by email match
 -- ============================================================================
 UPDATE contestants c
 SET user_id = p.id
@@ -31,13 +22,13 @@ WHERE c.user_id IS NULL
   AND LOWER(TRIM(c.email)) = LOWER(TRIM(p.email));
 
 -- ============================================================================
--- STEP 3: Add indexes for performance
+-- STEP 2: Add indexes for performance
 -- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_contestants_user_id ON contestants(user_id);
 CREATE INDEX IF NOT EXISTS idx_judges_user_id ON judges(user_id);
 
 -- ============================================================================
--- STEP 4: Create helper views for querying with profile data merged
+-- STEP 3: Create helper views for querying with profile data merged
 -- ============================================================================
 
 -- View for contestants with full profile data
