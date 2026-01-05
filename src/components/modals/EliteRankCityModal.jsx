@@ -517,14 +517,14 @@ export default function EliteRankCityModal({
                 lineHeight: typography.lineHeight.tight,
                 marginBottom: spacing.md,
               }}>
-                Discover the Most Eligible
+                America's Arena for Excellence
               </h1>
               <p style={{
                 fontSize: isMobile ? typography.fontSize.md : typography.fontSize.lg,
                 color: colors.text.secondary,
                 lineHeight: typography.lineHeight.relaxed,
               }}>
-                Vote for your favorites and be part of the most exciting social competition.
+                Social competitions where top talent is discovered, celebrated, and rewarded.
               </p>
             </div>
 
