@@ -53,16 +53,12 @@ BEGIN
         WHERE c.id = cs.competition_id
         AND cs.allow_manual_votes IS NOT NULL;
 
-        -- Migrate finale_date (prefer competition_settings.finale_date over competitions.finals_date)
+        -- Migrate finale_date from competition_settings
         UPDATE competitions c
-        SET finale_date = COALESCE(cs.finale_date, c.finals_date, c.finale_date)
+        SET finale_date = COALESCE(cs.finale_date, c.finale_date)
         FROM competition_settings cs
-        WHERE c.id = cs.competition_id;
-
-        -- For competitions without settings, use finals_date if exists
-        UPDATE competitions
-        SET finale_date = finals_date
-        WHERE finale_date IS NULL AND finals_date IS NOT NULL;
+        WHERE c.id = cs.competition_id
+        AND cs.finale_date IS NOT NULL;
 
         RAISE NOTICE 'Data migrated from competition_settings to competitions';
     ELSE
@@ -198,12 +194,22 @@ DROP TABLE IF EXISTS competition_settings CASCADE;
 -- They will be fully removed in a future migration after code is updated
 -- =============================================================================
 
--- Add comments to mark deprecated columns
-COMMENT ON COLUMN competitions.nomination_start IS 'DEPRECATED: Use nomination_periods table instead';
-COMMENT ON COLUMN competitions.nomination_end IS 'DEPRECATED: Use nomination_periods table instead';
-COMMENT ON COLUMN competitions.voting_start IS 'DEPRECATED: Use voting_rounds table instead';
-COMMENT ON COLUMN competitions.voting_end IS 'DEPRECATED: Use voting_rounds table instead';
-COMMENT ON COLUMN competitions.finals_date IS 'DEPRECATED: Use finale_date column instead';
+-- Add comments to mark deprecated columns (only if they exist)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'competitions' AND column_name = 'nomination_start') THEN
+        COMMENT ON COLUMN competitions.nomination_start IS 'DEPRECATED: Use nomination_periods table instead';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'competitions' AND column_name = 'nomination_end') THEN
+        COMMENT ON COLUMN competitions.nomination_end IS 'DEPRECATED: Use nomination_periods table instead';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'competitions' AND column_name = 'voting_start') THEN
+        COMMENT ON COLUMN competitions.voting_start IS 'DEPRECATED: Use voting_rounds table instead';
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'competitions' AND column_name = 'voting_end') THEN
+        COMMENT ON COLUMN competitions.voting_end IS 'DEPRECATED: Use voting_rounds table instead';
+    END IF;
+END $$;
 
 -- =============================================================================
 -- STEP 9: Create helper view for backwards compatibility
