@@ -164,7 +164,6 @@ export default function NominationForm({ city, competitionId, onSubmit, onClose,
         is_single: formData.isSingle,
         nominated_by: isSelfNomination ? 'self' : 'third_party',
         status: 'pending',
-        profile_complete: isSelfNomination,
         // Self-nomination contact info
         email: isSelfNomination ? formData.email : null,
         phone: isSelfNomination ? formData.phone : null,

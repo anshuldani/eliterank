@@ -202,7 +202,6 @@ export function useCompetitionDashboard(competitionId) {
           city: n.city,
           livesNearCity: n.lives_near_city,
           isSingle: n.is_single,
-          profileComplete: n.profile_complete,
           inviteToken: n.invite_token,
           inviteSentAt: n.invite_sent_at,
           convertedToContestantId: n.converted_to_contestant_id,
