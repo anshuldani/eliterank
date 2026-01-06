@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 /**
- * Simplified Supabase authentication hook
- * - No retry logic (causes state loops)
- * - No profile dependency in effects
+ * Supabase authentication hook
+ * - Real authentication only (no demo mode)
  * - Single auth state change handler
  */
 export default function useSupabaseAuth() {
@@ -15,9 +14,8 @@ export default function useSupabaseAuth() {
   const [error, setError] = useState(null);
 
   const mountedRef = useRef(true);
-  const isDemoMode = !isSupabaseConfigured();
 
-  // Simple profile fetch - no retries
+  // Simple profile fetch
   const fetchProfile = useCallback(async (userId) => {
     if (!supabase || !userId) return null;
 
@@ -52,8 +50,9 @@ export default function useSupabaseAuth() {
   useEffect(() => {
     mountedRef.current = true;
 
-    if (isDemoMode) {
+    if (!supabase) {
       setAuthLoading(false);
+      setError('Supabase not configured');
       return;
     }
 
@@ -101,30 +100,11 @@ export default function useSupabaseAuth() {
       mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [isDemoMode, loadProfile]);
+  }, [loadProfile]);
 
   // Sign in
   const signIn = useCallback(async (email, password) => {
-    if (isDemoMode) {
-      const demoUser = {
-        id: 'demo-user-id',
-        email,
-        user_metadata: { first_name: 'Demo', last_name: 'User' },
-      };
-      const demoProfile = {
-        id: 'demo-user-id',
-        email,
-        first_name: 'James',
-        last_name: 'Davidson',
-        bio: 'Award-winning event host with 10+ years of experience.',
-        city: 'New York',
-        is_host: true,
-        hobbies: ['Travel', 'Fine Dining', 'Golf'],
-      };
-      setUser(demoUser);
-      setProfile(demoProfile);
-      return { user: demoUser, error: null };
-    }
+    if (!supabase) return { user: null, error: 'Supabase not configured' };
 
     setError(null);
 
@@ -140,13 +120,11 @@ export default function useSupabaseAuth() {
       setError(err.message);
       return { user: null, error: err.message };
     }
-  }, [isDemoMode]);
+  }, []);
 
   // Sign up
   const signUp = useCallback(async (email, password, metadata = {}) => {
-    if (isDemoMode) {
-      return signIn(email, password);
-    }
+    if (!supabase) return { user: null, error: 'Supabase not configured' };
 
     setError(null);
 
@@ -163,15 +141,11 @@ export default function useSupabaseAuth() {
       setError(err.message);
       return { user: null, error: err.message };
     }
-  }, [isDemoMode, signIn]);
+  }, []);
 
   // Sign out
   const signOut = useCallback(async () => {
-    if (isDemoMode) {
-      setUser(null);
-      setProfile(null);
-      return;
-    }
+    if (!supabase) return;
 
     try {
       await supabase.auth.signOut();
@@ -181,15 +155,11 @@ export default function useSupabaseAuth() {
 
     setUser(null);
     setProfile(null);
-  }, [isDemoMode]);
+  }, []);
 
   // Update profile
   const updateProfile = useCallback(async (updates) => {
-    if (isDemoMode) {
-      setProfile((prev) => ({ ...prev, ...updates }));
-      return { error: null };
-    }
-
+    if (!supabase) return { error: 'Supabase not configured' };
     if (!user) return { error: 'Not authenticated' };
 
     try {
@@ -205,7 +175,7 @@ export default function useSupabaseAuth() {
     } catch (err) {
       return { error: err.message };
     }
-  }, [isDemoMode, user]);
+  }, [user]);
 
   // Refresh profile
   const refreshProfile = useCallback(() => {
@@ -220,7 +190,6 @@ export default function useSupabaseAuth() {
     loading: authLoading,
     profileLoading,
     error,
-    isDemoMode,
     isAuthenticated: !!user,
     signIn,
     signUp,

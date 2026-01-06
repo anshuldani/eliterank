@@ -15,7 +15,7 @@ export default function LoginPage({ onLogin, onBack }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { signIn, signUp, isDemoMode } = useSupabaseAuth();
+  const { signIn, signUp } = useSupabaseAuth();
 
   const validateForm = () => {
     if (!email || !password) {
@@ -66,12 +66,8 @@ export default function LoginPage({ onLogin, onBack }) {
         if (error) {
           setError(error);
         } else if (user) {
-          if (isDemoMode) {
-            onLogin({ email, name: `${firstName} ${lastName}` });
-          } else {
-            setSuccess('Account created! Please check your email to confirm your account.');
-            setMode('login');
-          }
+          setSuccess('Account created! Please check your email to confirm your account.');
+          setMode('login');
         }
       } else {
         const { user, error } = await signIn(email, password);
