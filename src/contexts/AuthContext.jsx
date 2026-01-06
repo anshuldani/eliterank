@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { useSupabaseAuth } from '../hooks';
 import { DEFAULT_HOST_PROFILE } from '../constants';
 
@@ -13,31 +13,25 @@ export const USER_ROLES = {
 };
 
 export function AuthProvider({ children }) {
-  // Local auth state for mock login
-  const [mockUser, setMockUser] = useState(null);
-
-  // Supabase authentication
+  // Supabase authentication (real auth only)
   const {
     user,
     profile,
     loading: authLoading,
-    isAuthenticated: supabaseAuthenticated,
-    isDemoMode,
+    isAuthenticated,
     signIn,
-    signOut: supabaseSignOut,
+    signOut,
+    signUp,
     updateProfile,
   } = useSupabaseAuth();
 
-  // Combined auth - either Supabase or mock
-  const isAuthenticated = supabaseAuthenticated || !!mockUser;
-
-  // Check if user is super admin (check both mock user and Supabase profile)
-  const isSuperAdmin = mockUser?.role === USER_ROLES.SUPER_ADMIN || profile?.is_super_admin === true;
+  // Check if user is super admin from Supabase profile
+  const isSuperAdmin = profile?.is_super_admin === true;
 
   // Check if user is host
-  const isHost = mockUser?.role === USER_ROLES.HOST || (profile && !isSuperAdmin);
+  const isHost = profile?.is_host === true || (profile && !isSuperAdmin);
 
-  // Derive host profile from Supabase profile or use default for demo
+  // Derive host profile from Supabase profile
   const hostProfile = useMemo(() => {
     if (profile) {
       return {
@@ -52,35 +46,22 @@ export function AuthProvider({ children }) {
         hobbies: profile.interests || [],
       };
     }
-    // Fallback to demo profile
     return DEFAULT_HOST_PROFILE;
   }, [profile]);
 
   // Full name helper
   const fullName = useMemo(() => {
-    if (mockUser?.name) return mockUser.name;
     if (hostProfile.firstName || hostProfile.lastName) {
       return `${hostProfile.firstName} ${hostProfile.lastName}`.trim();
     }
-    return 'User';
-  }, [mockUser, hostProfile]);
-
-  // Handle login (mock or Supabase)
-  const login = useCallback((userData) => {
-    // Handle mock login (host or super admin)
-    if (userData.id === 'mock-host-id' || userData.id === 'mock-super-admin-id') {
-      setMockUser(userData);
+    if (user?.email) {
+      return user.email.split('@')[0];
     }
-  }, []);
-
-  // Handle logout
-  const logout = useCallback(async () => {
-    setMockUser(null);
-    await supabaseSignOut();
-  }, [supabaseSignOut]);
+    return 'User';
+  }, [hostProfile, user]);
 
   // Update profile handler with format conversion
-  const handleProfileUpdate = useCallback(async (updates) => {
+  const handleProfileUpdate = async (updates) => {
     // Convert from UI format to database format
     const dbUpdates = {
       first_name: updates.firstName,
@@ -98,42 +79,40 @@ export function AuthProvider({ children }) {
       if (dbUpdates[key] === undefined) delete dbUpdates[key];
     });
     await updateProfile(dbUpdates);
-  }, [updateProfile]);
+  };
 
   const value = useMemo(
     () => ({
       // State
-      user: user || mockUser,
+      user,
       profile,
       hostProfile,
       fullName,
       isAuthenticated,
       isSuperAdmin,
       isHost,
-      isDemoMode,
       loading: authLoading,
 
       // Actions
-      login,
-      logout,
+      login: signIn,
+      logout: signOut,
       signIn,
+      signUp,
       updateProfile: handleProfileUpdate,
     }),
     [
       user,
-      mockUser,
       profile,
       hostProfile,
       fullName,
       isAuthenticated,
       isSuperAdmin,
       isHost,
-      isDemoMode,
       authLoading,
-      login,
-      logout,
       signIn,
-      handleProfileUpdate,
+      signOut,
+      signUp,
+      updateProfile,
     ]
   );
 
