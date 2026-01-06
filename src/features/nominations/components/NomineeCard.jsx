@@ -208,7 +208,7 @@ export default function NomineeCard({
             {nominee.age} • {nominee.occupation}
           </p>
 
-          {nominee.profileComplete && nominee.bio && (
+          {nominee.hasProfile && nominee.bio && (
             <p
               style={{
                 color: colors.text.light,

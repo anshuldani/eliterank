@@ -569,8 +569,8 @@ export default function SuperAdminCompetitionDashboard({ competition, onBack, on
           >
             {nominee.nominatedBy === 'self' ? 'Self' : 'Third Party'}
           </Badge>
-          {nominee.profileComplete && (
-            <Badge variant="success" size="sm">Profile Complete</Badge>
+          {nominee.hasProfile && (
+            <Badge variant="success" size="sm">Has Profile</Badge>
           )}
         </div>
         {showActions && !isArchived && (
