@@ -37,17 +37,27 @@ export default function CompetitionTeaser({
     try {
       if (!supabase) throw new Error('Database not configured');
 
+      // Build a detailed message combining all host application fields
+      const messageParts = [];
+      if (formData.socialFollowing) {
+        messageParts.push(`Social Media Following: ${formData.socialFollowing}`);
+      }
+      if (formData.hostExperience) {
+        messageParts.push(`Experience: ${formData.hostExperience}`);
+      }
+      if (formData.whyHost) {
+        messageParts.push(`Why I want to host: ${formData.whyHost}`);
+      }
+
       const { error } = await supabase
-        .from('host_applications')
+        .from('interest_submissions')
         .insert({
           competition_id: competition.id,
-          user_id: user?.id || null,
+          interest_type: INTEREST_TYPE.HOSTING,
           name: formData.hostName,
           email: formData.hostEmail,
           phone: formData.hostPhone || null,
-          experience: formData.hostExperience || null,
-          social_following: formData.socialFollowing || null,
-          why_host: formData.whyHost || null,
+          message: messageParts.length > 0 ? messageParts.join('\n\n') : null,
           status: 'pending',
         });
 
@@ -71,17 +81,37 @@ export default function CompetitionTeaser({
     try {
       if (!supabase) throw new Error('Database not configured');
 
+      // Build a detailed message combining all sponsor request fields
+      const messageParts = [];
+      if (formData.companyName) {
+        messageParts.push(`Company: ${formData.companyName}`);
+      }
+      if (formData.website) {
+        messageParts.push(`Website: ${formData.website}`);
+      }
+      if (formData.sponsorshipTier) {
+        const tierLabels = {
+          platinum: 'Platinum (Title Sponsor)',
+          gold: 'Gold',
+          silver: 'Silver',
+          bronze: 'Bronze',
+          custom: 'Custom / Other',
+        };
+        messageParts.push(`Sponsorship Interest: ${tierLabels[formData.sponsorshipTier] || formData.sponsorshipTier}`);
+      }
+      if (formData.sponsorMessage) {
+        messageParts.push(`Message: ${formData.sponsorMessage}`);
+      }
+
       const { error } = await supabase
-        .from('sponsor_requests')
+        .from('interest_submissions')
         .insert({
           competition_id: competition.id,
-          company_name: formData.companyName,
-          contact_name: formData.contactName,
+          interest_type: INTEREST_TYPE.SPONSORING,
+          name: formData.contactName,
           email: formData.sponsorEmail,
           phone: formData.sponsorPhone || null,
-          website: formData.website || null,
-          sponsorship_interest: formData.sponsorshipTier || 'custom',
-          message: formData.sponsorMessage || null,
+          message: messageParts.length > 0 ? messageParts.join('\n\n') : null,
           status: 'pending',
         });
 
