@@ -49,14 +49,15 @@ export default function HostsManager() {
     }
   }, []);
 
-  // Fetch host applications from Supabase
+  // Fetch host applications from Supabase (using interest_submissions with interest_type='hosting')
   const fetchApplications = useCallback(async () => {
     if (!supabase) return;
 
     try {
       const { data, error } = await supabase
-        .from('host_applications')
-        .select('*, profile:profiles(*)')
+        .from('interest_submissions')
+        .select('*')
+        .eq('interest_type', 'hosting')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -67,15 +68,14 @@ export default function HostsManager() {
 
       setApplications((data || []).map(app => ({
         id: app.id,
-        userId: app.user_id,
-        name: app.profile ? `${app.profile.first_name || ''} ${app.profile.last_name || ''}`.trim() : 'Unknown',
-        email: app.profile?.email || app.email,
-        city: app.city,
-        experience: app.experience,
-        socialFollowing: app.social_following || 0,
-        instagram: app.instagram,
-        linkedin: app.linkedin,
-        whyHost: app.why_host,
+        name: app.name || 'Unknown',
+        email: app.email,
+        city: '', // Not stored separately in interest_submissions
+        experience: '', // Extract from message if needed
+        socialFollowing: 0, // Extract from message if needed
+        instagram: '', // Not stored separately
+        linkedin: '', // Not stored separately
+        whyHost: app.message || '', // Combined message field
         status: app.status,
         appliedAt: app.created_at?.split('T')[0] || 'Unknown',
       })));
@@ -124,18 +124,13 @@ export default function HostsManager() {
     if (!app) return;
 
     try {
-      // Update the user's profile to mark as host
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ is_host: true })
-        .eq('id', app.userId);
-
-      if (profileError) throw profileError;
-
-      // Update application status
+      // Update application status in interest_submissions
       const { error: appError } = await supabase
-        .from('host_applications')
-        .update({ status: 'approved' })
+        .from('interest_submissions')
+        .update({
+          status: 'approved',
+          reviewed_at: new Date().toISOString(),
+        })
         .eq('id', applicationId);
 
       if (appError) throw appError;
@@ -154,8 +149,11 @@ export default function HostsManager() {
 
     try {
       const { error } = await supabase
-        .from('host_applications')
-        .update({ status: 'rejected' })
+        .from('interest_submissions')
+        .update({
+          status: 'rejected',
+          reviewed_at: new Date().toISOString(),
+        })
         .eq('id', applicationId);
 
       if (error) throw error;
