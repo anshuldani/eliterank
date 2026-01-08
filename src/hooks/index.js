@@ -1,7 +1,15 @@
 // Hooks barrel export
+
+// Existing hooks
 export { default as useCountdown } from './useCountdown';
 export { default as useModalForm } from './useModalForm';
 export { default as useModals } from './useModals';
 export { default as useAuth } from './useAuth';
 export { default as useSupabaseAuth } from './useSupabaseAuth';
 export { default as useCompetition } from './useCompetition';
+
+// Public competition hooks
+export { default as useCompetitionPublic } from './useCompetitionPublic';
+export { default as usePrizePool } from './usePrizePool';
+export { default as useActivityFeed } from './useActivityFeed';
+export { default as useLeaderboard } from './useLeaderboard';
