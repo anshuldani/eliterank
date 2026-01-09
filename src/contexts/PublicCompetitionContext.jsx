@@ -67,10 +67,12 @@ export function PublicCompetitionProvider({
 
     // Determine what to count down to based on phase
     if (phase.phase === 'coming-soon') {
-      return competition?.nomination_start;
+      // Use phase.startsAt (from nomination_periods) or fallback to competition dates
+      return phase.startsAt || competition?.nomination_start;
     }
     if (phase.phase === 'nominations') {
-      return competition?.nomination_end;
+      // Use phase.endsAt (from nomination_periods) or fallback to competition dates
+      return phase.endsAt || competition?.nomination_end;
     }
     if (phase.isVoting && phase.currentRound) {
       return phase.currentRound.end_date;
