@@ -2182,3 +2182,76 @@
 .btn-full {
   width: 100%;
 }
+
+/* =====================
+   COMPETITION LAYOUT
+   ===================== */
+.competition-layout {
+  position: relative;
+  min-height: 100vh;
+}
+
+.competition-back-btn {
+  position: fixed;
+  top: var(--spacing-lg);
+  left: var(--spacing-lg);
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 100;
+}
+
+.competition-back-btn:hover {
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.competition-loading,
+.competition-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: var(--spacing-xl);
+}
+
+.competition-loading p {
+  margin-top: var(--spacing-md);
+  color: var(--color-text-secondary);
+}
+
+.competition-error svg {
+  color: var(--color-error);
+  margin-bottom: var(--spacing-md);
+}
+
+.competition-error h2 {
+  margin: 0 0 var(--spacing-sm);
+}
+
+.competition-error p {
+  color: var(--color-text-secondary);
+  margin: 0 0 var(--spacing-lg);
+  max-width: 400px;
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--color-primary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

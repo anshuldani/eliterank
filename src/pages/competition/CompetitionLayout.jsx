@@ -67,13 +67,28 @@ function CompetitionLayoutInner() {
     );
   }
 
+  const navigate = useNavigate();
+
   // Determine current view from URL
   const isLeaderboardView = location.pathname.endsWith('/leaderboard');
   const isActivityView = location.pathname.endsWith('/activity');
   const isContestantView = location.pathname.includes('/e/');
 
+  const handleBack = () => {
+    navigate('/');
+  };
+
   return (
     <div className="competition-layout">
+      {/* Floating Back Button */}
+      <button
+        className="competition-back-btn"
+        onClick={handleBack}
+        aria-label="Back to explore"
+      >
+        <ArrowLeft size={20} />
+      </button>
+
       {/* View Navigation - only during voting phases */}
       {phase?.isVoting && !isContestantView && (
         <ViewNavigation
