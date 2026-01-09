@@ -3,7 +3,7 @@ import {
   Crown, ArrowLeft, Star, LogOut, BarChart3, UserPlus, FileText, Settings as SettingsIcon,
   User, Calendar, Eye, Loader, AlertCircle, Archive, RotateCcw, ExternalLink,
   UserCheck, Users, CheckCircle, XCircle, ChevronDown, ChevronUp, Plus, Edit, Trash2,
-  Pin, MapPin, Clock, Sparkles, TrendingUp, Hash, Award, Scale, Check, Wand2
+  Pin, MapPin, Clock, Sparkles, TrendingUp, Hash, Award, Scale, Check, Wand2, Globe
 } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../components/ui';
 import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, RuleModal, AddPersonModal } from '../../components/modals';
@@ -14,6 +14,7 @@ import { useCompetitionDashboard } from '../super-admin/hooks/useCompetitionDash
 import { formatRelativeTime, formatEventDateRange } from '../../utils/formatters';
 import WinnersManager from '../super-admin/components/WinnersManager';
 import TimelineSettings from './components/TimelineSettings';
+import { PublicPageSettings } from './components/settings';
 
 // Reusable components from overview
 import CurrentPhaseCard from '../overview/components/CurrentPhaseCard';
@@ -25,6 +26,7 @@ const TABS = [
   { id: 'contestants', label: 'Contestants', icon: Users },
   { id: 'advancement', label: 'Advancement', icon: TrendingUp },
   { id: 'community', label: 'Community', icon: FileText },
+  { id: 'public-page', label: 'Public Page', icon: Globe },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
   { id: 'profile', label: 'Host Profile', icon: User },
 ];
@@ -2004,6 +2006,20 @@ export default function CompetitionDashboard({
   };
 
   // ============================================================================
+  // PUBLIC PAGE TAB
+  // ============================================================================
+
+  const renderPublicPage = () => {
+    return (
+      <PublicPageSettings
+        competition={competition}
+        organization={null} // TODO: Pass organization when available
+        onSave={refresh}
+      />
+    );
+  };
+
+  // ============================================================================
   // MAIN RENDER
   // ============================================================================
 
@@ -2051,6 +2067,7 @@ export default function CompetitionDashboard({
       case 'contestants': return renderContestants();
       case 'advancement': return renderAdvancement();
       case 'community': return renderCommunity();
+      case 'public-page': return renderPublicPage();
       case 'settings': return renderSettings();
       case 'profile': return renderHostProfile();
       default: return null;
