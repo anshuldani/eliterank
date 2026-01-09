@@ -10,11 +10,12 @@ import {
   Eye,
   Share2,
   Clock,
-  Info
+  Info,
+  Heart
 } from 'lucide-react';
 
 const iconMap = {
-  'vote': CheckCircle,
+  'vote': Heart,
   'trending-up': TrendingUp,
   'trending-down': TrendingDown,
   'crown': Crown,
@@ -24,14 +25,37 @@ const iconMap = {
   'share-2': Share2,
   'clock': Clock,
   'info': Info,
+  'check-circle': CheckCircle,
 };
+
+/**
+ * Format relative time (e.g., "2m", "1h", "3d")
+ */
+function formatRelativeTime(date) {
+  if (!date) return '';
+
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now - then;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffSec < 60) return 'now';
+  if (diffMin < 60) return `${diffMin}m`;
+  if (diffHr < 24) return `${diffHr}h`;
+  if (diffDay < 7) return `${diffDay}d`;
+  return `${Math.floor(diffDay / 7)}w`;
+}
 
 /**
  * Compact activity feed for sidebar
  */
-export function ActivityFeedCompact({ limit = 4 }) {
+export function ActivityFeedCompact({ limit = 5 }) {
   const {
     activities,
+    contestants,
     orgSlug,
     citySlug,
     year
@@ -45,6 +69,11 @@ export function ActivityFeedCompact({ limit = 4 }) {
 
   const displayActivities = activities?.slice(0, limit) || [];
 
+  // Find contestant by ID for avatar
+  const getContestant = (contestantId) => {
+    return contestants?.find(c => c.id === contestantId);
+  };
+
   return (
     <div className="activity-feed-compact">
       <div className="activity-feed-header">
@@ -56,16 +85,27 @@ export function ActivityFeedCompact({ limit = 4 }) {
         {displayActivities.map(activity => {
           const IconComponent = iconMap[activity.typeInfo?.icon] || Info;
           const isHighlight = activity.activity_type?.includes('milestone');
+          const contestant = activity.contestant_id ? getContestant(activity.contestant_id) : null;
+          const relativeTime = formatRelativeTime(activity.created_at);
 
           return (
             <div
               key={activity.id}
               className={`activity-item-compact ${isHighlight ? 'highlight' : ''}`}
             >
-              <IconComponent size={14} className="activity-icon" />
+              {/* User avatar or icon */}
+              {contestant?.avatar_url ? (
+                <div className="activity-avatar">
+                  <img src={contestant.avatar_url} alt="" />
+                </div>
+              ) : (
+                <div className="activity-icon-wrap">
+                  <IconComponent size={12} className="activity-icon" />
+                </div>
+              )}
               <div className="activity-content">
                 <span className="activity-message">{activity.message}</span>
-                <span className="activity-time">{activity.timeAgo}</span>
+                <span className="activity-time">{relativeTime}</span>
               </div>
             </div>
           );
@@ -80,7 +120,7 @@ export function ActivityFeedCompact({ limit = 4 }) {
         className="activity-view-all"
         onClick={() => navigate(`${basePath}/activity`)}
       >
-        News & Timeline
+        View All Activity
       </button>
     </div>
   );
