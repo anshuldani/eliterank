@@ -556,6 +556,27 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: var(--spacing-sm);
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+  color: inherit;
+}
+
+.prize-pool-collapsible .prize-pool-header {
+  cursor: pointer;
+}
+
+.prize-pool-collapsible .prize-pool-header:hover {
+  opacity: 0.8;
+}
+
+.prize-pool-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-text-muted);
 }
 
 .prize-pool-label {
