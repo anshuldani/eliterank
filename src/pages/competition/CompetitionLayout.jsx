@@ -19,6 +19,9 @@ import ResultsPhase from './phases/ResultsPhase';
 import LeaderboardView from './views/LeaderboardView';
 import ActivityView from './views/ActivityView';
 
+// Shared components
+import { CompetitionHeader } from './components/CompetitionHeader';
+
 /**
  * Inner layout component (has access to context)
  */
@@ -154,6 +157,13 @@ function CompetitionLayoutInner() {
 
       {/* Page content - render appropriate view based on URL */}
       <main className="competition-main">
+        {/* Persistent Competition Header - shown on all voting views */}
+        {phase?.isVoting && !isContestantView && (isLeaderboardView || isActivityView) && (
+          <CompetitionHeader
+            badge={phase?.label}
+            badgeVariant="live"
+          />
+        )}
         {phase?.isVoting && isLeaderboardView ? (
           <LeaderboardView />
         ) : phase?.isVoting && isActivityView ? (
