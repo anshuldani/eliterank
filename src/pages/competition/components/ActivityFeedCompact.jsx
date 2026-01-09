@@ -1,4 +1,5 @@
 import { usePublicCompetition } from '../../../contexts/PublicCompetitionContext';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle,
   TrendingUp,
@@ -29,7 +30,18 @@ const iconMap = {
  * Compact activity feed for sidebar
  */
 export function ActivityFeedCompact({ limit = 4 }) {
-  const { activities } = usePublicCompetition();
+  const {
+    activities,
+    orgSlug,
+    citySlug,
+    year
+  } = usePublicCompetition();
+
+  const navigate = useNavigate();
+
+  const basePath = year
+    ? `/c/${orgSlug}/${citySlug}/${year}`
+    : `/c/${orgSlug}/${citySlug}`;
 
   const displayActivities = activities?.slice(0, limit) || [];
 
@@ -63,6 +75,13 @@ export function ActivityFeedCompact({ limit = 4 }) {
           <p className="activity-empty">No activity yet</p>
         )}
       </div>
+
+      <button
+        className="activity-view-all"
+        onClick={() => navigate(`${basePath}/activity`)}
+      >
+        View All Activity
+      </button>
     </div>
   );
 }

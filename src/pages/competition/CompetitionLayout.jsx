@@ -16,6 +16,7 @@ import ResultsPhase from './phases/ResultsPhase';
 
 // View components for different pages
 import LeaderboardView from './views/LeaderboardView';
+import ActivityView from './views/ActivityView';
 
 /**
  * Inner layout component (has access to context)
@@ -104,6 +105,7 @@ function CompetitionLayoutInner() {
 
   // Determine current view from URL
   const isLeaderboardView = location.pathname.endsWith('/leaderboard');
+  const isActivityView = location.pathname.endsWith('/activity');
   const isContestantView = location.pathname.includes('/e/');
 
   const handleBack = () => {
@@ -139,7 +141,13 @@ function CompetitionLayoutInner() {
       {/* View Navigation - only during voting phases */}
       {phase?.isVoting && !isContestantView && (
         <ViewNavigation
-          currentView={isLeaderboardView ? 'leaderboard' : 'main'}
+          currentView={
+            isLeaderboardView
+              ? 'leaderboard'
+              : isActivityView
+                ? 'activity'
+                : 'main'
+          }
         />
       )}
 
@@ -147,6 +155,8 @@ function CompetitionLayoutInner() {
       <main className="competition-main">
         {phase?.isVoting && isLeaderboardView ? (
           <LeaderboardView />
+        ) : phase?.isVoting && isActivityView ? (
+          <ActivityView />
         ) : (
           <PhaseContent phase={phase} />
         )}
@@ -251,6 +261,7 @@ function ViewNavigation({ currentView }) {
   const views = [
     { id: 'main', label: 'Competition', path: basePath },
     { id: 'leaderboard', label: 'Leaderboard', path: `${basePath}/leaderboard` },
+    { id: 'activity', label: 'Activity', path: `${basePath}/activity` },
   ];
 
   return (
