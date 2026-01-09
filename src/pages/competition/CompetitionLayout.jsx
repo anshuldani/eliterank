@@ -74,9 +74,6 @@ function CompetitionLayoutInner() {
 
   return (
     <div className="competition-layout">
-      {/* Competition Header - shows on all views */}
-      <CompetitionHeader />
-
       {/* View Navigation - only during voting phases */}
       {phase?.isVoting && !isContestantView && (
         <ViewNavigation
