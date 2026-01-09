@@ -69,6 +69,17 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
         .select(
           `
           *,
+          host:profiles!competitions_host_id_fkey (
+            id,
+            first_name,
+            last_name,
+            bio,
+            avatar_url,
+            city,
+            instagram,
+            twitter,
+            linkedin
+          ),
           contestants (
             id,
             user_id,
