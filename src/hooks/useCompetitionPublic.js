@@ -59,6 +59,10 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
 
       setOrganization(orgData);
 
+      // Convert slug to pattern for matching:
+      // "new-york-ny" -> "%new%york%ny%" to match "New York, NY"
+      const cityPattern = `%${citySlug.split('-').join('%')}%`;
+
       // Build competition query
       let query = supabase
         .from('competitions')
@@ -145,7 +149,7 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
         `
         )
         .eq('organization_id', orgData.id)
-        .ilike('city', citySlug);
+        .ilike('city', cityPattern);
 
       // Filter by year if provided
       if (year) {
@@ -154,10 +158,11 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
       }
 
       // Order by most recent and get first match
+      // Use maybeSingle() to gracefully handle 0 results (returns null instead of error)
       query = query
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const { data: compData, error: compError } = await query;
 
