@@ -56,7 +56,7 @@ export function LeaderboardCompact() {
             <div
               key={contestant.id}
               className={`portrait-card ${isDanger ? 'at-risk' : ''}`}
-              onClick={() => openContestantProfile(contestant)}
+              onClick={() => openVoteModal(contestant)}
             >
               {/* Portrait image */}
               <div className="portrait-image-wrap">
@@ -83,13 +83,6 @@ export function LeaderboardCompact() {
                     At Risk
                   </span>
                 )}
-                {/* Vote on hover */}
-                <button
-                  className="portrait-vote-btn"
-                  onClick={(e) => { e.stopPropagation(); openVoteModal(contestant); }}
-                >
-                  Vote
-                </button>
               </div>
               {/* Name below image */}
               <div className="portrait-info">
