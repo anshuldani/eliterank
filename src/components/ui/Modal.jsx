@@ -10,6 +10,7 @@ export default function Modal({
   footer,
   maxWidth = '500px',
   headerStyle = {},
+  centered = false,
 }) {
   if (!isOpen) return null;
 
@@ -19,11 +20,11 @@ export default function Modal({
     background: colors.background.overlay,
     backdropFilter: 'blur(8px)',
     display: 'flex',
-    alignItems: 'flex-start',
+    alignItems: centered ? 'center' : 'flex-start',
     justifyContent: 'center',
     zIndex: 50,
     padding: spacing.lg,
-    paddingTop: spacing.xl,
+    paddingTop: centered ? spacing.lg : spacing.xl,
     overflowY: 'auto',
   };
 

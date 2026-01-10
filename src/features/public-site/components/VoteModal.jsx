@@ -100,7 +100,7 @@ export default function VoteModal({
   // If not authenticated, show login prompt
   if (!isAuthenticated) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Sign In Required" maxWidth="400px">
+      <Modal isOpen={isOpen} onClose={onClose} title="Sign In Required" maxWidth="400px" centered>
         <div style={{ textAlign: 'center', padding: spacing.xl }}>
           <div
             style={{
