@@ -158,161 +158,109 @@ export default function VoteModal({
   // Success confirmation screen
   if (showSuccess) {
     return (
-      <Modal isOpen={isOpen} onClose={handleCloseSuccess} title="" maxWidth="420px" centered>
-        <div style={{ textAlign: 'center', padding: `${spacing.lg} ${spacing.xl} ${spacing.xxl}` }}>
-          {/* Success checkmark */}
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: borderRadius.full,
-              background: 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.1))',
-              border: `2px solid rgba(34,197,94,0.4)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto',
-              marginBottom: spacing.lg,
-            }}
-          >
-            <CheckCircle size={40} style={{ color: colors.status.success }} />
+      <Modal isOpen={isOpen} onClose={handleCloseSuccess} title="" maxWidth="380px" centered>
+        <div style={{ textAlign: 'center', padding: `${spacing.xl} ${spacing.lg} ${spacing.xxl}` }}>
+          {/* Contestant image with success badge */}
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: spacing.lg }}>
+            <div
+              style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: borderRadius.full,
+                overflow: 'hidden',
+                border: `3px solid ${colors.gold.primary}`,
+                boxShadow: shadows.gold,
+              }}
+            >
+              {contestant.avatar_url || contestant.avatarUrl ? (
+                <img
+                  src={contestant.avatar_url || contestant.avatarUrl}
+                  alt={contestant.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: gradients.gold,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: typography.fontSize.xxxl,
+                    fontWeight: typography.fontWeight.bold,
+                    color: '#0a0a0f',
+                  }}
+                >
+                  {contestant.name?.charAt(0)}
+                </div>
+              )}
+            </div>
+            {/* Success checkmark badge */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '-4px',
+                right: '-4px',
+                width: '32px',
+                height: '32px',
+                borderRadius: borderRadius.full,
+                background: colors.status.success,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: `3px solid ${colors.background.card}`,
+              }}
+            >
+              <Check size={18} style={{ color: 'white' }} />
+            </div>
           </div>
 
           {/* Success message */}
           <h2
             style={{
-              fontSize: typography.fontSize.xxl,
+              fontSize: typography.fontSize.xl,
               fontWeight: typography.fontWeight.bold,
               color: colors.text.primary,
-              marginBottom: spacing.sm,
+              marginBottom: spacing.xs,
             }}
           >
             Vote Submitted!
           </h2>
-
-          <p
-            style={{
-              fontSize: typography.fontSize.lg,
-              color: colors.text.secondary,
-              marginBottom: spacing.md,
-            }}
-          >
-            You gave{' '}
-            <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>
-              {contestant.name}
-            </span>{' '}
-            {votesAdded} {votesAdded > 1 ? 'votes' : 'vote'}!
+          <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary, marginBottom: spacing.xl }}>
+            You gave <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>{contestant.name}</span> {votesAdded} {votesAdded > 1 ? 'votes' : 'vote'}
           </p>
 
-          {/* Contestant image */}
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: borderRadius.full,
-              overflow: 'hidden',
-              margin: '0 auto',
-              marginBottom: spacing.lg,
-              border: `3px solid ${colors.gold.primary}`,
-              boxShadow: shadows.gold,
-            }}
-          >
-            {contestant.avatar_url || contestant.avatarUrl ? (
-              <img
-                src={contestant.avatar_url || contestant.avatarUrl}
-                alt={contestant.name}
+          {/* Share prompt */}
+          <p style={{ fontSize: typography.fontSize.sm, color: colors.text.muted, marginBottom: spacing.md }}>
+            Share to help them win
+          </p>
+
+          {/* Share buttons row */}
+          <div style={{ display: 'flex', gap: spacing.sm, justifyContent: 'center', marginBottom: spacing.xl }}>
+            {canNativeShare && (
+              <button
+                onClick={handleNativeShare}
                 style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: gradients.gold,
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: borderRadius.full,
+                  background: 'linear-gradient(135deg, #E1306C, #F77737)',
+                  border: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: typography.fontSize.xxxl,
-                  fontWeight: typography.fontWeight.bold,
-                  color: '#0a0a0f',
+                  cursor: 'pointer',
                 }}
               >
-                {contestant.name?.charAt(0)}
-              </div>
+                <Share2 size={22} style={{ color: 'white' }} />
+              </button>
             )}
-          </div>
-
-          {/* Share CTA */}
-          <div
-            style={{
-              background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))',
-              border: `1px solid rgba(212,175,55,0.3)`,
-              borderRadius: borderRadius.xl,
-              padding: spacing.lg,
-              marginBottom: spacing.xl,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-              <Share2 size={18} style={{ color: colors.gold.primary }} />
-              <p
-                style={{
-                  fontSize: typography.fontSize.md,
-                  fontWeight: typography.fontWeight.semibold,
-                  color: colors.gold.primary,
-                }}
-              >
-                Help {contestant.name?.split(' ')[0]} Win!
-              </p>
-            </div>
-            <p
-              style={{
-                fontSize: typography.fontSize.sm,
-                color: colors.text.secondary,
-                lineHeight: 1.5,
-              }}
-            >
-              Share with friends to give them more votes and increase their chances of winning!
-            </p>
-          </div>
-
-          {/* Native Share Button (shows on mobile with OS share sheet) */}
-          {canNativeShare && (
-            <button
-              onClick={handleNativeShare}
-              style={{
-                width: '100%',
-                padding: spacing.lg,
-                background: 'linear-gradient(135deg, #E1306C, #F77737, #FCAF45)',
-                border: 'none',
-                borderRadius: borderRadius.lg,
-                color: 'white',
-                fontSize: typography.fontSize.md,
-                fontWeight: typography.fontWeight.semibold,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: spacing.sm,
-                marginBottom: spacing.lg,
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Share2 size={20} />
-              Share to Stories & More
-            </button>
-          )}
-
-          {/* Share buttons */}
-          <div style={{ display: 'flex', gap: spacing.md, justifyContent: 'center', marginBottom: spacing.xl }}>
             <button
               onClick={handleShareTwitter}
               style={{
-                width: '56px',
-                height: '56px',
+                width: '52px',
+                height: '52px',
                 borderRadius: borderRadius.full,
                 background: '#1DA1F2',
                 border: 'none',
@@ -320,19 +268,15 @@ export default function VoteModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'transform 0.2s, opacity 0.2s',
               }}
-              onMouseOver={(e) => (e.currentTarget.style.opacity = '0.8')}
-              onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
             >
-              <Twitter size={24} style={{ color: 'white' }} />
+              <Twitter size={22} style={{ color: 'white' }} />
             </button>
-
             <button
               onClick={handleShareFacebook}
               style={{
-                width: '56px',
-                height: '56px',
+                width: '52px',
+                height: '52px',
                 borderRadius: borderRadius.full,
                 background: '#4267B2',
                 border: 'none',
@@ -340,19 +284,15 @@ export default function VoteModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                transition: 'transform 0.2s, opacity 0.2s',
               }}
-              onMouseOver={(e) => (e.currentTarget.style.opacity = '0.8')}
-              onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
             >
-              <Facebook size={24} style={{ color: 'white' }} />
+              <Facebook size={22} style={{ color: 'white' }} />
             </button>
-
             <button
               onClick={handleCopyLink}
               style={{
-                width: '56px',
-                height: '56px',
+                width: '52px',
+                height: '52px',
                 borderRadius: borderRadius.full,
                 background: linkCopied ? colors.status.success : 'rgba(255,255,255,0.1)',
                 border: `1px solid ${linkCopied ? colors.status.success : colors.border.light}`,
@@ -363,17 +303,13 @@ export default function VoteModal({
                 transition: 'all 0.2s',
               }}
             >
-              {linkCopied ? (
-                <Check size={24} style={{ color: 'white' }} />
-              ) : (
-                <Link2 size={24} style={{ color: colors.text.secondary }} />
-              )}
+              {linkCopied ? <Check size={22} style={{ color: 'white' }} /> : <Link2 size={22} style={{ color: colors.text.secondary }} />}
             </button>
           </div>
 
           {linkCopied && (
             <p style={{ color: colors.status.success, fontSize: typography.fontSize.sm, marginBottom: spacing.md }}>
-              Link copied to clipboard!
+              Link copied!
             </p>
           )}
 
@@ -382,15 +318,14 @@ export default function VoteModal({
             onClick={handleCloseSuccess}
             style={{
               width: '100%',
-              padding: spacing.lg,
-              background: gradients.gold,
-              border: 'none',
+              padding: spacing.md,
+              background: 'transparent',
+              border: `1px solid ${colors.border.light}`,
               borderRadius: borderRadius.lg,
-              color: '#0a0a0f',
+              color: colors.text.secondary,
               fontSize: typography.fontSize.md,
-              fontWeight: typography.fontWeight.semibold,
+              fontWeight: typography.fontWeight.medium,
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
             }}
           >
             Done
