@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Sparkles, LogIn, Check, Clock, Loader } from 'lucide-react';
+import { DollarSign, Sparkles, LogIn, Check, Clock, Loader, Crown } from 'lucide-react';
 import { Modal, Button, Avatar } from '../../../components/ui';
-import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
+import { colors, spacing, borderRadius, typography, gradients, shadows } from '../../../styles/theme';
 import { formatNumber, formatCurrency } from '../../../utils/formatters';
 import { VOTE_PRESETS } from '../../../constants';
 import { hasUsedFreeVoteToday, submitFreeVote, getTodaysVote, getTimeUntilReset } from '../../../lib/votes';
@@ -97,44 +97,105 @@ export default function VoteModal({
 
   if (!contestant) return null;
 
-  // If not authenticated, show login prompt
+  // If not authenticated, show login prompt (styled to match LoginPage)
   if (!isAuthenticated) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Sign In Required" maxWidth="400px" centered>
-        <div style={{ textAlign: 'center', padding: spacing.xl }}>
+      <Modal isOpen={isOpen} onClose={onClose} title="" maxWidth="420px" centered>
+        <div style={{ textAlign: 'center', padding: `${spacing.lg} ${spacing.xl} ${spacing.xxl}` }}>
+          {/* Crown Logo - matches LoginPage */}
           <div
             style={{
-              width: '80px',
-              height: '80px',
-              background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1))',
-              borderRadius: borderRadius.full,
+              width: '64px',
+              height: '64px',
+              background: gradients.gold,
+              borderRadius: borderRadius.xl,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto',
-              marginBottom: spacing.xl,
+              marginBottom: spacing.lg,
+              boxShadow: shadows.goldLarge,
             }}
           >
-            <LogIn size={36} style={{ color: colors.gold.primary }} />
+            <Crown size={32} style={{ color: '#0a0a0f' }} />
           </div>
 
-          <h3 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }}>
-            Sign In to Vote
-          </h3>
+          {/* Title - matches LoginPage */}
+          <h1
+            style={{
+              fontSize: typography.fontSize.hero,
+              fontWeight: typography.fontWeight.bold,
+              background: gradients.gold,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              marginBottom: spacing.sm,
+            }}
+          >
+            EliteRank
+          </h1>
 
-          <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.md, marginBottom: spacing.xxl, lineHeight: 1.6 }}>
-            Create an account or sign in to vote for <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>{contestant.name}</span> and support your favorite contestant!
+          <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary, marginBottom: spacing.xl }}>
+            Sign in to vote
+          </p>
+
+          <p style={{ color: colors.text.muted, fontSize: typography.fontSize.sm, marginBottom: spacing.xxl, lineHeight: 1.6 }}>
+            Create an account or sign in to vote for{' '}
+            <span style={{ color: colors.gold.primary, fontWeight: typography.fontWeight.semibold }}>
+              {contestant.name}
+            </span>{' '}
+            and support your favorite contestant!
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-            <Button fullWidth size="lg" onClick={onLogin}>
+            {/* Primary Button - matches LoginPage gold gradient */}
+            <button
+              onClick={onLogin}
+              style={{
+                width: '100%',
+                padding: spacing.lg,
+                background: gradients.gold,
+                border: 'none',
+                borderRadius: borderRadius.lg,
+                color: '#0a0a0f',
+                fontSize: typography.fontSize.md,
+                fontWeight: typography.fontWeight.semibold,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                boxShadow: shadows.gold,
+                transition: 'all 0.2s ease',
+              }}
+            >
               <LogIn size={18} />
               Sign In to Vote
-            </Button>
-            <Button variant="secondary" fullWidth size="md" onClick={onClose}>
+            </button>
+
+            {/* Cancel Button */}
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%',
+                padding: spacing.md,
+                background: 'rgba(255,255,255,0.05)',
+                border: `1px solid ${colors.border.light}`,
+                borderRadius: borderRadius.lg,
+                color: colors.text.secondary,
+                fontSize: typography.fontSize.md,
+                fontWeight: typography.fontWeight.medium,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
               Cancel
-            </Button>
+            </button>
           </div>
+
+          {/* Footer - matches LoginPage */}
+          <p style={{ marginTop: spacing.xl, fontSize: typography.fontSize.xs, color: colors.text.muted }}>
+            © 2025 EliteRank. All rights reserved.
+          </p>
         </div>
       </Modal>
     );

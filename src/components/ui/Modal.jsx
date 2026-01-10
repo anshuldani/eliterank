@@ -29,6 +29,7 @@ export default function Modal({
   };
 
   const modalStyle = {
+    position: 'relative',
     background: '#1a1a24',
     border: `1px solid ${colors.border.light}`,
     borderRadius: borderRadius.xxl,
@@ -74,16 +75,34 @@ export default function Modal({
     gap: spacing.md,
   };
 
+  // If no title, show minimal header with just close button
+  const showFullHeader = title && title.trim() !== '';
+
   return (
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={headerBaseStyle}>
-          <h2 style={titleStyle}>{title}</h2>
-          <button style={closeButtonStyle} onClick={onClose}>
+        {showFullHeader ? (
+          <div style={headerBaseStyle}>
+            <h2 style={titleStyle}>{title}</h2>
+            <button style={closeButtonStyle} onClick={onClose}>
+              <X size={24} />
+            </button>
+          </div>
+        ) : (
+          <button
+            style={{
+              ...closeButtonStyle,
+              position: 'absolute',
+              top: spacing.md,
+              right: spacing.md,
+              zIndex: 10,
+            }}
+            onClick={onClose}
+          >
             <X size={24} />
           </button>
-        </div>
-        <div style={bodyStyle}>{children}</div>
+        )}
+        <div style={showFullHeader ? bodyStyle : { ...bodyStyle, paddingTop: spacing.xl }}>{children}</div>
         {footer && <div style={footerStyle}>{footer}</div>}
       </div>
     </div>
