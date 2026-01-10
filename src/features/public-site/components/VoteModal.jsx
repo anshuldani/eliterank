@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Sparkles, LogIn, Check, Clock, Loader, Crown } from 'lucide-react';
+import { DollarSign, Sparkles, LogIn, Check, Clock, Loader } from 'lucide-react';
 import { Modal, Button, Avatar } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients, shadows } from '../../../styles/theme';
 import { formatNumber, formatCurrency } from '../../../utils/formatters';
@@ -102,40 +102,62 @@ export default function VoteModal({
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="" maxWidth="420px" centered>
         <div style={{ textAlign: 'center', padding: `${spacing.lg} ${spacing.xl} ${spacing.xxl}` }}>
-          {/* Crown Logo - matches LoginPage */}
+          {/* Contestant Profile Image */}
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              background: gradients.gold,
-              borderRadius: borderRadius.xl,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              width: '100px',
+              height: '100px',
+              borderRadius: borderRadius.full,
+              overflow: 'hidden',
               margin: '0 auto',
               marginBottom: spacing.lg,
+              border: `3px solid ${colors.gold.primary}`,
               boxShadow: shadows.goldLarge,
             }}
           >
-            <Crown size={32} style={{ color: '#0a0a0f' }} />
+            {contestant.avatar_url || contestant.avatarUrl ? (
+              <img
+                src={contestant.avatar_url || contestant.avatarUrl}
+                alt={contestant.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  background: gradients.gold,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: typography.fontSize.hero,
+                  fontWeight: typography.fontWeight.bold,
+                  color: '#0a0a0f',
+                }}
+              >
+                {contestant.name?.charAt(0)}
+              </div>
+            )}
           </div>
 
-          {/* Title - matches LoginPage */}
-          <h1
+          {/* Title */}
+          <h2
             style={{
-              fontSize: typography.fontSize.hero,
-              fontWeight: typography.fontWeight.bold,
-              background: gradients.gold,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
               marginBottom: spacing.sm,
             }}
           >
-            EliteRank
-          </h1>
+            Vote for {contestant.name?.split(' ')[0]}
+          </h2>
 
           <p style={{ fontSize: typography.fontSize.md, color: colors.text.secondary, marginBottom: spacing.xl }}>
-            Sign in to vote
+            Sign in to cast your vote
           </p>
 
           <p style={{ color: colors.text.muted, fontSize: typography.fontSize.sm, marginBottom: spacing.xxl, lineHeight: 1.6 }}>
@@ -191,11 +213,6 @@ export default function VoteModal({
               Cancel
             </button>
           </div>
-
-          {/* Footer - matches LoginPage */}
-          <p style={{ marginTop: spacing.xl, fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-            © 2025 EliteRank. All rights reserved.
-          </p>
         </div>
       </Modal>
     );
