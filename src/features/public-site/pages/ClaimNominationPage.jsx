@@ -339,6 +339,31 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
     }
   };
 
+  // Handle Forgot Password
+  const handleForgotPassword = async () => {
+    if (!signupData.email || !signupData.email.includes('@')) {
+      setSignupErrors({ email: 'Enter your email first' });
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(signupData.email, {
+        redirectTo: `${window.location.origin}/claim/${token}`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset email sent! Check your inbox.');
+    } catch (err) {
+      console.error('Password reset error:', err);
+      toast.error('Failed to send reset email. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Handle Reject
   const handleReject = async () => {
     setProcessing(true);
@@ -746,6 +771,33 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
                 </>
               )}
             </Button>
+
+            {/* Already have account / Forgot password */}
+            <div style={{
+              marginTop: spacing.lg,
+              textAlign: 'center',
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+            }}>
+              <p style={{ marginBottom: spacing.xs }}>
+                Already have an account? Enter your password above.
+              </p>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={processing}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.gold.primary,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: typography.fontSize.sm,
+                }}
+              >
+                Forgot your password?
+              </button>
+            </div>
 
             {/* Back button */}
             <button
