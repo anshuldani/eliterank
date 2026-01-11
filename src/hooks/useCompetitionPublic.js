@@ -91,13 +91,7 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
         .select(
           `
           *,
-          city:cities (
-            id,
-            name,
-            slug,
-            state,
-            country
-          ),
+          city:cities(*),
           host:profiles!competitions_host_id_fkey (
             id,
             first_name,
