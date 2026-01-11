@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Crown, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Crown, Mail, Lock, LogIn, UserPlus, Eye, EyeOff, User, AlertCircle, CheckCircle, ArrowLeft, Send } from 'lucide-react';
 import { colors, gradients, shadows, borderRadius, spacing, typography } from '../../styles/theme';
 import { useSupabaseAuth } from '../../hooks';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginPage({ onLogin, onBack }) {
-  const [mode, setMode] = useState('login'); // 'login' or 'signup'
+  const [mode, setMode] = useState('login'); // 'login', 'signup', or 'magic-link-sent'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -14,6 +15,7 @@ export default function LoginPage({ onLogin, onBack }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showMagicLinkOption, setShowMagicLinkOption] = useState(false);
 
   const { signIn, signUp } = useSupabaseAuth();
 
@@ -74,6 +76,10 @@ export default function LoginPage({ onLogin, onBack }) {
 
         if (error) {
           setError(error);
+          // Show magic link option if login failed (could be wrong password or no password set)
+          if (error.includes('Invalid') || error.includes('credentials')) {
+            setShowMagicLinkOption(true);
+          }
         } else if (user) {
           onLogin({
             id: user.id,
@@ -93,6 +99,37 @@ export default function LoginPage({ onLogin, onBack }) {
     setMode(mode === 'login' ? 'signup' : 'login');
     setError('');
     setSuccess('');
+    setShowMagicLinkOption(false);
+  };
+
+  // Send magic link for users who don't have a password set
+  const handleSendMagicLink = async () => {
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+
+      if (otpError) {
+        setError(otpError.message || 'Failed to send sign-in link');
+      } else {
+        setMode('magic-link-sent');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to send sign-in link');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const containerStyle = {
@@ -322,11 +359,65 @@ export default function LoginPage({ onLogin, onBack }) {
           </div>
           <h1 style={titleStyle}>EliteRank</h1>
           <p style={subtitleStyle}>
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
+            {mode === 'magic-link-sent'
+              ? 'Check your email'
+              : mode === 'login'
+                ? 'Welcome back'
+                : 'Create your account'}
           </p>
         </div>
 
-        {/* Form */}
+        {/* Magic Link Sent Confirmation */}
+        {mode === 'magic-link-sent' ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'rgba(74, 222, 128, 0.1)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 24px',
+            }}>
+              <Mail size={32} style={{ color: colors.status.success }} />
+            </div>
+            <p style={{
+              color: colors.text.primary,
+              fontSize: typography.fontSize.md,
+              marginBottom: spacing.md,
+              lineHeight: 1.6,
+            }}>
+              We sent a sign-in link to <strong>{email}</strong>
+            </p>
+            <p style={{
+              color: colors.text.secondary,
+              fontSize: typography.fontSize.sm,
+              marginBottom: spacing.xl,
+              lineHeight: 1.6,
+            }}>
+              Click the link in your email to sign in. The link will expire in 1 hour.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login');
+                setShowMagicLinkOption(false);
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: colors.gold.primary,
+                cursor: 'pointer',
+                fontSize: typography.fontSize.sm,
+                textDecoration: 'underline',
+              }}
+            >
+              Back to login
+            </button>
+          </div>
+        ) : (
+        /* Form */
         <form onSubmit={handleSubmit} style={formStyle}>
           {error && (
             <div style={alertStyle('error')}>
@@ -474,15 +565,61 @@ export default function LoginPage({ onLogin, onBack }) {
               </>
             )}
           </button>
+
+          {/* Magic Link Option - shown when login fails */}
+          {mode === 'login' && showMagicLinkOption && (
+            <div style={{
+              marginTop: spacing.lg,
+              padding: spacing.lg,
+              background: 'rgba(212, 175, 55, 0.05)',
+              border: `1px solid ${colors.border.gold}`,
+              borderRadius: borderRadius.lg,
+            }}>
+              <p style={{
+                color: colors.text.secondary,
+                fontSize: typography.fontSize.sm,
+                marginBottom: spacing.md,
+                lineHeight: 1.5,
+              }}>
+                Were you nominated and haven't set a password yet? We can send you a sign-in link.
+              </p>
+              <button
+                type="button"
+                onClick={handleSendMagicLink}
+                disabled={isLoading}
+                style={{
+                  width: '100%',
+                  padding: spacing.md,
+                  background: 'transparent',
+                  border: `1px solid ${colors.gold.primary}`,
+                  borderRadius: borderRadius.md,
+                  color: colors.gold.primary,
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: typography.fontWeight.medium,
+                  cursor: isLoading ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: spacing.sm,
+                }}
+              >
+                <Send size={16} />
+                Send me a sign-in link
+              </button>
+            </div>
+          )}
         </form>
+        )}
 
         {/* Switch mode */}
+        {mode !== 'magic-link-sent' && (
         <p style={switchStyle}>
           {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}
           <span style={linkStyle} onClick={switchMode}>
             {mode === 'login' ? 'Sign up' : 'Sign in'}
           </span>
         </p>
+        )}
 
         {/* Footer */}
         <p style={footerStyle}>© 2025 EliteRank. All rights reserved.</p>
