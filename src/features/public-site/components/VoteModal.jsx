@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Sparkles, LogIn, Check, Clock, Loader, Share2, Twitter, Facebook, Link2, CheckCircle, CreditCard, ArrowLeft } from 'lucide-react';
+import { DollarSign, Sparkles, LogIn, Check, Clock, Loader, Share2, Twitter, Facebook, Link2, CheckCircle, CreditCard, X } from 'lucide-react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Modal, Button, Avatar } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients, shadows } from '../../../styles/theme';
@@ -241,15 +241,15 @@ export default function VoteModal({
     const stripePromise = getStripe();
 
     return (
-      <Modal isOpen={isOpen} onClose={handleBackFromPayment} title="" maxWidth="360px" centered>
+      <Modal isOpen={isOpen} onClose={handleBackFromPayment} title="" maxWidth="360px" centered hideCloseButton>
         <div style={{ display: 'flex', flexDirection: 'column', maxHeight: '85vh' }}>
-          {/* Sticky header with back button, avatar, info, and total */}
+          {/* Sticky header with avatar, info, total, and X close button */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: spacing.sm,
-              padding: spacing.md,
+              padding: `${spacing.sm} ${spacing.md}`,
               background: colors.background.card,
               borderBottom: `1px solid ${colors.border.light}`,
               position: 'sticky',
@@ -257,24 +257,10 @@ export default function VoteModal({
               zIndex: 10,
             }}
           >
-            <button
-              onClick={handleBackFromPayment}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: colors.text.secondary,
-                cursor: 'pointer',
-                padding: spacing.xs,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <ArrowLeft size={18} />
-            </button>
             <div
               style={{
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: borderRadius.full,
                 overflow: 'hidden',
                 flexShrink: 0,
@@ -296,7 +282,7 @@ export default function VoteModal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: typography.fontSize.sm,
+                    fontSize: typography.fontSize.xs,
                     fontWeight: typography.fontWeight.bold,
                     color: '#0a0a0f',
                   }}
@@ -314,14 +300,33 @@ export default function VoteModal({
               style={{
                 background: 'rgba(212,175,55,0.15)',
                 borderRadius: borderRadius.md,
-                padding: `${spacing.xs} ${spacing.sm}`,
+                padding: `2px ${spacing.sm}`,
                 border: `1px solid rgba(212,175,55,0.25)`,
               }}
             >
-              <span style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.bold, color: colors.gold.primary }}>
+              <span style={{ fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.bold, color: colors.gold.primary }}>
                 {formatCurrency(selectedVoteCount)}
               </span>
             </div>
+            {/* X close button */}
+            <button
+              onClick={handleBackFromPayment}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: borderRadius.full,
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                marginLeft: spacing.xs,
+                flexShrink: 0,
+              }}
+            >
+              <X size={16} style={{ color: colors.text.secondary }} />
+            </button>
           </div>
 
           {/* Scrollable Stripe Elements container */}
