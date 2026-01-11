@@ -60,21 +60,22 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
       setOrganization(orgData);
 
       // Lookup city by slug from cities table
+      // Use maybeSingle() to gracefully handle 0 results (returns null instead of 406 error)
       let cityData = null;
-      const { data: cityResult, error: cityError } = await supabase
+      const { data: cityResult } = await supabase
         .from('cities')
         .select('id, name, slug, state')
         .eq('slug', citySlug)
-        .single();
+        .maybeSingle();
 
-      if (cityError || !cityResult) {
+      if (!cityResult) {
         // Fallback: try pattern matching on slug
         const { data: cityFallback } = await supabase
           .from('cities')
           .select('id, name, slug, state')
           .ilike('slug', `%${citySlug}%`)
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!cityFallback) {
           throw new Error('City not found');
@@ -90,13 +91,7 @@ export function useCompetitionPublic(orgSlug, citySlug, year = null) {
         .select(
           `
           *,
-          city:cities!competitions_city_id_fkey (
-            id,
-            name,
-            slug,
-            state,
-            country
-          ),
+          city:cities(*),
           host:profiles!competitions_host_id_fkey (
             id,
             first_name,
