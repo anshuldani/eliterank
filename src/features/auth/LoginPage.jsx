@@ -10,12 +10,11 @@ import { supabase } from '../../lib/supabase';
  * Step 1: Email entry
  * Step 2: Based on account status:
  *   - New user → Signup form (name + password)
- *   - Existing user → Password entry with forgot password option
- *   - Nominee without password → Create password form
+ *   - Existing user (including nominees) → Password entry with forgot password option
  */
 export default function LoginPage({ onLogin, onBack }) {
   // Flow state
-  const [step, setStep] = useState('email'); // 'email', 'password', 'create-password', 'signup'
+  const [step, setStep] = useState('email'); // 'email', 'password', 'signup'
   const [isNominee, setIsNominee] = useState(false);
 
   // Form data
@@ -78,12 +77,9 @@ export default function LoginPage({ onLogin, onBack }) {
       if (!userExists) {
         // New user - go to signup
         setStep('signup');
-      } else if (isNomineeUser) {
-        // Existing user who is a nominee - likely needs to create password
-        // Show create password form with magic link option
-        setStep('create-password');
       } else {
-        // Regular existing user - show password field
+        // Existing user (including nominees) - show password field
+        // If they don't have a password, they can use "Forgot password?" to set one
         setStep('password');
       }
     } catch (err) {
@@ -121,80 +117,6 @@ export default function LoginPage({ onLogin, onBack }) {
       }
     } catch (err) {
       setError(err.message || 'Failed to sign in');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle create password (for nominees)
-  const handleCreatePassword = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!password || password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Try to update password - this works if user is already authenticated via magic link
-      // For users without session, we need to sign them up or use password recovery
-
-      // First try signing up (in case account was pre-created without password)
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-          },
-        },
-      });
-
-      if (signUpError) {
-        if (signUpError.message?.includes('already registered')) {
-          // User exists - they need to use password reset flow
-          // Send password reset email
-          const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}?reset=true`,
-          });
-
-          if (resetError) {
-            setError('Unable to set password. Please try the magic link option.');
-          } else {
-            setSuccess('Password reset email sent! Check your inbox to set your password.');
-          }
-        } else {
-          setError(signUpError.message);
-        }
-      } else if (signUpData?.user) {
-        // Sign up successful - they may need to confirm email
-        if (signUpData.user.identities?.length === 0) {
-          // User already existed, try to sign in
-          const { user, error: signInError } = await signIn(email, password);
-          if (signInError) {
-            setError('Account exists. Please check your email for a confirmation link.');
-          } else if (user) {
-            onLogin({
-              id: user.id,
-              email: user.email,
-              name: user.user_metadata?.first_name || firstName || email.split('@')[0],
-            });
-          }
-        } else {
-          setSuccess('Account created! Please check your email to confirm.');
-        }
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to create password');
     } finally {
       setIsLoading(false);
     }
@@ -431,9 +353,7 @@ export default function LoginPage({ onLogin, onBack }) {
       case 'email':
         return 'Enter your email to continue';
       case 'password':
-        return 'Welcome back';
-      case 'create-password':
-        return 'Create your password';
+        return isNominee ? 'You were nominated!' : 'Welcome back';
       case 'signup':
         return 'Create your account';
       default:
@@ -575,6 +495,20 @@ export default function LoginPage({ onLogin, onBack }) {
               </div>
             )}
 
+            {/* Nominee banner */}
+            {isNominee && (
+              <div style={{
+                padding: spacing.md,
+                background: 'rgba(212, 175, 55, 0.1)',
+                border: `1px solid ${colors.border.gold}`,
+                borderRadius: borderRadius.md,
+              }}>
+                <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
+                  Enter your password to claim your nomination. If you haven't set a password yet, use "Forgot password?" below.
+                </p>
+              </div>
+            )}
+
             <div style={{
               padding: spacing.md,
               background: 'rgba(255,255,255,0.03)',
@@ -660,155 +594,6 @@ export default function LoginPage({ onLogin, onBack }) {
                 Forgot password?
               </button>
             </div>
-          </form>
-        )}
-
-        {/* Step: Create Password (nominee without password) */}
-        {step === 'create-password' && (
-          <form onSubmit={handleCreatePassword} style={formStyle}>
-            {error && (
-              <div style={alertStyle('error')}>
-                <AlertCircle size={16} />
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div style={alertStyle('success')}>
-                <CheckCircle size={16} />
-                {success}
-              </div>
-            )}
-
-            <div style={{
-              padding: spacing.md,
-              background: 'rgba(212, 175, 55, 0.1)',
-              border: `1px solid ${colors.border.gold}`,
-              borderRadius: borderRadius.md,
-              marginBottom: spacing.sm,
-            }}>
-              <p style={{ color: colors.gold.primary, fontSize: typography.fontSize.sm, marginBottom: spacing.xs }}>
-                You were nominated!
-              </p>
-              <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-                Create a password to access your account and claim your nomination.
-              </p>
-            </div>
-
-            <div style={{
-              padding: spacing.md,
-              background: 'rgba(255,255,255,0.03)',
-              borderRadius: borderRadius.md,
-            }}>
-              <p style={{ color: colors.text.muted, fontSize: typography.fontSize.sm }}>
-                Creating account for
-              </p>
-              <p style={{ color: colors.text.primary, fontWeight: typography.fontWeight.medium }}>
-                {email}
-              </p>
-            </div>
-
-            {/* Name fields - pre-filled from nominee data */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
-              <div style={inputGroupStyle}>
-                <label style={labelStyle}>First Name</label>
-                <div style={inputWrapperStyle}>
-                  <User size={18} style={inputIconStyle} />
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="First name"
-                    style={inputStyle}
-                    onFocus={handleInputFocus}
-                    onBlur={handleInputBlur}
-                  />
-                </div>
-              </div>
-              <div style={inputGroupStyle}>
-                <label style={labelStyle}>Last Name</label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Last name"
-                  style={inputStyleNoIcon}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                />
-              </div>
-            </div>
-
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Create Password</label>
-              <div style={inputWrapperStyle}>
-                <Lock size={18} style={inputIconStyle} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
-                  style={{ ...inputStyle, paddingRight: '44px' }}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                  autoComplete="new-password"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: spacing.md,
-                    background: 'none',
-                    border: 'none',
-                    color: colors.text.muted,
-                    cursor: 'pointer',
-                    padding: spacing.xs,
-                  }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Confirm Password</label>
-              <div style={inputWrapperStyle}>
-                <Lock size={18} style={inputIconStyle} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm password"
-                  style={inputStyle}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-
-            <button type="submit" disabled={isLoading || !!success} style={buttonStyle}>
-              {isLoading ? (
-                <>
-                  <span style={{
-                    width: '18px',
-                    height: '18px',
-                    border: '2px solid rgba(0,0,0,0.3)',
-                    borderTopColor: '#0a0a0f',
-                    borderRadius: '50%',
-                    animation: 'spin 0.8s linear infinite',
-                  }} />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <UserPlus size={18} />
-                  Create Password & Continue
-                </>
-              )}
-            </button>
           </form>
         )}
 
