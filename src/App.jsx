@@ -259,6 +259,137 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+/**
+ * PendingNominationsModal - Shows when user has multiple pending nominations
+ */
+function PendingNominationsModal({ nominations, onSelect, onClose }) {
+  if (!nominations?.length) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.8)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '24px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: '#1a1a2e',
+          border: '1px solid rgba(212, 175, 55, 0.3)',
+          borderRadius: '16px',
+          padding: '32px',
+          maxWidth: '480px',
+          width: '100%',
+          maxHeight: '80vh',
+          overflow: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              fontSize: '32px',
+            }}
+          >
+            👑
+          </div>
+          <h2 style={{ color: '#d4af37', fontSize: '1.5rem', marginBottom: '8px' }}>
+            You Have Pending Nominations!
+          </h2>
+          <p style={{ color: '#9ca3af', fontSize: '0.95rem' }}>
+            Select a competition to claim your nomination
+          </p>
+        </div>
+
+        {/* Nominations List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {nominations.map((nom) => (
+            <button
+              key={nom.id}
+              onClick={() => onSelect(nom)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '12px',
+                padding: '16px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(212, 175, 55, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ color: '#fff', fontWeight: '600', marginBottom: '4px' }}>
+                    Most Eligible {nom.competition?.city} {nom.competition?.season}
+                  </p>
+                  <p style={{ color: '#9ca3af', fontSize: '0.85rem' }}>
+                    {nom.competition?.organization?.name || 'EliteRank'}
+                  </p>
+                </div>
+                <div
+                  style={{
+                    background: nom.claimed_at ? 'rgba(74, 222, 128, 0.2)' : 'rgba(212, 175, 55, 0.2)',
+                    color: nom.claimed_at ? '#4ade80' : '#d4af37',
+                    fontSize: '0.75rem',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    fontWeight: '500',
+                  }}
+                >
+                  {nom.claimed_at ? 'Complete Profile' : 'Accept/Decline'}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Skip Option */}
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            marginTop: '20px',
+            padding: '12px',
+            background: 'transparent',
+            border: 'none',
+            color: '#6b7280',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          I'll do this later
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // MAIN APP COMPONENT
 // =============================================================================
@@ -335,6 +466,10 @@ export default function App() {
 
   // Return URL after login (for redirecting back to contestant vote modal)
   const [loginReturnUrl, setLoginReturnUrl] = useState(null);
+
+  // Pending nominations state (for showing selection modal after login)
+  const [pendingNominations, setPendingNominations] = useState(null);
+  const [showNominationsModal, setShowNominationsModal] = useState(false);
 
   // ===========================================================================
   // HOST COMPETITION (from database)
@@ -477,6 +612,110 @@ export default function App() {
   }, []); // Only run once on mount
 
   // ===========================================================================
+  // PENDING NOMINATIONS CHECK
+  // ===========================================================================
+
+  // Track if we've already checked for pending nominations this session
+  const [hasCheckedPending, setHasCheckedPending] = useState(false);
+
+  // Check if user has pending nominations after login
+  const checkPendingNominations = useCallback(async (userEmail, userId) => {
+    if (!userEmail || !supabase) return null;
+
+    try {
+      // Find nominee records for this email that are:
+      // 1. Not yet claimed (claimed_at IS NULL), OR
+      // 2. Claimed but profile incomplete
+      const { data: nominees, error } = await supabase
+        .from('nominees')
+        .select(`
+          id,
+          name,
+          email,
+          invite_token,
+          claimed_at,
+          status,
+          user_id,
+          competition:competitions(
+            id,
+            city,
+            season,
+            status,
+            nomination_end,
+            organization:organizations(name, slug)
+          )
+        `)
+        .eq('email', userEmail)
+        .neq('status', 'rejected')
+        .is('converted_to_contestant', null);
+
+      if (error || !nominees?.length) {
+        return null;
+      }
+
+      // Filter to only pending nominations:
+      // - Not yet claimed OR claimed but profile incomplete
+      const pending = nominees.filter(n => {
+        // Skip if competition nomination period ended
+        if (n.competition?.nomination_end) {
+          const endDate = new Date(n.competition.nomination_end);
+          if (new Date() > endDate) return false;
+        }
+        return true;
+      });
+
+      if (!pending.length) return null;
+
+      return pending;
+    } catch (err) {
+      console.error('Error checking pending nominations:', err);
+      return null;
+    }
+  }, []);
+
+  // Check for pending nominations when user logs in via magic link
+  // (this handles the case where magic link bypasses LoginPage)
+  useEffect(() => {
+    const checkOnAuth = async () => {
+      // Only check if:
+      // 1. User is authenticated
+      // 2. We haven't already checked this session
+      // 3. We're not already on a claim page
+      // 4. We're not showing the nominations modal
+      if (
+        isAuthenticated &&
+        user?.email &&
+        !hasCheckedPending &&
+        !claimToken &&
+        !showNominationsModal
+      ) {
+        setHasCheckedPending(true);
+
+        const pending = await checkPendingNominations(user.email, user.id);
+
+        if (pending?.length) {
+          if (pending.length === 1) {
+            setClaimToken(pending[0].invite_token);
+            setClaimStage('initial');
+          } else {
+            setPendingNominations(pending);
+            setShowNominationsModal(true);
+          }
+        }
+      }
+    };
+
+    checkOnAuth();
+  }, [isAuthenticated, user?.email, user?.id, hasCheckedPending, claimToken, showNominationsModal, checkPendingNominations]);
+
+  // Reset the check flag when user logs out
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setHasCheckedPending(false);
+    }
+  }, [isAuthenticated]);
+
+  // ===========================================================================
   // NAVIGATION HANDLERS
   // ===========================================================================
 
@@ -484,7 +723,29 @@ export default function App() {
     setCurrentView(VIEW.LOGIN);
   }, []);
 
-  const handleLogin = useCallback(() => {
+  const handleLogin = useCallback(async (userData) => {
+    // Check for pending nominations first
+    if (userData?.email) {
+      const pending = await checkPendingNominations(userData.email, userData.id);
+
+      if (pending?.length) {
+        if (pending.length === 1) {
+          // Single pending nomination - redirect directly to claim page
+          setClaimToken(pending[0].invite_token);
+          setClaimStage('initial');
+          setCurrentView(VIEW.PUBLIC);
+          return;
+        } else {
+          // Multiple pending nominations - show selection modal
+          setPendingNominations(pending);
+          setShowNominationsModal(true);
+          setCurrentView(VIEW.PUBLIC);
+          return;
+        }
+      }
+    }
+
+    // No pending nominations - normal flow
     // If we have a return URL (e.g., from clicking "Sign in to vote"), redirect there
     if (loginReturnUrl) {
       const returnUrl = loginReturnUrl;
@@ -493,7 +754,7 @@ export default function App() {
     } else {
       setCurrentView(VIEW.PUBLIC);
     }
-  }, [loginReturnUrl, navigate]);
+  }, [loginReturnUrl, navigate, checkPendingNominations]);
 
   const handleLogout = useCallback(async () => {
     await signOut();
@@ -600,6 +861,22 @@ export default function App() {
 
   const handleProfileChange = useCallback((updates) => {
     setEditingProfileData(updates);
+  }, []);
+
+  // ===========================================================================
+  // PENDING NOMINATIONS MODAL HANDLERS
+  // ===========================================================================
+
+  const handleSelectNomination = useCallback((nomination) => {
+    setShowNominationsModal(false);
+    setPendingNominations(null);
+    setClaimToken(nomination.invite_token);
+    setClaimStage('initial');
+  }, []);
+
+  const handleCloseNominationsModal = useCallback(() => {
+    setShowNominationsModal(false);
+    setPendingNominations(null);
   }, []);
 
 
@@ -848,6 +1125,15 @@ export default function App() {
             </Suspense>
           </div>
         </div>
+      )}
+
+      {/* Pending Nominations Modal */}
+      {showNominationsModal && pendingNominations?.length > 0 && (
+        <PendingNominationsModal
+          nominations={pendingNominations}
+          onSelect={handleSelectNomination}
+          onClose={handleCloseNominationsModal}
+        />
       )}
     </ErrorBoundary>
   );

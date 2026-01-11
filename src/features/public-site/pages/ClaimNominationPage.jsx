@@ -27,8 +27,17 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
   const [error, setError] = useState(null);
 
   // UI state
-  const [stage, setStage] = useState('loading'); // 'loading', 'decide', 'signup', 'profile', 'success'
+  const [stage, setStage] = useState('loading'); // 'loading', 'decide', 'set-password', 'signup', 'profile', 'success'
   const [processing, setProcessing] = useState(false);
+  const [needsPassword, setNeedsPassword] = useState(false); // Track if authenticated user needs to set password
+
+  // Set password form state (for users authenticated via magic link)
+  const [setPasswordData, setSetPasswordData] = useState({
+    password: '',
+    confirmPassword: '',
+  });
+  const [showSetPassword, setShowSetPassword] = useState(false);
+  const [setPasswordErrors, setSetPasswordErrors] = useState({});
 
   // Signup form state
   const [signupData, setSignupData] = useState({
@@ -202,7 +211,7 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
     return profile.first_name && profile.last_name && profile.avatar_url && profile.bio && profile.city;
   };
 
-  // Handle Accept - check if user needs to create account first
+  // Handle Accept - check if user needs to create account or set password first
   const handleAccept = async () => {
     // If not authenticated, go to signup stage first
     if (!user) {
@@ -215,8 +224,47 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
       return;
     }
 
-    // User is authenticated, proceed with accepting
-    await completeAccept();
+    // User is authenticated (likely via magic link) - require password setup before accepting
+    // This ensures they can log back in later with a password
+    setNeedsPassword(true);
+    setStage('set-password');
+  };
+
+  // Handle Set Password - for users authenticated via magic link
+  const handleSetPassword = async () => {
+    // Validate
+    const errors = {};
+    if (!setPasswordData.password || setPasswordData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    if (setPasswordData.password !== setPasswordData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSetPasswordErrors(errors);
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // Use updateUser to set password (works because user is already authenticated via magic link)
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: setPasswordData.password,
+      });
+
+      if (updateError) throw updateError;
+
+      toast.success('Password set successfully!');
+
+      // Now proceed with accepting the nomination
+      await completeAccept();
+    } catch (err) {
+      console.error('Set password error:', err);
+      toast.error(err.message || 'Failed to set password. Please try again.');
+      setProcessing(false);
+    }
   };
 
   // Complete the accept process (called after signup or if already authenticated)
@@ -289,20 +337,36 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
       });
 
       if (signUpError) {
-        // If user already exists, try to sign in instead
+        // If user already exists (likely from invite), try to sign in or send magic link
         if (signUpError.message?.includes('already registered')) {
+          // First try to sign in with the password they entered
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: signupData.email,
             password: signupData.password,
           });
 
           if (signInError) {
-            toast.error('Account exists. Please check your password or use forgot password.');
-            setSignupErrors({ email: 'Account exists with different password' });
+            // Password didn't work - send magic link instead
+            const { error: otpError } = await supabase.auth.signInWithOtp({
+              email: signupData.email,
+              options: {
+                emailRedirectTo: `${window.location.origin}/claim/${token}`,
+              },
+            });
+
+            if (otpError) {
+              toast.error('Failed to send sign-in link. Please try again.');
+              setProcessing(false);
+              return;
+            }
+
+            toast.success('Account found! Check your email for a sign-in link.');
+            setSignupErrors({ email: 'Check your email for a sign-in link to continue' });
             setProcessing(false);
             return;
           }
 
+          // Sign in succeeded
           setUser(signInData.user);
 
           // Fetch profile
@@ -334,6 +398,31 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
     } catch (err) {
       console.error('Signup error:', err);
       toast.error(err.message || 'Failed to create account. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle Forgot Password
+  const handleForgotPassword = async () => {
+    if (!signupData.email || !signupData.email.includes('@')) {
+      setSignupErrors({ email: 'Enter your email first' });
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(signupData.email, {
+        redirectTo: `${window.location.origin}/claim/${token}`,
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset email sent! Check your inbox.');
+    } catch (err) {
+      console.error('Password reset error:', err);
+      toast.error('Failed to send reset email. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -747,9 +836,229 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
               )}
             </Button>
 
+            {/* Already have account / Forgot password */}
+            <div style={{
+              marginTop: spacing.lg,
+              textAlign: 'center',
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+            }}>
+              <p style={{ marginBottom: spacing.xs }}>
+                Already have an account? Enter your password above.
+              </p>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={processing}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: colors.gold.primary,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: typography.fontSize.sm,
+                }}
+              >
+                Forgot your password?
+              </button>
+            </div>
+
             {/* Back button */}
             <button
               onClick={() => setStage('decide')}
+              disabled={processing}
+              style={{
+                width: '100%',
+                marginTop: spacing.md,
+                padding: spacing.sm,
+                background: 'transparent',
+                border: 'none',
+                color: colors.text.muted,
+                fontSize: typography.fontSize.sm,
+                cursor: 'pointer',
+              }}
+            >
+              ← Back to nomination
+            </button>
+          </div>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER: Set Password (for users authenticated via magic link)
+  // =========================================================================
+  if (stage === 'set-password') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
+        padding: spacing.xl,
+      }}>
+        <div style={{
+          maxWidth: '440px',
+          width: '100%',
+          background: colors.background.card,
+          border: `1px solid ${colors.border.light}`,
+          borderRadius: borderRadius.xl,
+          overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))',
+            padding: spacing.xl,
+            textAlign: 'center',
+            borderBottom: `1px solid ${colors.border.light}`,
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <Lock size={32} style={{ color: colors.gold.primary }} />
+            </div>
+            <h1 style={{
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.bold,
+              color: '#fff',
+              marginBottom: spacing.sm,
+            }}>
+              Set Your Password
+            </h1>
+            <p style={{
+              fontSize: typography.fontSize.md,
+              color: colors.text.secondary,
+            }}>
+              Create a password so you can log in later
+            </p>
+          </div>
+
+          {/* Form */}
+          <div style={{ padding: spacing.xl }}>
+            {/* Info message */}
+            <div style={{
+              background: 'rgba(212, 175, 55, 0.1)',
+              border: `1px solid rgba(212, 175, 55, 0.2)`,
+              borderRadius: borderRadius.md,
+              padding: spacing.md,
+              marginBottom: spacing.xl,
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              lineHeight: 1.5,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.sm }}>
+                <AlertCircle size={16} style={{ color: colors.gold.primary, flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  Before accepting your nomination, please set a password. This will allow you to log back in anytime.
+                </span>
+              </div>
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: spacing.lg }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                marginBottom: spacing.xs,
+              }}>
+                <Lock size={14} />
+                Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Input
+                  type={showSetPassword ? 'text' : 'password'}
+                  value={setPasswordData.password}
+                  onChange={(e) => {
+                    setSetPasswordData(prev => ({ ...prev, password: e.target.value }));
+                    if (setPasswordErrors.password) setSetPasswordErrors(prev => ({ ...prev, password: null }));
+                  }}
+                  placeholder="At least 6 characters"
+                  error={setPasswordErrors.password}
+                  style={{ paddingRight: '48px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSetPassword(!showSetPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: colors.text.muted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                  }}
+                >
+                  {showSetPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div style={{ marginBottom: spacing.xl }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                marginBottom: spacing.xs,
+              }}>
+                <Lock size={14} />
+                Confirm Password
+              </label>
+              <Input
+                type={showSetPassword ? 'text' : 'password'}
+                value={setPasswordData.confirmPassword}
+                onChange={(e) => {
+                  setSetPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }));
+                  if (setPasswordErrors.confirmPassword) setSetPasswordErrors(prev => ({ ...prev, confirmPassword: null }));
+                }}
+                placeholder="Confirm your password"
+                error={setPasswordErrors.confirmPassword}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={handleSetPassword}
+              disabled={processing}
+              style={{ width: '100%' }}
+            >
+              {processing ? (
+                <>
+                  <Loader size={18} style={{ marginRight: 8, animation: 'spin 1s linear infinite' }} />
+                  Setting Password...
+                </>
+              ) : (
+                <>
+                  Set Password & Accept Nomination
+                  <ArrowRight size={18} style={{ marginLeft: 8 }} />
+                </>
+              )}
+            </Button>
+
+            {/* Back button */}
+            <button
+              onClick={() => {
+                setStage('decide');
+                setNeedsPassword(false);
+              }}
               disabled={processing}
               style={{
                 width: '100%',
