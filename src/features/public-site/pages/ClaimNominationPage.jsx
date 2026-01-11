@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Crown, Check, X, AlertCircle, Clock, User, MapPin, Calendar, Camera, FileText, ArrowRight, Loader } from 'lucide-react';
+import { Crown, Check, X, AlertCircle, Clock, User, MapPin, Calendar, Camera, FileText, ArrowRight, Loader, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button, Input, Textarea } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
 import { supabase } from '../../../lib/supabase';
@@ -8,8 +8,8 @@ import { useToast } from '../../../contexts/ToastContext';
 /**
  * ClaimNominationPage - Unified claim flow
  *
- * User clicks magic link in email → lands here → Accept/Reject → Profile completion
- * No second magic link needed.
+ * User clicks magic link in email → lands here → Accept/Reject → Signup → Profile completion
+ * Requires account creation before accepting to ensure they can log back in.
  */
 export default function ClaimNominationPage({ token, onClose, onSuccess }) {
   const toast = useToast();
@@ -27,8 +27,17 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
   const [error, setError] = useState(null);
 
   // UI state
-  const [stage, setStage] = useState('loading'); // 'loading', 'decide', 'profile', 'success'
+  const [stage, setStage] = useState('loading'); // 'loading', 'decide', 'signup', 'profile', 'success'
   const [processing, setProcessing] = useState(false);
+
+  // Signup form state
+  const [signupData, setSignupData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [signupErrors, setSignupErrors] = useState({});
 
   // Profile form state
   const [formData, setFormData] = useState({
@@ -193,19 +202,33 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
     return profile.first_name && profile.last_name && profile.avatar_url && profile.bio && profile.city;
   };
 
-  // Handle Accept
+  // Handle Accept - check if user needs to create account first
   const handleAccept = async () => {
+    // If not authenticated, go to signup stage first
+    if (!user) {
+      // Pre-fill email from nominee data
+      setSignupData(prev => ({
+        ...prev,
+        email: nominee?.email || '',
+      }));
+      setStage('signup');
+      return;
+    }
+
+    // User is authenticated, proceed with accepting
+    await completeAccept();
+  };
+
+  // Complete the accept process (called after signup or if already authenticated)
+  const completeAccept = async () => {
     setProcessing(true);
 
     try {
       // Update nominee record
       const updateData = {
         claimed_at: new Date().toISOString(),
+        user_id: user?.id,
       };
-
-      if (user?.id) {
-        updateData.user_id = user.id;
-      }
 
       const { error: updateError } = await supabase
         .from('nominees')
@@ -226,6 +249,91 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
     } catch (err) {
       console.error('Error accepting nomination:', err);
       toast.error('Failed to accept nomination. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Handle Signup
+  const handleSignup = async () => {
+    // Validate
+    const errors = {};
+    if (!signupData.email || !signupData.email.includes('@')) {
+      errors.email = 'Valid email required';
+    }
+    if (!signupData.password || signupData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    if (signupData.password !== signupData.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setSignupErrors(errors);
+      return;
+    }
+
+    setProcessing(true);
+
+    try {
+      // Try to sign up
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: signupData.email,
+        password: signupData.password,
+        options: {
+          data: {
+            full_name: nominee?.name,
+            nominee_id: nominee?.id,
+          },
+        },
+      });
+
+      if (signUpError) {
+        // If user already exists, try to sign in instead
+        if (signUpError.message?.includes('already registered')) {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: signupData.email,
+            password: signupData.password,
+          });
+
+          if (signInError) {
+            toast.error('Account exists. Please check your password or use forgot password.');
+            setSignupErrors({ email: 'Account exists with different password' });
+            setProcessing(false);
+            return;
+          }
+
+          setUser(signInData.user);
+
+          // Fetch profile
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', signInData.user.id)
+            .single();
+          setProfile(profileData);
+        } else {
+          throw signUpError;
+        }
+      } else if (data?.user) {
+        setUser(data.user);
+
+        // Fetch or wait for profile to be created
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        setProfile(profileData);
+      }
+
+      toast.success('Account created!');
+
+      // Now complete the accept process
+      await completeAccept();
+    } catch (err) {
+      console.error('Signup error:', err);
+      toast.error(err.message || 'Failed to create account. Please try again.');
     } finally {
       setProcessing(false);
     }
@@ -463,6 +571,202 @@ export default function ClaimNominationPage({ token, onClose, onSuccess }) {
             Go Home
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER: Signup Form
+  // =========================================================================
+  if (stage === 'signup') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%)',
+        padding: spacing.xl,
+      }}>
+        <div style={{
+          maxWidth: '440px',
+          width: '100%',
+          background: colors.background.card,
+          border: `1px solid ${colors.border.light}`,
+          borderRadius: borderRadius.xl,
+          overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))',
+            padding: spacing.xl,
+            textAlign: 'center',
+            borderBottom: `1px solid ${colors.border.light}`,
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.1))',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <Crown size={32} style={{ color: colors.gold.primary }} />
+            </div>
+            <h1 style={{
+              fontSize: typography.fontSize.xl,
+              fontWeight: typography.fontWeight.bold,
+              color: '#fff',
+              marginBottom: spacing.sm,
+            }}>
+              Create Your Account
+            </h1>
+            <p style={{
+              fontSize: typography.fontSize.md,
+              color: colors.text.secondary,
+            }}>
+              Set up your account to accept your nomination
+            </p>
+          </div>
+
+          {/* Signup Form */}
+          <div style={{ padding: spacing.xl }}>
+            {/* Email */}
+            <div style={{ marginBottom: spacing.lg }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                marginBottom: spacing.xs,
+              }}>
+                <Mail size={14} />
+                Email
+              </label>
+              <Input
+                type="email"
+                value={signupData.email}
+                onChange={(e) => {
+                  setSignupData(prev => ({ ...prev, email: e.target.value }));
+                  if (signupErrors.email) setSignupErrors(prev => ({ ...prev, email: null }));
+                }}
+                placeholder="you@example.com"
+                error={signupErrors.email}
+              />
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom: spacing.lg }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                marginBottom: spacing.xs,
+              }}>
+                <Lock size={14} />
+                Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={signupData.password}
+                  onChange={(e) => {
+                    setSignupData(prev => ({ ...prev, password: e.target.value }));
+                    if (signupErrors.password) setSignupErrors(prev => ({ ...prev, password: null }));
+                  }}
+                  placeholder="At least 6 characters"
+                  error={signupErrors.password}
+                  style={{ paddingRight: '48px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: colors.text.muted,
+                    cursor: 'pointer',
+                    padding: '4px',
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div style={{ marginBottom: spacing.xl }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                marginBottom: spacing.xs,
+              }}>
+                <Lock size={14} />
+                Confirm Password
+              </label>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={signupData.confirmPassword}
+                onChange={(e) => {
+                  setSignupData(prev => ({ ...prev, confirmPassword: e.target.value }));
+                  if (signupErrors.confirmPassword) setSignupErrors(prev => ({ ...prev, confirmPassword: null }));
+                }}
+                placeholder="Confirm your password"
+                error={signupErrors.confirmPassword}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={handleSignup}
+              disabled={processing}
+              style={{ width: '100%' }}
+            >
+              {processing ? (
+                <>
+                  <Loader size={18} style={{ marginRight: 8, animation: 'spin 1s linear infinite' }} />
+                  Creating Account...
+                </>
+              ) : (
+                <>
+                  Create Account & Accept
+                  <ArrowRight size={18} style={{ marginLeft: 8 }} />
+                </>
+              )}
+            </Button>
+
+            {/* Back button */}
+            <button
+              onClick={() => setStage('decide')}
+              disabled={processing}
+              style={{
+                width: '100%',
+                marginTop: spacing.md,
+                padding: spacing.sm,
+                background: 'transparent',
+                border: 'none',
+                color: colors.text.muted,
+                fontSize: typography.fontSize.sm,
+                cursor: 'pointer',
+              }}
+            >
+              ← Back to nomination
+            </button>
+          </div>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
