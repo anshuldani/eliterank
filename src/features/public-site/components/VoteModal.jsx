@@ -236,43 +236,36 @@ export default function VoteModal({
     onClose();
   };
 
-  // Payment form screen
+  // Payment form screen - Compact for mobile
   if (showPaymentForm && clientSecret) {
     const stripePromise = getStripe();
 
     return (
-      <Modal isOpen={isOpen} onClose={handleBackFromPayment} title="" maxWidth="450px" centered>
-        <div style={{ padding: spacing.lg }}>
-          {/* Back button */}
-          <button
-            onClick={handleBackFromPayment}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.xs,
-              background: 'none',
-              border: 'none',
-              color: colors.text.secondary,
-              cursor: 'pointer',
-              padding: 0,
-              marginBottom: spacing.lg,
-              fontSize: typography.fontSize.sm,
-            }}
-          >
-            <ArrowLeft size={16} />
-            Back
-          </button>
-
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
+      <Modal isOpen={isOpen} onClose={handleBackFromPayment} title="" maxWidth="360px" centered>
+        <div style={{ padding: spacing.md }}>
+          {/* Compact header with back button, avatar, info, and total */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+            <button
+              onClick={handleBackFromPayment}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: colors.text.secondary,
+                cursor: 'pointer',
+                padding: spacing.xs,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <ArrowLeft size={18} />
+            </button>
             <div
               style={{
-                width: '60px',
-                height: '60px',
+                width: '40px',
+                height: '40px',
                 borderRadius: borderRadius.full,
                 overflow: 'hidden',
-                margin: '0 auto',
-                marginBottom: spacing.md,
+                flexShrink: 0,
                 border: `2px solid ${colors.gold.primary}`,
               }}
             >
@@ -291,7 +284,7 @@ export default function VoteModal({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: typography.fontSize.xl,
+                    fontSize: typography.fontSize.base,
                     fontWeight: typography.fontWeight.bold,
                     color: '#0a0a0f',
                   }}
@@ -300,29 +293,23 @@ export default function VoteModal({
                 </div>
               )}
             </div>
-            <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.xs }}>
-              Purchase {selectedVoteCount} Votes
-            </h3>
-            <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-              for {contestant.name}
-            </p>
-          </div>
-
-          {/* Amount */}
-          <div
-            style={{
-              background: 'rgba(212,175,55,0.1)',
-              borderRadius: borderRadius.lg,
-              padding: spacing.lg,
-              textAlign: 'center',
-              marginBottom: spacing.xl,
-              border: `1px solid rgba(212,175,55,0.2)`,
-            }}
-          >
-            <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>Total</span>
-            <p style={{ fontSize: typography.fontSize.hero, fontWeight: typography.fontWeight.bold, color: colors.gold.primary }}>
-              {formatCurrency(selectedVoteCount)}
-            </p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: typography.fontSize.sm, fontWeight: typography.fontWeight.semibold, margin: 0 }}>
+                {selectedVoteCount} Votes for {contestant.name?.split(' ')[0]}
+              </p>
+            </div>
+            <div
+              style={{
+                background: 'rgba(212,175,55,0.15)',
+                borderRadius: borderRadius.md,
+                padding: `${spacing.xs} ${spacing.sm}`,
+                border: `1px solid rgba(212,175,55,0.25)`,
+              }}
+            >
+              <span style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.bold, color: colors.gold.primary }}>
+                {formatCurrency(selectedVoteCount)}
+              </span>
+            </div>
           </div>
 
           {/* Stripe Elements */}
@@ -335,11 +322,12 @@ export default function VoteModal({
                   theme: 'night',
                   variables: {
                     colorPrimary: '#d4af37',
-                    colorBackground: '#1a1a2e',
+                    colorBackground: '#18181b',
                     colorText: '#ffffff',
                     colorDanger: '#ef4444',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                     borderRadius: '8px',
+                    spacingUnit: '3px',
                   },
                 },
               }}
@@ -867,29 +855,29 @@ function PaymentCheckoutForm({ onSuccess, onCancel, amount, contestantName }) {
         disabled={!stripe || isProcessing}
         style={{
           width: '100%',
-          marginTop: spacing.xl,
-          padding: spacing.lg,
+          marginTop: spacing.md,
+          padding: spacing.sm,
           background: isProcessing ? 'rgba(212,175,55,0.5)' : gradients.gold,
           border: 'none',
-          borderRadius: borderRadius.lg,
+          borderRadius: borderRadius.md,
           color: '#0a0a0f',
-          fontSize: typography.fontSize.md,
+          fontSize: typography.fontSize.sm,
           fontWeight: typography.fontWeight.semibold,
           cursor: isProcessing ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: spacing.sm,
+          gap: spacing.xs,
         }}
       >
         {isProcessing ? (
           <>
-            <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
+            <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />
             Processing...
           </>
         ) : (
           <>
-            <CreditCard size={18} />
+            <CreditCard size={16} />
             Pay {formatCurrency(amount)}
           </>
         )}
@@ -901,13 +889,13 @@ function PaymentCheckoutForm({ onSuccess, onCancel, amount, contestantName }) {
         disabled={isProcessing}
         style={{
           width: '100%',
-          marginTop: spacing.md,
-          padding: spacing.md,
+          marginTop: spacing.sm,
+          padding: spacing.sm,
           background: 'transparent',
           border: `1px solid ${colors.border.light}`,
-          borderRadius: borderRadius.lg,
+          borderRadius: borderRadius.md,
           color: colors.text.secondary,
-          fontSize: typography.fontSize.md,
+          fontSize: typography.fontSize.sm,
           cursor: isProcessing ? 'not-allowed' : 'pointer',
           opacity: isProcessing ? 0.5 : 1,
         }}
@@ -917,13 +905,13 @@ function PaymentCheckoutForm({ onSuccess, onCancel, amount, contestantName }) {
 
       <p
         style={{
-          marginTop: spacing.lg,
+          marginTop: spacing.sm,
           textAlign: 'center',
-          fontSize: typography.fontSize.xs,
+          fontSize: '10px',
           color: colors.text.muted,
         }}
       >
-        Secure payment powered by Stripe
+        Secure payment by Stripe
       </p>
 
       <style>{`
