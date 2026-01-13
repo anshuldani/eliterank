@@ -490,10 +490,13 @@ export function getDatePeriodStatus(startDate, endDate) {
 
 /**
  * Check if a competition should auto-transition from publish to live.
- * This happens when status is 'publish' and nomination_start date has passed.
+ * This happens when status is 'publish' and the first nomination period has started.
  *
- * @param {Object} competition - Competition object
- * @param {Object} settings - Competition settings (with nomination_start)
+ * Checks nomination_periods (new system) first, then falls back to
+ * legacy nomination_start field for backwards compatibility.
+ *
+ * @param {Object} competition - Competition object (should include nomination_periods array)
+ * @param {Object} settings - Competition settings (with nomination_start for legacy)
  * @returns {boolean} True if should transition to live
  */
 export function shouldAutoTransitionToLive(competition, settings = null) {
@@ -502,12 +505,29 @@ export function shouldAutoTransitionToLive(competition, settings = null) {
   // Only applies to competitions with status 'publish'
   if (competition.status !== COMPETITION_STATUSES.PUBLISH) return false;
 
-  // Check nomination_start from settings first, then from competition
+  const now = new Date();
+
+  // NEW SYSTEM: Check nomination_periods first
+  const nominationPeriods = competition?.nomination_periods || [];
+  if (nominationPeriods.length > 0) {
+    // Sort by period_order to get the first period
+    const sortedPeriods = [...nominationPeriods].sort(
+      (a, b) => (a.period_order || 0) - (b.period_order || 0)
+    );
+    const firstPeriodStart = sortedPeriods[0]?.start_date;
+
+    if (firstPeriodStart) {
+      const startDate = new Date(firstPeriodStart);
+      // If first nomination period has started, should transition to live
+      return now >= startDate;
+    }
+  }
+
+  // LEGACY FALLBACK: Check flat nomination_start field
   const nominationStart = settings?.nomination_start || competition?.nomination_start;
 
   if (!nominationStart) return false;
 
-  const now = new Date();
   const startDate = new Date(nominationStart);
 
   // If nomination start has passed, should transition to live
