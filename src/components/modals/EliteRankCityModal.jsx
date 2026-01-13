@@ -114,11 +114,16 @@ export default function EliteRankCityModal({
         }, {});
 
         // Auto-transitions (settings are now directly on competition)
+        // Must attach nomination_periods before checking transitions
         const toTransition = [];
         for (const comp of (compsResult.data || [])) {
-          if (shouldAutoTransitionToLive(comp, comp)) {
+          const compWithPeriods = {
+            ...comp,
+            nomination_periods: nominationPeriodsMap[comp.id] || [],
+          };
+          if (shouldAutoTransitionToLive(compWithPeriods, comp)) {
             toTransition.push({ id: comp.id, newStatus: 'live' });
-          } else if (shouldAutoTransitionToCompleted(comp, comp)) {
+          } else if (shouldAutoTransitionToCompleted(compWithPeriods, comp)) {
             toTransition.push({ id: comp.id, newStatus: 'completed' });
           }
         }
