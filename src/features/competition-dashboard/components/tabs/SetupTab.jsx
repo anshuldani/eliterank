@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, User, Star, FileText, Plus, Edit, Trash2, CheckCircle, XCircle, Lock, MapPin, DollarSign, Users, Tag, UserPlus, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { Calendar, User, Star, FileText, Plus, Trash2, Lock, MapPin, DollarSign, Users, Tag, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
@@ -40,20 +40,15 @@ export default function SetupTab({
   judges,
   sponsors,
   events,
-  rules,
-  formFields,
   host,
   isSuperAdmin = false,
   onRefresh,
   onDeleteJudge,
   onDeleteSponsor,
   onDeleteEvent,
-  onDeleteRule,
   onOpenJudgeModal,
   onOpenSponsorModal,
   onOpenEventModal,
-  onOpenRuleModal,
-  onShowNominationFormEditor,
   onShowHostAssignment,
   onRemoveHost,
 }) {
@@ -443,119 +438,6 @@ export default function SetupTab({
               })}
             </div>
           )}
-        </div>
-      </Panel>
-
-      {/* Rules Section */}
-      <Panel
-        title={`Rules (${rules.length})`}
-        icon={FileText}
-        action={<Button size="sm" icon={Plus} onClick={() => onOpenRuleModal(null)}>Add Rule</Button>}
-      >
-        <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
-          {rules.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.text.secondary }}>
-              <FileText size={48} style={{ marginBottom: spacing.md, opacity: 0.5 }} />
-              <p>No rules defined yet</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: spacing.md }}>
-              {rules.map((rule) => (
-                <div key={rule.id} style={{
-                  padding: spacing.lg,
-                  background: colors.background.secondary,
-                  borderRadius: borderRadius.lg,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm, gap: spacing.sm }}>
-                    <h4 style={{ fontWeight: typography.fontWeight.semibold, flex: 1 }}>{rule.sectionTitle}</h4>
-                    <div style={{ display: 'flex', gap: spacing.sm, flexShrink: 0 }}>
-                      <button
-                        onClick={() => onOpenRuleModal(rule)}
-                        style={{
-                          padding: spacing.sm,
-                          background: 'transparent',
-                          border: `1px solid ${colors.border.light}`,
-                          borderRadius: borderRadius.md,
-                          color: colors.text.secondary,
-                          cursor: 'pointer',
-                          minWidth: '36px',
-                          minHeight: '36px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        onClick={() => onDeleteRule(rule.id)}
-                        style={{
-                          padding: spacing.sm,
-                          background: 'transparent',
-                          border: `1px solid rgba(239,68,68,0.3)`,
-                          borderRadius: borderRadius.md,
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          minWidth: '36px',
-                          minHeight: '36px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                  <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>{rule.sectionContent || 'No content'}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </Panel>
-
-      {/* Nomination Form Fields Section */}
-      <Panel
-        title="Nomination Form Fields"
-        icon={FileText}
-        action={<Button size="sm" icon={Edit} onClick={onShowNominationFormEditor}>Edit Form</Button>}
-      >
-        <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
-          <p style={{ color: colors.text.secondary, marginBottom: spacing.lg, fontSize: typography.fontSize.sm }}>
-            Customize the fields shown in the nomination form. Toggle fields on/off or mark them as required.
-          </p>
-          <div style={{ display: 'grid', gap: spacing.sm }}>
-            {formFields.map((field) => (
-              <div
-                key={field.key}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: spacing.md,
-                  background: field.enabled ? colors.background.secondary : 'rgba(100,100,100,0.1)',
-                  borderRadius: borderRadius.lg,
-                  opacity: field.enabled ? 1 : 0.6,
-                  minHeight: '44px',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: typography.fontWeight.medium }}>{field.label}</p>
-                  <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-                    Type: {field.type} {field.required && '• Required'}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                  {field.enabled ? (
-                    <CheckCircle size={18} style={{ color: colors.status.success }} />
-                  ) : (
-                    <XCircle size={18} style={{ color: colors.text.muted }} />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </Panel>
 

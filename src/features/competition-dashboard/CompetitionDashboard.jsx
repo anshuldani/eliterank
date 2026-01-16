@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Crown, ArrowLeft, Star, LogOut, BarChart3, FileText, Settings as SettingsIcon,
-  Eye, Loader, AlertCircle, CheckCircle, XCircle, Edit, Check
+  Eye, Loader, AlertCircle
 } from 'lucide-react';
 import { Button, Badge, Avatar } from '../../components/ui';
-import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, RuleModal, AddPersonModal } from '../../components/modals';
+import { HostAssignmentModal, JudgeModal, SponsorModal, EventModal, AddPersonModal } from '../../components/modals';
 import { colors, gradients, spacing, borderRadius, typography, transitions } from '../../styles/theme';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useToast } from '../../contexts/ToastContext';
-import { supabase } from '../../lib/supabase';
 import { useCompetitionDashboard } from '../super-admin/hooks/useCompetitionDashboard';
 
 // Import tab components
@@ -111,86 +110,6 @@ export default function CompetitionDashboard({
   const [judgeModal, setJudgeModal] = useState({ isOpen: false, judge: null });
   const [sponsorModal, setSponsorModal] = useState({ isOpen: false, sponsor: null });
   const [eventModal, setEventModal] = useState({ isOpen: false, event: null });
-  const [ruleModal, setRuleModal] = useState({ isOpen: false, rule: null });
-  const [showNominationFormEditor, setShowNominationFormEditor] = useState(false);
-
-  // Default nomination form fields config
-  const DEFAULT_FORM_FIELDS = [
-    { key: 'nomineeName', label: "Nominee's Full Name", type: 'text', required: true, enabled: true },
-    { key: 'nomineeAge', label: 'Age', type: 'number', required: true, enabled: true, min: 21, max: 45, description: 'Must be between 21-45' },
-    { key: 'livesNearCity', label: 'Do they live within 100 miles of the city?', type: 'boolean', required: true, enabled: true },
-    { key: 'isSingle', label: 'Are they single (not married or engaged)?', type: 'boolean', required: true, enabled: true },
-    { key: 'email', label: 'Email Address', type: 'email', required: true, enabled: true },
-    { key: 'phone', label: 'Phone Number', type: 'phone', required: true, enabled: true },
-    { key: 'instagram', label: 'Instagram Handle', type: 'text', required: true, enabled: true },
-  ];
-
-  // Form fields state
-  const [formFields, setFormFields] = useState(DEFAULT_FORM_FIELDS);
-  const [editingField, setEditingField] = useState(null);
-  const [savingFormFields, setSavingFormFields] = useState(false);
-
-  // Load form fields from competition when data loads
-  useEffect(() => {
-    if (data.competition?.nominationFormConfig) {
-      try {
-        const config = typeof data.competition.nominationFormConfig === 'string'
-          ? JSON.parse(data.competition.nominationFormConfig)
-          : data.competition.nominationFormConfig;
-        if (config.fields && Array.isArray(config.fields)) {
-          setFormFields(config.fields);
-        }
-      } catch (e) {
-        console.error('Failed to parse nomination form config:', e);
-      }
-    }
-  }, [data.competition?.nominationFormConfig]);
-
-  // Save form fields to database
-  const saveFormFields = async () => {
-    if (!competitionId) return;
-
-    setSavingFormFields(true);
-    try {
-      const { error } = await supabase
-        .from('competitions')
-        .update({
-          nomination_form_config: JSON.stringify({ fields: formFields }),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', competitionId);
-
-      if (error) throw error;
-      toast.success('Form fields saved successfully');
-      setShowNominationFormEditor(false);
-      refresh();
-    } catch (err) {
-      toast.error(`Failed to save form fields: ${err.message}`);
-    } finally {
-      setSavingFormFields(false);
-    }
-  };
-
-  // Toggle field enabled status
-  const toggleFieldEnabled = (key) => {
-    setFormFields(prev => prev.map(field =>
-      field.key === key ? { ...field, enabled: !field.enabled } : field
-    ));
-  };
-
-  // Toggle field required status
-  const toggleFieldRequired = (key) => {
-    setFormFields(prev => prev.map(field =>
-      field.key === key ? { ...field, required: !field.required } : field
-    ));
-  };
-
-  // Update field label
-  const updateFieldLabel = (key, label) => {
-    setFormFields(prev => prev.map(field =>
-      field.key === key ? { ...field, label } : field
-    ));
-  };
 
   // ============================================================================
   // HEADER
@@ -504,20 +423,15 @@ export default function CompetitionDashboard({
             judges={data.judges}
             sponsors={data.sponsors}
             events={data.events}
-            rules={data.rules}
-            formFields={formFields}
             host={data.host}
             isSuperAdmin={isSuperAdmin}
             onRefresh={refresh}
             onDeleteJudge={deleteJudge}
             onDeleteSponsor={deleteSponsor}
             onDeleteEvent={deleteEvent}
-            onDeleteRule={deleteRule}
             onOpenJudgeModal={(judge) => setJudgeModal({ isOpen: true, judge })}
             onOpenSponsorModal={(sponsor) => setSponsorModal({ isOpen: true, sponsor })}
             onOpenEventModal={(event) => setEventModal({ isOpen: true, event })}
-            onOpenRuleModal={(rule) => setRuleModal({ isOpen: true, rule })}
-            onShowNominationFormEditor={() => setShowNominationFormEditor(true)}
             onShowHostAssignment={() => setShowHostAssignment(true)}
             onRemoveHost={removeHost}
           />
@@ -588,207 +502,12 @@ export default function CompetitionDashboard({
           setEventModal({ isOpen: false, event: null });
         }}
       />
-      <RuleModal
-        isOpen={ruleModal.isOpen}
-        onClose={() => setRuleModal({ isOpen: false, rule: null })}
-        rule={ruleModal.rule}
-        onSave={async (ruleData) => {
-          if (ruleModal.rule) {
-            await updateRule(ruleModal.rule.id, ruleData);
-          } else {
-            await addRule(ruleData);
-          }
-          setRuleModal({ isOpen: false, rule: null });
-        }}
-      />
       <AddPersonModal
         isOpen={addPersonModal.isOpen}
         onClose={closeAddPersonModal}
         onAdd={handleAddPerson}
         type={addPersonModal.type}
       />
-
-      {/* Nomination Form Fields Editor Modal */}
-      {showNominationFormEditor && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: spacing.xl,
-          }}
-          onClick={() => setShowNominationFormEditor(false)}
-        >
-          <div
-            style={{
-              background: colors.background.card,
-              borderRadius: borderRadius.xxl,
-              width: '100%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              border: `1px solid ${colors.border.light}`,
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{
-              padding: spacing.xl,
-              borderBottom: `1px solid ${colors.border.light}`,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}>
-              <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
-                Edit Nomination Form Fields
-              </h3>
-              <button
-                onClick={() => setShowNominationFormEditor(false)}
-                style={{ background: 'none', border: 'none', color: colors.text.secondary, cursor: 'pointer' }}
-              >
-                <XCircle size={20} />
-              </button>
-            </div>
-
-            <div style={{ padding: spacing.xl }}>
-              <p style={{ color: colors.text.secondary, marginBottom: spacing.lg, fontSize: typography.fontSize.sm }}>
-                Toggle fields on/off, mark them as required, or edit their labels.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
-                {formFields.map((field) => (
-                  <div
-                    key={field.key}
-                    style={{
-                      padding: spacing.lg,
-                      background: colors.background.secondary,
-                      borderRadius: borderRadius.lg,
-                      border: `1px solid ${field.enabled ? colors.border.light : 'rgba(100,100,100,0.2)'}`,
-                      opacity: field.enabled ? 1 : 0.7,
-                    }}
-                  >
-                    {editingField === field.key ? (
-                      <div style={{ display: 'flex', gap: spacing.sm, alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          value={field.label}
-                          onChange={(e) => updateFieldLabel(field.key, e.target.value)}
-                          style={{
-                            flex: 1,
-                            padding: spacing.sm,
-                            background: colors.background.card,
-                            border: `1px solid ${colors.border.light}`,
-                            borderRadius: borderRadius.md,
-                            color: '#fff',
-                            fontSize: typography.fontSize.sm,
-                          }}
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => setEditingField(null)}
-                          style={{
-                            padding: spacing.sm,
-                            background: colors.gold.primary,
-                            border: 'none',
-                            borderRadius: borderRadius.md,
-                            color: '#000',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Check size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ fontWeight: typography.fontWeight.medium, marginBottom: spacing.xs }}>
-                            {field.label}
-                          </p>
-                          <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>
-                            Type: {field.type} {field.description && `• ${field.description}`}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                          <button
-                            onClick={() => setEditingField(field.key)}
-                            style={{
-                              padding: spacing.sm,
-                              background: 'transparent',
-                              border: `1px solid ${colors.border.light}`,
-                              borderRadius: borderRadius.md,
-                              color: colors.text.secondary,
-                              cursor: 'pointer',
-                            }}
-                            title="Edit label"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            onClick={() => toggleFieldRequired(field.key)}
-                            style={{
-                              padding: `${spacing.xs} ${spacing.sm}`,
-                              background: field.required ? 'rgba(212,175,55,0.2)' : 'transparent',
-                              border: `1px solid ${field.required ? colors.gold.primary : colors.border.light}`,
-                              borderRadius: borderRadius.md,
-                              color: field.required ? colors.gold.primary : colors.text.muted,
-                              cursor: 'pointer',
-                              fontSize: typography.fontSize.xs,
-                            }}
-                            title="Toggle required"
-                          >
-                            Required
-                          </button>
-                          <button
-                            onClick={() => toggleFieldEnabled(field.key)}
-                            style={{
-                              padding: spacing.sm,
-                              background: field.enabled ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
-                              border: `1px solid ${field.enabled ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'}`,
-                              borderRadius: borderRadius.md,
-                              color: field.enabled ? '#22c55e' : '#ef4444',
-                              cursor: 'pointer',
-                            }}
-                            title={field.enabled ? 'Disable field' : 'Enable field'}
-                          >
-                            {field.enabled ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{
-              padding: spacing.xl,
-              borderTop: `1px solid ${colors.border.light}`,
-              display: 'flex',
-              gap: spacing.md,
-              justifyContent: 'flex-end',
-            }}>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setFormFields(DEFAULT_FORM_FIELDS);
-                  setShowNominationFormEditor(false);
-                }}
-              >
-                Reset to Defaults
-              </Button>
-              <Button
-                onClick={saveFormFields}
-                disabled={savingFormFields}
-              >
-                {savingFormFields ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
