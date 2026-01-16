@@ -115,7 +115,7 @@ export function useCompetitionDashboard(competitionId) {
           .select(`
             *,
             category:categories(id, name, slug),
-            demographic:demographics(id, name, slug)
+            demographic:demographics(id, label, slug)
           `)
           .eq('id', competitionId)
           .single(),
@@ -297,7 +297,7 @@ export function useCompetitionDashboard(competitionId) {
           categoryName: competition.category?.name || null,
           categorySlug: competition.category?.slug || null,
           demographicId: competition.demographic_id,
-          demographicName: competition.demographic?.name || null,
+          demographicName: competition.demographic?.label || null,
           demographicSlug: competition.demographic?.slug || null,
           // Economics & Settings (admin-controlled)
           pricePerVote: parseFloat(competition.price_per_vote) || 1.00,
