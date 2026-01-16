@@ -1,4 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { colors, borderRadius, spacing, typography, gradients } from '../../styles/theme';
 
 const PADDING_MAP = {
@@ -72,24 +73,52 @@ const titleBaseStyle = {
   fontWeight: typography.fontWeight.semibold,
 };
 
-export const Panel = memo(function Panel({ title, icon: Icon, action, children, style = {} }) {
+export const Panel = memo(function Panel({
+  title,
+  icon: Icon,
+  action,
+  children,
+  style = {},
+  collapsible = false,
+  defaultCollapsed = false,
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+
   const panelStyle = useMemo(() => ({
     ...panelBaseStyle,
     ...style,
   }), [style]);
 
+  const headerStyle = useMemo(() => ({
+    ...headerBaseStyle,
+    cursor: collapsible ? 'pointer' : 'default',
+  }), [collapsible]);
+
+  const handleHeaderClick = () => {
+    if (collapsible) {
+      setIsCollapsed(!isCollapsed);
+    }
+  };
+
   return (
     <div style={panelStyle}>
       {title && (
-        <div style={headerBaseStyle}>
+        <div style={headerStyle} onClick={handleHeaderClick}>
           <div style={titleBaseStyle}>
             {Icon && <Icon size={22} style={{ color: colors.gold.primary }} />}
             {title}
           </div>
-          {action}
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md }}>
+            {action}
+            {collapsible && (
+              isCollapsed
+                ? <ChevronDown size={20} style={{ color: colors.text.secondary }} />
+                : <ChevronUp size={20} style={{ color: colors.text.secondary }} />
+            )}
+          </div>
         </div>
       )}
-      {children}
+      {(!collapsible || !isCollapsed) && children}
     </div>
   );
 });

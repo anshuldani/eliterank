@@ -51,6 +51,15 @@ export default function SuperAdminPage({ onLogout }) {
           onBack={handleBackToCompetitions}
           onLogout={onLogout}
           onOpenHostAssignment={() => handleOpenHostAssignment(null)}
+          onViewPublicSite={() => {
+            // Navigate to public page format: /:orgSlug/:city-year
+            const orgSlug = viewingCompetition?.organization?.slug || viewingCompetition?.organization_slug || 'most-eligible';
+            const cityName = viewingCompetition?.city?.name || viewingCompetition?.city_name || viewingCompetition?.city || 'competition';
+            const citySlug = cityName.toLowerCase().replace(/\s+/g, '-').replace(/,/g, '');
+            const year = viewingCompetition?.season || new Date().getFullYear();
+            const path = `/${orgSlug}/${citySlug}-${year}`;
+            window.open(path, '_blank');
+          }}
         />
         <HostAssignmentModal
           isOpen={showHostAssignment}
