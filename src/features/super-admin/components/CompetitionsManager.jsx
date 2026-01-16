@@ -13,6 +13,7 @@ import {
   STATUS_CONFIG,
   DEFAULT_COMPETITION,
   generateCompetitionUrl,
+  generateSlug,
 } from '../../../types/competition';
 
 // Wizard steps for creating a new competition
@@ -183,6 +184,15 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
         return;
       }
 
+      // Generate competition slug
+      const selectedCity = cities.find(c => c.id === formData.city_id);
+      const selectedDemographic = demographics.find(d => d.id === formData.demographic_id);
+      const citySlugPart = selectedCity?.slug?.replace(/-[a-z]{2}$/i, '') || generateSlug(selectedCity?.name || 'unknown');
+      const isOpenDemographic = !selectedDemographic || selectedDemographic.slug === 'open';
+      const competitionSlug = isOpenDemographic
+        ? `${citySlugPart}-${formData.season}`
+        : `${citySlugPart}-${selectedDemographic.slug}-${formData.season}`;
+
       // Create competition with settings included (consolidated schema)
       const { data, error } = await supabase
         .from('competitions')
@@ -192,6 +202,7 @@ export default function CompetitionsManager({ onViewDashboard, onOpenAdvancedSet
           category_id: formData.category_id,
           demographic_id: formData.demographic_id,
           name: formData.name || null,
+          slug: competitionSlug,
           season: formData.season,
           status: COMPETITION_STATUS.DRAFT,
           entry_type: 'nominations',
