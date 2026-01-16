@@ -4,11 +4,11 @@ import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
 import { formatRelativeTime } from '../../../../utils/formatters';
-import { PublicPageSettings } from '../settings';
+import { AboutSectionEditor, PrizePoolSettings } from '../settings';
 
 /**
  * ContentTab - Combined Community + Public tab
- * Manages about section, theme colors, and announcements
+ * Manages about section, prize pool, and announcements
  */
 export default function ContentTab({
   competition,
@@ -70,10 +70,16 @@ export default function ContentTab({
         </div>
       )}
 
-      {/* Public Page Settings (About, Theme) */}
-      <PublicPageSettings
+      {/* About Section */}
+      <AboutSectionEditor
         competition={competition}
         organization={null}
+        onSave={onRefresh}
+      />
+
+      {/* Prize Pool Settings */}
+      <PrizePoolSettings
+        competition={competition}
         onSave={onRefresh}
       />
 

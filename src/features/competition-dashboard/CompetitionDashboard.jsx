@@ -393,12 +393,16 @@ export default function CompetitionDashboard({
             competitionId={competitionId}
             nominees={data.nominees}
             contestants={data.contestants}
+            host={data.host}
+            isSuperAdmin={isSuperAdmin}
             onRefresh={refresh}
             onApproveNominee={approveNominee}
             onRejectNominee={rejectNominee}
             onArchiveNominee={archiveNominee}
             onRestoreNominee={restoreNominee}
             onOpenAddPersonModal={openAddPersonModal}
+            onShowHostAssignment={() => setShowHostAssignment(true)}
+            onRemoveHost={removeHost}
           />
         );
       case 'content':
@@ -423,7 +427,6 @@ export default function CompetitionDashboard({
             judges={data.judges}
             sponsors={data.sponsors}
             events={data.events}
-            host={data.host}
             isSuperAdmin={isSuperAdmin}
             onRefresh={refresh}
             onDeleteJudge={deleteJudge}
@@ -432,8 +435,6 @@ export default function CompetitionDashboard({
             onOpenJudgeModal={(judge) => setJudgeModal({ isOpen: true, judge })}
             onOpenSponsorModal={(sponsor) => setSponsorModal({ isOpen: true, sponsor })}
             onOpenEventModal={(event) => setEventModal({ isOpen: true, event })}
-            onShowHostAssignment={() => setShowHostAssignment(true)}
-            onRemoveHost={removeHost}
           />
         );
       default:

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Calendar, User, Star, FileText, Plus, Trash2, Lock, MapPin, DollarSign, Users, Tag, UserPlus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, User, Star, Plus, Trash2, Lock, MapPin, DollarSign, Users, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
 import TimelineSettings from '../TimelineSettings';
+import { ThemeEditor } from '../settings';
 
 // Helper to format currency from cents
 const formatCurrency = (cents) => {
@@ -32,15 +33,14 @@ const getEventStatus = (event) => {
 };
 
 /**
- * SetupTab - Combined Settings + Host Profile tab
- * Contains all configuration settings and host information
+ * SetupTab - Configuration settings tab
+ * Contains competition details, timeline, judges, sponsors, events, and theme colors
  */
 export default function SetupTab({
   competition,
   judges,
   sponsors,
   events,
-  host,
   isSuperAdmin = false,
   onRefresh,
   onDeleteJudge,
@@ -49,8 +49,6 @@ export default function SetupTab({
   onOpenJudgeModal,
   onOpenSponsorModal,
   onOpenEventModal,
-  onShowHostAssignment,
-  onRemoveHost,
 }) {
   const { isMobile } = useResponsive();
   const [showCompetitionDetails, setShowCompetitionDetails] = useState(false);
@@ -133,7 +131,7 @@ export default function SetupTab({
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(2, 1fr)',
               gap: spacing.sm,
             }}>
               {/* Slot Fields */}
@@ -180,56 +178,17 @@ export default function SetupTab({
                 icon={MapPin}
               />
 
-              {/* Contestant Limits - combined on one row for tablet+ */}
-              {isMobile ? (
-                <>
-                  <ViewOnlyField
-                    label="Min Contestants"
-                    value={competition?.minContestants}
-                    icon={Users}
-                  />
-                  <ViewOnlyField
-                    label="Max Contestants"
-                    value={competition?.maxContestants || 'No limit'}
-                    icon={Users}
-                  />
-                </>
-              ) : (
-                <div style={{ gridColumn: 'span 2' }}>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: spacing.xs,
-                    padding: `${spacing.md} ${spacing.lg}`,
-                    background: colors.background.secondary,
-                    borderRadius: borderRadius.md,
-                    border: `1px solid ${colors.border.lighter}`,
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: spacing.xs,
-                      color: colors.text.muted,
-                      fontSize: typography.fontSize.xs,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}>
-                      <Users size={12} />
-                      <span>Contestants</span>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}>
-                      <span style={{ fontWeight: typography.fontWeight.medium, fontSize: typography.fontSize.base }}>
-                        {competition?.minContestants || 40} minimum · {competition?.maxContestants || 'No'} maximum
-                      </span>
-                      <Lock size={14} style={{ color: colors.text.muted, opacity: 0.4 }} />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Contestant Limits */}
+              <ViewOnlyField
+                label="Min Contestants"
+                value={competition?.minContestants || 40}
+                icon={Users}
+              />
+              <ViewOnlyField
+                label="Max Contestants"
+                value={competition?.maxContestants || 'No limit'}
+                icon={Users}
+              />
             </div>
           </div>
         )}
@@ -441,135 +400,8 @@ export default function SetupTab({
         </div>
       </Panel>
 
-      {/* Divider before Host Profile */}
-      <div style={{
-        borderTop: `1px solid ${colors.border.light}`,
-        margin: `${spacing.xxl} 0`,
-      }} />
-
-      {/* Host Profile Section */}
-      <Panel
-        title="Host Profile"
-        icon={User}
-        action={
-          host && isSuperAdmin ? (
-            <div style={{ display: 'flex', gap: spacing.sm }}>
-              <Button size="sm" variant="secondary" onClick={onShowHostAssignment}>Reassign</Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.5)' }}
-                onClick={onRemoveHost}
-              >
-                Remove
-              </Button>
-            </div>
-          ) : (
-            isSuperAdmin && <Button size="sm" icon={UserPlus} onClick={onShowHostAssignment}>Assign Host</Button>
-          )
-        }
-      >
-        <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
-          {!host ? (
-            <div style={{ textAlign: 'center', padding: spacing.xl, color: colors.text.secondary }}>
-              <User size={64} style={{ marginBottom: spacing.lg, opacity: 0.5 }} />
-              <h3 style={{ fontSize: typography.fontSize.lg, marginBottom: spacing.md }}>No Host Assigned</h3>
-              <p style={{ marginBottom: spacing.xl }}>
-                This competition doesn't have a host assigned yet.
-              </p>
-              {isSuperAdmin && (
-                <Button icon={UserPlus} onClick={onShowHostAssignment}>Assign Host</Button>
-              )}
-            </div>
-          ) : (
-            <div>
-              {/* Host Header */}
-              <div style={{
-                display: 'flex',
-                alignItems: isMobile ? 'flex-start' : 'center',
-                gap: spacing.xl,
-                marginBottom: spacing.xl,
-                flexDirection: isMobile ? 'column' : 'row',
-              }}>
-                <Avatar name={host.name} avatarUrl={host.avatar} size={isMobile ? 80 : 100} />
-                <div style={{ flex: 1 }}>
-                  <h2 style={{ fontSize: isMobile ? typography.fontSize.xl : typography.fontSize.display, fontWeight: typography.fontWeight.bold }}>
-                    {host.name}
-                  </h2>
-                  {host.city && (
-                    <p style={{ color: colors.text.secondary, display: 'flex', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm }}>
-                      <MapPin size={16} /> {host.city}
-                    </p>
-                  )}
-                  <Badge variant="gold" size="md" style={{ marginTop: spacing.md }}>
-                    <Star size={14} style={{ marginRight: spacing.xs }} /> Verified Host
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Host Details */}
-              {host.bio && (
-                <div style={{ marginBottom: spacing.xl }}>
-                  <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                    <FileText size={18} /> About
-                  </h3>
-                  <p style={{ color: colors.text.secondary, lineHeight: 1.6 }}>{host.bio}</p>
-                </div>
-              )}
-
-              {host.instagram && (
-                <div style={{ marginBottom: spacing.xl }}>
-                  <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }}>
-                    Social
-                  </h3>
-                  <a
-                    href={`https://instagram.com/${host.instagram.replace('@', '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      padding: `${spacing.sm} ${spacing.md}`,
-                      background: 'rgba(255,255,255,0.05)',
-                      border: `1px solid ${colors.border.light}`,
-                      borderRadius: borderRadius.md,
-                      color: colors.text.primary,
-                      textDecoration: 'none',
-                      minHeight: '44px',
-                    }}
-                  >
-                    @{host.instagram.replace('@', '')}
-                  </a>
-                </div>
-              )}
-
-              {host.gallery && host.gallery.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold, marginBottom: spacing.md }}>
-                    Gallery
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))', gap: spacing.md }}>
-                    {host.gallery.map((img, i) => (
-                      <img
-                        key={i}
-                        src={typeof img === 'string' ? img : img.url}
-                        alt={`Gallery ${i + 1}`}
-                        style={{
-                          width: '100%',
-                          aspectRatio: '1',
-                          objectFit: 'cover',
-                          borderRadius: borderRadius.lg,
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Panel>
+      {/* Theme Colors */}
+      <ThemeEditor competition={competition} organization={null} onSave={onRefresh} />
     </div>
   );
 }
