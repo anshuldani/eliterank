@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Crown, Plus, MapPin, Calendar, Users, Edit2, Trash2, UserPlus,
   ChevronRight, ChevronLeft, ChevronDown, Building2, X, Loader,
@@ -50,6 +50,11 @@ export default function CompetitionsManager({ onViewDashboard }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editModalTab, setEditModalTab] = useState('basic'); // 'basic', 'pricing', 'settings'
   const [showPriceBundlerTiers, setShowPriceBundlerTiers] = useState(false);
+
+  // Filter state
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterCity, setFilterCity] = useState('');
+  const [filterSeason, setFilterSeason] = useState('');
 
   // Form state for new competition
   const [formData, setFormData] = useState({
@@ -534,6 +539,32 @@ export default function CompetitionsManager({ onViewDashboard }) {
       return `${host.first_name || ''} ${host.last_name || ''}`.trim();
     }
     return host.email;
+  };
+
+  // Get unique seasons from competitions (descending)
+  const uniqueSeasons = useMemo(() => {
+    const seasons = [...new Set(competitions.map(c => c.season))];
+    return seasons.sort((a, b) => b - a);
+  }, [competitions]);
+
+  // Filter competitions
+  const filteredCompetitions = useMemo(() => {
+    return competitions.filter(comp => {
+      if (filterStatus && comp.status !== filterStatus) return false;
+      if (filterCity && comp.city_id !== filterCity) return false;
+      if (filterSeason && comp.season !== parseInt(filterSeason)) return false;
+      return true;
+    });
+  }, [competitions, filterStatus, filterCity, filterSeason]);
+
+  // Check if any filter is active
+  const hasActiveFilters = filterStatus || filterCity || filterSeason;
+
+  // Clear all filters
+  const clearFilters = () => {
+    setFilterStatus('');
+    setFilterCity('');
+    setFilterSeason('');
   };
 
   // Styles
@@ -1097,6 +1128,76 @@ export default function CompetitionsManager({ onViewDashboard }) {
         </Button>
       </div>
 
+      {/* Filter Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.md,
+        padding: spacing.lg,
+        background: colors.background.secondary,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.lg,
+        flexWrap: 'wrap',
+      }}>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ ...selectStyle, minWidth: '150px' }}
+        >
+          <option value="">All Statuses</option>
+          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+            <option key={key} value={key}>{config.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterCity}
+          onChange={(e) => setFilterCity(e.target.value)}
+          style={{ ...selectStyle, minWidth: '150px' }}
+        >
+          <option value="">All Cities</option>
+          {cities.map(city => (
+            <option key={city.id} value={city.id}>{city.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterSeason}
+          onChange={(e) => setFilterSeason(e.target.value)}
+          style={{ ...selectStyle, minWidth: '120px' }}
+        >
+          <option value="">All Seasons</option>
+          {uniqueSeasons.map(season => (
+            <option key={season} value={season}>{season}</option>
+          ))}
+        </select>
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: colors.text.muted,
+              cursor: 'pointer',
+              fontSize: typography.fontSize.sm,
+              marginLeft: 'auto',
+            }}
+          >
+            Clear Filters
+          </button>
+        )}
+      </div>
+
+      {/* Results Count */}
+      <p style={{
+        fontSize: typography.fontSize.sm,
+        color: colors.text.muted,
+        marginBottom: spacing.md,
+      }}>
+        Showing {filteredCompetitions.length} of {competitions.length} competitions
+      </p>
+
       {/* Competitions List */}
       {competitions.length === 0 ? (
         <div style={{
@@ -1113,8 +1214,20 @@ export default function CompetitionsManager({ onViewDashboard }) {
             Create Competition
           </Button>
         </div>
+      ) : filteredCompetitions.length === 0 ? (
+        <div style={{
+          ...cardStyle,
+          textAlign: 'center',
+          padding: spacing.xxxl,
+        }}>
+          <Crown size={48} style={{ color: colors.text.muted, marginBottom: spacing.md }} />
+          <h3 style={{ fontSize: typography.fontSize.lg, marginBottom: spacing.sm }}>No competitions match filters</h3>
+          <Button variant="secondary" onClick={clearFilters}>
+            Clear Filters
+          </Button>
+        </div>
       ) : (
-        competitions.map(comp => {
+        filteredCompetitions.map(comp => {
           const statusConfig = STATUS_CONFIG[comp.status] || STATUS_CONFIG[COMPETITION_STATUS.DRAFT];
           const host = hosts.find(h => h.id === comp.host_id);
           const hostName = getHostName(host);
