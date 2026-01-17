@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FileText, Pin, Edit, Trash2, ExternalLink, Eye } from 'lucide-react';
+import { Plus, FileText, Pin, Edit, Trash2 } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
@@ -20,7 +20,6 @@ export default function ContentTab({
   onUpdateAnnouncement,
   onDeleteAnnouncement,
   onTogglePin,
-  onViewPublicSite,
 }) {
   const { isMobile } = useResponsive();
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -52,24 +51,6 @@ export default function ContentTab({
 
   return (
     <div>
-      {/* View Public Page Header */}
-      {onViewPublicSite && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: spacing.lg,
-        }}>
-          <Button
-            variant="secondary"
-            icon={Eye}
-            onClick={onViewPublicSite}
-          >
-            View Public Page
-            <ExternalLink size={14} style={{ marginLeft: spacing.xs }} />
-          </Button>
-        </div>
-      )}
-
       {/* About Section */}
       <AboutSectionEditor
         competition={competition}

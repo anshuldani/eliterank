@@ -62,7 +62,7 @@ export default function OverviewTab({
             }}
           >
             <Eye size={18} />
-            Preview Competition as Public
+            View Competition
           </button>
         </div>
       )}
