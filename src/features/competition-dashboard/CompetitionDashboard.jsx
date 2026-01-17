@@ -242,7 +242,7 @@ export default function CompetitionDashboard({
               }}
             >
               <Eye size={isMobile ? 12 : 14} />
-              {isMobile ? 'Preview' : 'Preview Competition'}
+              {isMobile ? 'View' : 'View Competition'}
             </button>
           )}
 
@@ -416,7 +416,6 @@ export default function CompetitionDashboard({
             onUpdateAnnouncement={updateAnnouncement}
             onDeleteAnnouncement={deleteAnnouncement}
             onTogglePin={toggleAnnouncementPin}
-            onViewPublicSite={onViewPublicSite}
           />
         );
       case 'setup':

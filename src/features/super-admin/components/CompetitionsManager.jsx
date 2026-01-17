@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
+import { useResponsive } from '../../../hooks/useResponsive';
 import { supabase } from '../../../lib/supabase';
 import { useToast } from '../../../contexts/ToastContext';
 import {
@@ -28,6 +29,7 @@ const WIZARD_STEPS = [
 
 export default function CompetitionsManager({ onViewDashboard }) {
   const toast = useToast();
+  const { isMobile } = useResponsive();
 
   // Data state
   const [competitions, setCompetitions] = useState([]);
@@ -1114,17 +1116,30 @@ export default function CompetitionsManager({ onViewDashboard }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
-        <div>
-          <h2 style={{ fontSize: typography.fontSize.xl, fontWeight: typography.fontWeight.bold, marginBottom: spacing.xs }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: isMobile ? spacing.md : spacing.xl,
+        gap: spacing.md,
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{
+            fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
+            fontWeight: typography.fontWeight.bold,
+            marginBottom: spacing.xs
+          }}>
             Competitions
           </h2>
-          <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-            Create and manage competitions
-          </p>
+          {!isMobile && (
+            <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
+              Create and manage competitions
+            </p>
+          )}
         </div>
-        <Button icon={Plus} onClick={() => setShowCreateModal(true)}>
-          New Competition
+        <Button icon={Plus} size={isMobile ? 'sm' : 'md'} onClick={() => setShowCreateModal(true)}>
+          {isMobile ? 'New' : 'New Competition'}
         </Button>
       </div>
 
@@ -1132,17 +1147,17 @@ export default function CompetitionsManager({ onViewDashboard }) {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: spacing.md,
-        padding: spacing.lg,
+        gap: isMobile ? spacing.sm : spacing.md,
+        padding: isMobile ? spacing.sm : spacing.lg,
         background: colors.background.secondary,
         borderRadius: borderRadius.lg,
-        marginBottom: spacing.lg,
+        marginBottom: isMobile ? spacing.sm : spacing.lg,
         flexWrap: 'wrap',
       }}>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          style={{ ...selectStyle, minWidth: '150px' }}
+          style={{ ...selectStyle, flex: isMobile ? '1 1 calc(50% - 4px)' : 'none', minWidth: isMobile ? '0' : '150px', fontSize: isMobile ? '14px' : typography.fontSize.md }}
         >
           <option value="">All Statuses</option>
           {Object.entries(STATUS_CONFIG).map(([key, config]) => (
@@ -1153,7 +1168,7 @@ export default function CompetitionsManager({ onViewDashboard }) {
         <select
           value={filterCity}
           onChange={(e) => setFilterCity(e.target.value)}
-          style={{ ...selectStyle, minWidth: '150px' }}
+          style={{ ...selectStyle, flex: isMobile ? '1 1 calc(50% - 4px)' : 'none', minWidth: isMobile ? '0' : '150px', fontSize: isMobile ? '14px' : typography.fontSize.md }}
         >
           <option value="">All Cities</option>
           {cities.map(city => (
@@ -1164,7 +1179,7 @@ export default function CompetitionsManager({ onViewDashboard }) {
         <select
           value={filterSeason}
           onChange={(e) => setFilterSeason(e.target.value)}
-          style={{ ...selectStyle, minWidth: '120px' }}
+          style={{ ...selectStyle, flex: isMobile ? '1 1 calc(50% - 4px)' : 'none', minWidth: isMobile ? '0' : '120px', fontSize: isMobile ? '14px' : typography.fontSize.md }}
         >
           <option value="">All Seasons</option>
           {uniqueSeasons.map(season => (
@@ -1181,7 +1196,10 @@ export default function CompetitionsManager({ onViewDashboard }) {
               color: colors.text.muted,
               cursor: 'pointer',
               fontSize: typography.fontSize.sm,
-              marginLeft: 'auto',
+              marginLeft: isMobile ? '0' : 'auto',
+              flex: isMobile ? '1 1 calc(50% - 4px)' : 'none',
+              textAlign: isMobile ? 'center' : 'right',
+              padding: spacing.sm,
             }}
           >
             Clear Filters
@@ -1235,95 +1253,137 @@ export default function CompetitionsManager({ onViewDashboard }) {
           const city = cities.find(c => c.id === comp.city_id);
 
           return (
-            <div key={comp.id} style={cardStyle}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.lg }}>
-                {/* Organization Logo */}
+            <div key={comp.id} style={{
+              ...cardStyle,
+              padding: isMobile ? spacing.md : spacing.lg,
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: isMobile ? spacing.sm : spacing.lg,
+                flexDirection: isMobile ? 'column' : 'row',
+              }}>
+                {/* Top row on mobile: Logo + Name + Status */}
                 <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: borderRadius.lg,
-                  background: colors.background.secondary,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  flexShrink: 0,
+                  alignItems: 'flex-start',
+                  gap: isMobile ? spacing.sm : spacing.lg,
+                  width: isMobile ? '100%' : 'auto',
+                  flex: isMobile ? 'none' : 1,
                 }}>
-                  {org?.logo_url ? (
-                    <img
-                      src={org.logo_url}
-                      alt={org.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <Crown size={24} style={{ color: colors.gold.primary }} />
-                  )}
-                </div>
+                  {/* Organization Logo */}
+                  <div style={{
+                    width: isMobile ? '40px' : '56px',
+                    height: isMobile ? '40px' : '56px',
+                    borderRadius: borderRadius.lg,
+                    background: colors.background.secondary,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                  }}>
+                    {org?.logo_url ? (
+                      <img
+                        src={org.logo_url}
+                        alt={org.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <Crown size={isMobile ? 18 : 24} style={{ color: colors.gold.primary }} />
+                    )}
+                  </div>
 
-                {/* Info */}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.xs }}>
-                    <h3 style={{ fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.semibold }}>
-                      {getCompetitionName(comp)}
-                    </h3>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
-                      padding: `${spacing.xs} ${spacing.sm}`,
-                      background: statusConfig.bg,
-                      borderRadius: borderRadius.pill,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: spacing.sm,
+                      marginBottom: spacing.xs,
+                      flexWrap: 'wrap',
                     }}>
-                      <span style={{ color: statusConfig.color, fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>
-                        {statusConfig.label}
+                      <h3 style={{
+                        fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.lg,
+                        fontWeight: typography.fontWeight.semibold,
+                        lineHeight: 1.3,
+                        wordBreak: 'break-word',
+                      }}>
+                        {getCompetitionName(comp)}
+                      </h3>
+                      <div style={{
+                        padding: `2px ${spacing.sm}`,
+                        background: statusConfig.bg,
+                        borderRadius: borderRadius.pill,
+                        flexShrink: 0,
+                      }}>
+                        <span style={{ color: statusConfig.color, fontSize: typography.fontSize.xs, fontWeight: typography.fontWeight.medium }}>
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: isMobile ? spacing.md : spacing.lg,
+                      marginBottom: spacing.sm,
+                      flexWrap: 'wrap',
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: colors.text.secondary, fontSize: isMobile ? typography.fontSize.xs : typography.fontSize.sm }}>
+                        <MapPin size={isMobile ? 12 : 14} />
+                        {city?.name || 'No City'}{!isMobile && `, ${city?.state || ''}`}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: colors.text.secondary, fontSize: isMobile ? typography.fontSize.xs : typography.fontSize.sm }}>
+                        <Calendar size={isMobile ? 12 : 14} />
+                        {isMobile ? comp.season : `Season ${comp.season}`}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: colors.text.secondary, fontSize: isMobile ? typography.fontSize.xs : typography.fontSize.sm }}>
+                        <Users size={isMobile ? 12 : 14} />
+                        {comp.number_of_winners} {isMobile ? 'win' : 'winners'}
                       </span>
                     </div>
-                  </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.lg, marginBottom: spacing.sm }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-                      <MapPin size={14} />
-                      {city?.name || 'No City'}, {city?.state || ''}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-                      <Calendar size={14} />
-                      Season {comp.season}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs, color: colors.text.secondary, fontSize: typography.fontSize.sm }}>
-                      <Users size={14} />
-                      {comp.number_of_winners} winners
-                    </span>
+                    {/* Host info */}
+                    {hostName ? (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                        padding: `2px ${spacing.sm}`,
+                        background: 'rgba(212,175,55,0.1)',
+                        borderRadius: borderRadius.md,
+                        fontSize: typography.fontSize.xs,
+                      }}>
+                        <UserPlus size={10} style={{ color: colors.gold.primary }} />
+                        <span style={{ color: colors.gold.primary }}>Host: {hostName}</span>
+                      </div>
+                    ) : (
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                        padding: `2px ${spacing.sm}`,
+                        background: 'rgba(239,68,68,0.1)',
+                        borderRadius: borderRadius.md,
+                        fontSize: typography.fontSize.xs,
+                      }}>
+                        <AlertTriangle size={10} style={{ color: '#ef4444' }} />
+                        <span style={{ color: '#ef4444' }}>No host assigned</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Host info */}
-                  {hostName ? (
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      padding: `${spacing.xs} ${spacing.sm}`,
-                      background: 'rgba(212,175,55,0.1)',
-                      borderRadius: borderRadius.md,
-                      fontSize: typography.fontSize.xs,
-                    }}>
-                      <UserPlus size={12} style={{ color: colors.gold.primary }} />
-                      <span style={{ color: colors.gold.primary }}>Host: {hostName}</span>
-                    </div>
-                  ) : (
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: spacing.sm,
-                      padding: `${spacing.xs} ${spacing.sm}`,
-                      background: 'rgba(239,68,68,0.1)',
-                      borderRadius: borderRadius.md,
-                      fontSize: typography.fontSize.xs,
-                    }}>
-                      <AlertTriangle size={12} style={{ color: '#ef4444' }} />
-                      <span style={{ color: '#ef4444' }}>No host assigned</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: spacing.sm }}>
+                <div style={{
+                  display: 'flex',
+                  gap: spacing.xs,
+                  width: isMobile ? '100%' : 'auto',
+                  justifyContent: isMobile ? 'flex-start' : 'flex-end',
+                  flexWrap: 'wrap',
+                  marginTop: isMobile ? spacing.sm : 0,
+                }}>
                   {!comp.host_id && (
                     <Button
                       variant="primary"
@@ -1334,7 +1394,7 @@ export default function CompetitionsManager({ onViewDashboard }) {
                         setShowAssignHostModal(true);
                       }}
                     >
-                      Assign Host
+                      {isMobile ? 'Assign' : 'Assign Host'}
                     </Button>
                   )}
                   {onViewDashboard && (
@@ -1371,29 +1431,36 @@ export default function CompetitionsManager({ onViewDashboard }) {
 
               {/* Quick Status Change */}
               <div style={{
-                marginTop: spacing.lg,
+                marginTop: isMobile ? spacing.md : spacing.lg,
                 paddingTop: spacing.md,
                 borderTop: `1px solid ${colors.border.light}`,
                 display: 'flex',
                 alignItems: 'center',
-                gap: spacing.md,
+                gap: spacing.sm,
+                flexWrap: 'wrap',
               }}>
                 <span style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>Status:</span>
-                <div style={{ display: 'flex', gap: spacing.xs }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '4px',
+                  flexWrap: 'wrap',
+                  flex: 1,
+                }}>
                   {Object.entries(STATUS_CONFIG).map(([status, config]) => (
                     <button
                       key={status}
                       onClick={() => handleStatusChange(comp.id, status)}
                       disabled={comp.status === status}
                       style={{
-                        padding: `${spacing.xs} ${spacing.sm}`,
+                        padding: isMobile ? `4px 6px` : `${spacing.xs} ${spacing.sm}`,
                         background: comp.status === status ? config.bg : 'transparent',
                         border: `1px solid ${comp.status === status ? config.color : colors.border.light}`,
                         borderRadius: borderRadius.md,
                         color: comp.status === status ? config.color : colors.text.muted,
-                        fontSize: typography.fontSize.xs,
+                        fontSize: isMobile ? '10px' : typography.fontSize.xs,
                         cursor: comp.status === status ? 'default' : 'pointer',
                         opacity: comp.status === status ? 1 : 0.6,
+                        minHeight: '28px',
                       }}
                     >
                       {config.label}

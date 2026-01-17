@@ -96,7 +96,7 @@ export default function PeopleTab({
       display: 'flex', alignItems: 'center', gap: spacing.md, padding: spacing.md,
       background: colors.background.secondary, borderRadius: borderRadius.lg, marginBottom: spacing.sm,
     }}>
-      <Avatar name={contestant.name} size={40} avatarUrl={contestant.avatarUrl} />
+      <Avatar name={contestant.name} size={40} src={contestant.avatarUrl} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontWeight: typography.fontWeight.medium, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {contestant.name}
@@ -122,7 +122,7 @@ export default function PeopleTab({
         display: 'flex', alignItems: 'center', gap: spacing.md, padding: spacing.md,
         background: colors.background.secondary, borderRadius: borderRadius.lg, marginBottom: spacing.sm,
       }}>
-        <Avatar name={nominee.name} size={40} avatarUrl={nominee.avatarUrl} />
+        <Avatar name={nominee.name} size={40} src={nominee.avatarUrl} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ fontWeight: typography.fontWeight.medium }}>{nominee.name}</p>
           <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>{nominee.email}</p>
@@ -171,7 +171,7 @@ export default function PeopleTab({
         display: 'flex', alignItems: 'center', gap: spacing.md, padding: spacing.md,
         background: colors.background.secondary, borderRadius: borderRadius.lg, marginBottom: spacing.sm, opacity: 0.7,
       }}>
-        <Avatar name={nominee.name} size={40} avatarUrl={nominee.avatarUrl} />
+        <Avatar name={nominee.name} size={40} src={nominee.avatarUrl} />
         <div style={{ flex: 1 }}>
           <p style={{ fontWeight: typography.fontWeight.medium }}>{nominee.name}</p>
           <p style={{ fontSize: typography.fontSize.xs, color: colors.text.muted }}>{nominee.email}</p>
@@ -196,21 +196,22 @@ export default function PeopleTab({
       <Panel
         title="Host Profile"
         icon={User}
+        collapsible
         action={
           host && isSuperAdmin ? (
             <div style={{ display: 'flex', gap: spacing.sm }}>
-              <Button size="sm" variant="secondary" onClick={onShowHostAssignment}>Reassign</Button>
+              <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); onShowHostAssignment(); }}>Reassign</Button>
               <Button
                 size="sm"
                 variant="secondary"
                 style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.5)' }}
-                onClick={onRemoveHost}
+                onClick={(e) => { e.stopPropagation(); onRemoveHost(); }}
               >
                 Remove
               </Button>
             </div>
           ) : (
-            isSuperAdmin && <Button size="sm" icon={UserPlus} onClick={onShowHostAssignment}>Assign Host</Button>
+            isSuperAdmin && <Button size="sm" icon={UserPlus} onClick={(e) => { e.stopPropagation(); onShowHostAssignment(); }}>Assign Host</Button>
           )
         }
       >
@@ -236,7 +237,7 @@ export default function PeopleTab({
                 marginBottom: spacing.xl,
                 flexDirection: isMobile ? 'column' : 'row',
               }}>
-                <Avatar name={host.name} avatarUrl={host.avatar} size={isMobile ? 80 : 100} />
+                <Avatar name={host.name} src={host.avatar} size={isMobile ? 80 : 100} />
                 <div style={{ flex: 1 }}>
                   <h2 style={{ fontSize: isMobile ? typography.fontSize.xl : typography.fontSize.display, fontWeight: typography.fontWeight.bold }}>
                     {host.name}

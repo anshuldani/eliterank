@@ -205,7 +205,7 @@ export default function SetupTab({
       </Panel>
 
       {/* Timeline & Status Settings */}
-      <Panel title="Timeline & Status" icon={Calendar}>
+      <Panel title="Timeline & Status" icon={Calendar} collapsible>
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           <TimelineSettings competition={competition} onSave={onRefresh} isSuperAdmin={isSuperAdmin} />
         </div>
@@ -216,6 +216,7 @@ export default function SetupTab({
         title={`Judges (${judges.length})`}
         icon={User}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenJudgeModal(null)}>Add Judge</Button>}
+        collapsible
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {judges.length === 0 ? (
@@ -234,7 +235,7 @@ export default function SetupTab({
                   background: colors.background.secondary,
                   borderRadius: borderRadius.lg,
                 }}>
-                  <Avatar name={judge.name} size={isMobile ? 40 : 48} avatarUrl={judge.avatarUrl} variant="gold" />
+                  <Avatar name={judge.name} size={isMobile ? 40 : 48} src={judge.avatarUrl} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontWeight: typography.fontWeight.medium, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{judge.name}</p>
                     <p style={{ color: colors.text.secondary, fontSize: typography.fontSize.sm, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{judge.title}</p>
@@ -269,6 +270,7 @@ export default function SetupTab({
         title={`Sponsors (${sponsors.length})`}
         icon={Star}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenSponsorModal(null)}>Add Sponsor</Button>}
+        collapsible
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {sponsors.length === 0 ? (
@@ -331,6 +333,7 @@ export default function SetupTab({
         title={`Events (${events.length})`}
         icon={Calendar}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenEventModal(null)}>Add Event</Button>}
+        collapsible
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {events.length === 0 ? (

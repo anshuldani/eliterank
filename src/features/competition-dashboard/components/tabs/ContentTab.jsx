@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, FileText, Pin, Edit, Trash2, ExternalLink, Eye } from 'lucide-react';
+import { Plus, FileText, Pin, Edit, Trash2 } from 'lucide-react';
 import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
@@ -20,7 +20,6 @@ export default function ContentTab({
   onUpdateAnnouncement,
   onDeleteAnnouncement,
   onTogglePin,
-  onViewPublicSite,
 }) {
   const { isMobile } = useResponsive();
   const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
@@ -52,24 +51,6 @@ export default function ContentTab({
 
   return (
     <div>
-      {/* View Public Page Header */}
-      {onViewPublicSite && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: spacing.lg,
-        }}>
-          <Button
-            variant="secondary"
-            icon={Eye}
-            onClick={onViewPublicSite}
-          >
-            View Public Page
-            <ExternalLink size={14} style={{ marginLeft: spacing.xs }} />
-          </Button>
-        </div>
-      )}
-
       {/* About Section */}
       <AboutSectionEditor
         competition={competition}
@@ -90,7 +71,7 @@ export default function ContentTab({
       }} />
 
       {/* Create Announcement Section */}
-      <Panel title="Create Announcement" icon={Plus}>
+      <Panel title="Create Announcement" icon={Plus} collapsible>
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {showAnnouncementForm || editingAnnouncement ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
@@ -155,7 +136,7 @@ export default function ContentTab({
               }}
               onClick={() => setShowAnnouncementForm(true)}
             >
-              <Avatar name={authorName} avatarUrl={authorAvatar} size={isMobile ? 36 : 44} />
+              <Avatar name={authorName} src={authorAvatar} size={isMobile ? 36 : 44} />
               <div style={{ flex: 1, minWidth: isMobile ? '100%' : 'auto' }}>
                 <p style={{ color: colors.text.secondary, fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.lg }}>
                   Share an update with your audience...
@@ -172,6 +153,7 @@ export default function ContentTab({
         title="Announcements Feed"
         icon={FileText}
         action={<span style={{ color: colors.text.secondary }}>{announcements.length} posts</span>}
+        collapsible
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {sortedAnnouncements.length > 0 ? (
@@ -193,7 +175,7 @@ export default function ContentTab({
                   marginBottom: spacing.md,
                   flexWrap: isMobile ? 'wrap' : 'nowrap',
                 }}>
-                  <Avatar name={authorName} avatarUrl={authorAvatar} size={isMobile ? 36 : 44} />
+                  <Avatar name={authorName} src={authorAvatar} size={isMobile ? 36 : 44} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       display: 'flex',
