@@ -4,7 +4,6 @@ import { Button, Badge, Avatar, Panel } from '../../../../components/ui';
 import { colors, spacing, borderRadius, typography } from '../../../../styles/theme';
 import { useResponsive } from '../../../../hooks/useResponsive';
 import TimelineSettings from '../TimelineSettings';
-import { ThemeEditor } from '../settings';
 
 // Helper to format currency from cents
 const formatCurrency = (cents) => {
@@ -34,7 +33,7 @@ const getEventStatus = (event) => {
 
 /**
  * SetupTab - Configuration settings tab
- * Contains competition details, timeline, judges, sponsors, events, and theme colors
+ * Contains competition details, timeline, judges, sponsors, and events
  */
 export default function SetupTab({
   competition,
@@ -51,7 +50,7 @@ export default function SetupTab({
   onOpenEventModal,
 }) {
   const { isMobile } = useResponsive();
-  const [showCompetitionDetails, setShowCompetitionDetails] = useState(false);
+  const [showCompetitionDetails, setShowCompetitionDetails] = useState(true);
 
   // View-only field component - stacked layout for better mobile display
   const ViewOnlyField = ({ label, value, icon: Icon }) => (
@@ -96,7 +95,7 @@ export default function SetupTab({
 
   return (
     <div>
-      {/* Competition Details - View Only (Admin Controlled) - Collapsed by default */}
+      {/* Competition Details - View Only (Admin Controlled) - Open by default */}
       <Panel
         title="Competition Details"
         icon={Lock}
@@ -205,7 +204,7 @@ export default function SetupTab({
       </Panel>
 
       {/* Timeline & Status Settings */}
-      <Panel title="Timeline & Status" icon={Calendar} collapsible>
+      <Panel title="Timeline & Status" icon={Calendar} collapsible defaultCollapsed>
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           <TimelineSettings competition={competition} onSave={onRefresh} isSuperAdmin={isSuperAdmin} />
         </div>
@@ -217,6 +216,7 @@ export default function SetupTab({
         icon={User}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenJudgeModal(null)}>Add Judge</Button>}
         collapsible
+        defaultCollapsed
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {judges.length === 0 ? (
@@ -271,6 +271,7 @@ export default function SetupTab({
         icon={Star}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenSponsorModal(null)}>Add Sponsor</Button>}
         collapsible
+        defaultCollapsed
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {sponsors.length === 0 ? (
@@ -334,6 +335,7 @@ export default function SetupTab({
         icon={Calendar}
         action={<Button size="sm" icon={Plus} onClick={() => onOpenEventModal(null)}>Add Event</Button>}
         collapsible
+        defaultCollapsed
       >
         <div style={{ padding: isMobile ? spacing.md : spacing.xl }}>
           {events.length === 0 ? (
@@ -402,9 +404,6 @@ export default function SetupTab({
           )}
         </div>
       </Panel>
-
-      {/* Theme Colors */}
-      <ThemeEditor competition={competition} organization={null} onSave={onRefresh} />
     </div>
   );
 }
