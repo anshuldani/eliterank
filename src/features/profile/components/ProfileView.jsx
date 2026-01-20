@@ -1,101 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Edit, MapPin, Star, FileText, Heart, Camera, Globe, Trophy, User, Award, TrendingUp } from 'lucide-react';
-import { Panel, Button, Badge, InterestTag } from '../../../components/ui';
+import { Edit, MapPin, FileText, Heart, Camera, Globe, TrendingUp } from 'lucide-react';
+import { Panel, Button, InterestTag } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
 import { getCompetitionStats } from '../../../lib/competition-history';
 import { useResponsive } from '../../../hooks/useResponsive';
 import ProfileCompetitions from './ProfileCompetitions';
 
-// Human-readable status labels
-const STATUS_LABELS = {
-  setup: 'Setup',
-  assigned: 'Assigned',
-  nomination: 'Nomination Phase',
-  voting: 'Voting Phase',
-  judging: 'Judging Phase',
-  completed: 'Completed',
-  upcoming: 'Upcoming',
-  active: 'Active',
-  live: 'Live',
-  publish: 'Coming Soon',
-  draft: 'Draft',
-  archive: 'Archived',
-};
-
-// Status badge variants
-const STATUS_VARIANTS = {
-  setup: 'default',
-  assigned: 'info',
-  nomination: 'warning',
-  voting: 'success',
-  judging: 'info',
-  completed: 'purple',
-  upcoming: 'default',
-  active: 'success',
-  live: 'success',
-  publish: 'warning',
-  draft: 'default',
-  archive: 'default',
-};
-
-// Role display configuration
-const ROLE_CONFIG = {
-  host: { label: 'Verified Host', icon: Star, variant: 'gold' },
-  super_admin: { label: 'Super Admin', icon: Star, variant: 'gold' },
-  contestant: { label: 'Contestant', icon: Trophy, variant: 'success' },
-  fan: { label: 'Member', icon: User, variant: 'default' },
-};
-
-export default function ProfileView({ hostProfile, onEdit, hostCompetition, userRole = 'fan', isHost = false }) {
+export default function ProfileView({ hostProfile, onEdit }) {
   const { isMobile, isSmall } = useResponsive();
   const [competitionStats, setCompetitionStats] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(true);
 
-  // Fetch competition stats
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!hostProfile?.id) {
-        setLoadingStats(false);
-        return;
-      }
-
-      try {
-        const stats = await getCompetitionStats(hostProfile.id);
-        setCompetitionStats(stats);
-      } catch (err) {
-        console.error('Error fetching competition stats:', err);
-      }
-      setLoadingStats(false);
-    };
-
-    fetchStats();
+    if (!hostProfile?.id) return;
+    getCompetitionStats(hostProfile.id).then(setCompetitionStats).catch(console.error);
   }, [hostProfile?.id]);
 
   if (!hostProfile) return null;
 
   const initials = `${(hostProfile.firstName || '?')[0]}${(hostProfile.lastName || '?')[0]}`;
   const gallery = hostProfile.gallery || [];
-
-  // Determine role badge dynamically based on competition stats
-  const getDynamicRole = () => {
-    // Check profile-level stats first
-    if (hostProfile.wins > 0 || competitionStats?.wins > 0) {
-      return { label: 'Winner', icon: Trophy, variant: 'gold' };
-    }
-    if (hostProfile.total_competitions > 0 || competitionStats?.totalCompetitions > 0) {
-      return { label: 'Contestant', icon: Award, variant: 'info' };
-    }
-    if (isHost || userRole === 'host') {
-      return ROLE_CONFIG.host;
-    }
-    if (userRole === 'super_admin') {
-      return ROLE_CONFIG.super_admin;
-    }
-    return ROLE_CONFIG.fan;
-  };
-
-  const roleConfig = getDynamicRole();
-  const RoleIcon = roleConfig.icon;
 
   const socialLinks = [
     { platform: 'Instagram', handle: hostProfile.instagram, icon: '📷', gradient: 'linear-gradient(135deg, #833AB4, #FD1D1D, #FCAF45)' },
@@ -156,27 +79,14 @@ export default function ProfileView({ hostProfile, onEdit, hostCompetition, user
               {!hostProfile.avatarUrl && initials}
             </div>
             <div style={{ flex: 1, paddingBottom: isMobile ? 0 : spacing.sm, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, flexWrap: 'wrap' }}>
-                <h1 style={{
-                  fontSize: isMobile ? typography.fontSize.xxl : typography.fontSize.hero,
-                  fontWeight: typography.fontWeight.bold,
-                  color: '#fff',
-                  wordBreak: 'break-word',
-                }}>
-                  {hostProfile.firstName} {hostProfile.lastName}
-                </h1>
-                <Badge
-                  variant={roleConfig.variant}
-                  size={isMobile ? 'sm' : 'lg'}
-                  icon={RoleIcon}
-                  style={{
-                    background: 'transparent',
-                    border: `1px solid ${roleConfig.variant === 'gold' ? 'rgba(212,175,55,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                  }}
-                >
-                  {roleConfig.label}
-                </Badge>
-              </div>
+              <h1 style={{
+                fontSize: isMobile ? typography.fontSize.xxl : typography.fontSize.hero,
+                fontWeight: typography.fontWeight.bold,
+                color: '#fff',
+                wordBreak: 'break-word',
+              }}>
+                {hostProfile.firstName} {hostProfile.lastName}
+              </h1>
               {hostProfile.city && (
                 <p style={{
                   color: colors.text.secondary,
