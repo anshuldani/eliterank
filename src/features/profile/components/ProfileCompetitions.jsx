@@ -1,404 +1,178 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Crown, MapPin, Star, Award, Sparkles, ExternalLink, Users } from 'lucide-react';
-import { Panel, Badge, Button, Avatar } from '../../../components/ui';
-import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
-import { getAllUserCompetitions } from '../../../lib/competition-history';
+import { Trophy, Crown, MapPin, Star, ExternalLink } from 'lucide-react';
+import { Panel, Badge } from '../../../components/ui';
+import { colors, spacing, borderRadius, typography } from '../../../styles/theme';
+import { getHostedCompetitions, getContestantCompetitions } from '../../../lib/competition-history';
 import { useResponsive } from '../../../hooks/useResponsive';
-import { formatNumber } from '../../../utils/formatters';
 
-// Human-readable status labels
 const STATUS_LABELS = {
-  setup: 'Setup',
-  assigned: 'Assigned',
-  nomination: 'Nominations Open',
-  voting: 'Voting Open',
-  judging: 'Judging',
-  completed: 'Completed',
   upcoming: 'Upcoming',
-  active: 'Active',
+  nomination: 'Nominations',
+  voting: 'Voting',
+  completed: 'Completed',
   live: 'Live',
   publish: 'Coming Soon',
-  draft: 'Draft',
-  archive: 'Archived',
 };
 
-// Status badge variants
-const STATUS_VARIANTS = {
-  setup: 'default',
-  assigned: 'info',
-  nomination: 'warning',
-  voting: 'success',
-  judging: 'info',
-  completed: 'purple',
-  upcoming: 'default',
-  active: 'success',
-  live: 'success',
-  publish: 'warning',
-  draft: 'default',
-  archive: 'default',
-};
-
-// Role display config
-const ROLE_CONFIG = {
-  host: { label: 'Host', icon: Crown, color: colors.accent.purple },
-  contestant: { label: 'Contestant', icon: Star, color: colors.gold.primary },
-};
-
-/**
- * Inline vote card for active competitions
- */
-function InlineVoteCard({ entry, onVote }) {
+function CompetitionCard({ competition, role, contestantData }) {
   const { isMobile } = useResponsive();
-  const isActive = entry.competition?.phase === 'voting' || entry.competition?.status === 'voting';
+  const isHost = role === 'host';
+  const city = competition?.city || 'Competition';
+  const season = competition?.season || '';
+  const status = competition?.status || 'upcoming';
+  const isActive = ['voting', 'nomination', 'live'].includes(status);
+  const isWinner = contestantData?.status === 'winner';
 
-  if (!isActive || entry.role !== 'contestant') return null;
+  const url = `/most-eligible/${city.toLowerCase().replace(/\s+/g, '-')}-${season}`;
 
   return (
-    <div
+    <a
+      href={url}
       style={{
-        marginTop: spacing.md,
-        padding: spacing.md,
-        background: 'linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.05))',
-        border: '1px solid rgba(34,197,94,0.2)',
-        borderRadius: borderRadius.lg,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <Sparkles size={16} style={{ color: colors.status.success }} />
-          <span style={{ fontSize: typography.fontSize.sm, color: colors.status.success, fontWeight: typography.fontWeight.medium }}>
-            Voting is open!
-          </span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-          <span style={{ fontSize: typography.fontSize.sm, color: colors.text.secondary }}>
-            {formatNumber(entry.votes || 0)} votes
-          </span>
-          <Button
-            size="sm"
-            onClick={() => onVote?.(entry)}
-            style={{
-              background: gradients.gold,
-              color: '#0a0a0f',
-              padding: `${spacing.xs} ${spacing.md}`,
-              fontWeight: typography.fontWeight.semibold,
-            }}
-          >
-            Vote
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Single competition card
- */
-function CompetitionCard({ entry, onVote, onViewCompetition }) {
-  const { isMobile } = useResponsive();
-
-  // Determine role (users can only be one role per competition)
-  const isHost = entry.role === 'host' || entry.isHost;
-  const isContestant = entry.role === 'contestant';
-
-  // Get appropriate role config for display
-  const roleConfig = isHost ? ROLE_CONFIG.host : ROLE_CONFIG.contestant;
-  const RoleIcon = roleConfig.icon;
-
-  const competition = entry.competition || entry;
-  const city = competition.city || entry.city || 'Unknown';
-  const season = competition.season || entry.season || '';
-  const status = competition.status || competition.phase || entry.status || entry.phase || 'upcoming';
-  const isActive = status === 'voting' || status === 'nomination' || status === 'live' || status === 'active';
-
-  // Generate competition URL
-  const getCompetitionUrl = () => {
-    const orgSlug = entry.organization?.slug || competition.organization?.slug || 'most-eligible';
-    const citySlug = city.toLowerCase().replace(/\s+/g, '-').replace(/,/g, '');
-    return `/${orgSlug}/${citySlug}-${season}`;
-  };
-
-  return (
-    <div
-      style={{
-        background: entry.isWinner
+        display: 'block',
+        background: isWinner
           ? 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))'
           : isActive
           ? 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))'
           : 'rgba(255,255,255,0.03)',
-        border: entry.isWinner
+        border: isWinner
           ? '1px solid rgba(212,175,55,0.3)'
           : isActive
           ? '1px solid rgba(34,197,94,0.2)'
           : '1px solid rgba(255,255,255,0.05)',
         borderRadius: borderRadius.lg,
         padding: isMobile ? spacing.md : spacing.lg,
+        textDecoration: 'none',
         transition: 'all 0.2s ease',
       }}
     >
-      {/* Header row */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: spacing.sm,
-        marginBottom: spacing.sm,
-      }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
+        <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-            <MapPin size={14} style={{ color: roleConfig.color, flexShrink: 0 }} />
-            <span style={{
-              fontWeight: typography.fontWeight.semibold,
-              color: colors.text.primary,
-              fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.md,
-            }}>
+            <MapPin size={14} style={{ color: isHost ? colors.accent.purple : colors.gold.primary }} />
+            <span style={{ fontWeight: typography.fontWeight.semibold, color: colors.text.primary, fontSize: typography.fontSize.sm }}>
               {city} {season}
             </span>
           </div>
-
-          {/* Role badge */}
-          <Badge
-            variant={isHost ? 'purple' : 'gold'}
-            size="sm"
-            style={{
-              background: 'transparent',
-              border: `1px solid ${roleConfig.color}40`,
-            }}
-          >
-            {isHost ? (
-              <><Crown size={10} style={{ marginRight: '4px' }} />Host</>
-            ) : (
-              <><Star size={10} style={{ marginRight: '4px' }} />Contestant</>
-            )}
-          </Badge>
-        </div>
-
-        {/* Status / Result badges */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: spacing.xs }}>
-          {entry.isWinner ? (
-            <Badge variant="gold" size="sm">
-              <Trophy size={12} /> Winner
-            </Badge>
-          ) : entry.placement ? (
-            <Badge variant="info" size="sm">
-              #{entry.placement}
-            </Badge>
-          ) : (
-            <Badge variant={STATUS_VARIANTS[status] || 'default'} size="sm" pill>
-              {isActive && '● '}{STATUS_LABELS[status] || status}
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* Stats row for contestants */}
-      {isContestant && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.lg,
-          fontSize: typography.fontSize.xs,
-          color: colors.text.secondary,
-          marginTop: spacing.sm,
-        }}>
-          {typeof entry.votes === 'number' && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
-              <Users size={12} />
-              {formatNumber(entry.votes)} votes
+          {contestantData && (
+            <span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+              {contestantData.votes?.toLocaleString() || 0} votes
             </span>
           )}
         </div>
-      )}
-
-      {/* Vote card for active competitions where user is contestant */}
-      {isContestant && (status === 'voting' || competition.phase === 'voting') && (
-        <InlineVoteCard entry={entry} onVote={onVote} />
-      )}
-
-      {/* View competition link */}
-      <div style={{ marginTop: spacing.md }}>
-        <a
-          href={getCompetitionUrl()}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: spacing.xs,
-            fontSize: typography.fontSize.xs,
-            color: colors.text.tertiary,
-            textDecoration: 'none',
-            transition: 'color 0.2s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = colors.gold.primary}
-          onMouseLeave={(e) => e.currentTarget.style.color = colors.text.tertiary}
-        >
-          <ExternalLink size={12} />
-          View Competition
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+          {isWinner ? (
+            <Badge variant="gold" size="sm"><Trophy size={12} /> Winner</Badge>
+          ) : (
+            <Badge variant={isActive ? 'success' : 'default'} size="sm" pill>
+              {isActive && '● '}{STATUS_LABELS[status] || status}
+            </Badge>
+          )}
+          <ExternalLink size={14} style={{ color: colors.text.tertiary }} />
+        </div>
       </div>
-    </div>
+    </a>
   );
 }
 
-/**
- * ProfileCompetitions - Displays all competitions user is part of
- */
-export default function ProfileCompetitions({ userId, onVote }) {
+export default function ProfileCompetitions({ userId }) {
   const { isMobile } = useResponsive();
-  const [competitions, setCompetitions] = useState([]);
+  const [hostedCompetitions, setHostedCompetitions] = useState([]);
+  const [contestantEntries, setContestantEntries] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCompetitions = async () => {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const data = await getAllUserCompetitions(userId);
-        setCompetitions(data);
-      } catch (err) {
-        console.error('Error fetching competitions:', err);
-      }
+    if (!userId) {
       setLoading(false);
-    };
+      return;
+    }
 
-    fetchCompetitions();
+    Promise.all([
+      getHostedCompetitions(userId),
+      getContestantCompetitions(userId),
+    ]).then(([hosted, contestant]) => {
+      setHostedCompetitions(hosted);
+      setContestantEntries(contestant);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [userId]);
 
-  // Group competitions by active vs past
-  const activeCompetitions = competitions.filter(c => {
-    const status = c.competition?.status || c.status;
-    return ['voting', 'nomination', 'live', 'active', 'judging'].includes(status);
-  });
-
-  const pastCompetitions = competitions.filter(c => {
-    const status = c.competition?.status || c.status;
-    return !['voting', 'nomination', 'live', 'active', 'judging'].includes(status);
-  });
+  const hasHosted = hostedCompetitions.length > 0;
+  const hasContestant = contestantEntries.length > 0;
 
   if (loading) {
     return (
-      <Panel style={{ marginBottom: isMobile ? spacing.md : spacing.xl }}>
-        <div style={{ padding: isMobile ? spacing.lg : spacing.xxl }}>
-          <h3 style={{
-            fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
-            fontWeight: typography.fontWeight.semibold,
-            marginBottom: spacing.lg,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <Trophy size={isMobile ? 18 : 20} style={{ color: colors.gold.primary }} /> Competitions
-          </h3>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            padding: spacing.xl,
-            color: colors.text.muted,
-          }}>
-            Loading competitions...
-          </div>
+      <Panel style={{ marginBottom: spacing.xl }}>
+        <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.text.muted }}>
+          Loading competitions...
         </div>
       </Panel>
     );
   }
 
-  if (competitions.length === 0) {
+  if (!hasHosted && !hasContestant) {
     return (
-      <Panel style={{ marginBottom: isMobile ? spacing.md : spacing.xl }}>
-        <div style={{ padding: isMobile ? spacing.lg : spacing.xxl }}>
-          <h3 style={{
-            fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
-            fontWeight: typography.fontWeight.semibold,
-            marginBottom: spacing.lg,
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md
-          }}>
-            <Trophy size={isMobile ? 18 : 20} style={{ color: colors.gold.primary }} /> Competitions
-          </h3>
-          <div style={{
-            textAlign: 'center',
-            padding: spacing.xl,
-            color: colors.text.muted,
-            fontSize: typography.fontSize.sm,
-          }}>
-            <Trophy size={32} style={{ marginBottom: spacing.md, opacity: 0.3 }} />
-            <p>No competitions yet</p>
-          </div>
+      <Panel style={{ marginBottom: spacing.xl }}>
+        <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.text.muted }}>
+          <Trophy size={32} style={{ marginBottom: spacing.md, opacity: 0.3 }} />
+          <p style={{ fontSize: typography.fontSize.sm }}>No competitions yet</p>
         </div>
       </Panel>
     );
   }
 
   return (
-    <Panel style={{ marginBottom: isMobile ? spacing.md : spacing.xl }}>
-      <div style={{ padding: isMobile ? spacing.lg : spacing.xxl }}>
-        <h3 style={{
-          fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
-          fontWeight: typography.fontWeight.semibold,
-          marginBottom: spacing.lg,
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.md
-        }}>
-          <Trophy size={isMobile ? 18 : 20} style={{ color: colors.gold.primary }} /> Competitions
-        </h3>
-
-        {/* Active Competitions */}
-        {activeCompetitions.length > 0 && (
-          <div style={{ marginBottom: pastCompetitions.length > 0 ? spacing.xl : 0 }}>
-            <p style={{
-              fontSize: typography.fontSize.xs,
-              color: colors.status.success,
+    <>
+      {/* Hosting Section */}
+      {hasHosted && (
+        <Panel style={{ marginBottom: spacing.xl }}>
+          <div style={{ padding: isMobile ? spacing.lg : spacing.xl }}>
+            <h3 style={{
+              fontSize: typography.fontSize.lg,
               fontWeight: typography.fontWeight.semibold,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: spacing.md,
+              marginBottom: spacing.lg,
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm
             }}>
-              Active ({activeCompetitions.length})
-            </p>
+              <Crown size={18} style={{ color: colors.accent.purple }} /> Hosting
+            </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-              {activeCompetitions.map((entry) => (
-                <CompetitionCard
-                  key={entry.id}
-                  entry={entry}
-                  onVote={onVote}
-                />
+              {hostedCompetitions.map(comp => (
+                <CompetitionCard key={comp.id} competition={comp} role="host" />
               ))}
             </div>
           </div>
-        )}
+        </Panel>
+      )}
 
-        {/* Past Competitions */}
-        {pastCompetitions.length > 0 && (
-          <div>
-            {activeCompetitions.length > 0 && (
-              <p style={{
-                fontSize: typography.fontSize.xs,
-                color: colors.text.muted,
-                fontWeight: typography.fontWeight.semibold,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: spacing.md,
-              }}>
-                Past ({pastCompetitions.length})
-              </p>
-            )}
+      {/* Contestant Section */}
+      {hasContestant && (
+        <Panel style={{ marginBottom: spacing.xl }}>
+          <div style={{ padding: isMobile ? spacing.lg : spacing.xl }}>
+            <h3 style={{
+              fontSize: typography.fontSize.lg,
+              fontWeight: typography.fontWeight.semibold,
+              marginBottom: spacing.lg,
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm
+            }}>
+              <Star size={18} style={{ color: colors.gold.primary }} /> Competed
+            </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-              {pastCompetitions.map((entry) => (
+              {contestantEntries.map(entry => (
                 <CompetitionCard
                   key={entry.id}
-                  entry={entry}
-                  onVote={onVote}
+                  competition={entry.competition}
+                  role="contestant"
+                  contestantData={entry}
                 />
               ))}
             </div>
           </div>
-        )}
-      </div>
-    </Panel>
+        </Panel>
+      )}
+    </>
   );
 }
