@@ -1,175 +1,100 @@
 import { supabase } from './supabase';
 
 /**
- * Get competition history for a user
- * @param {string} userId - The user's profile ID
- * @returns {Promise<Array>} - Array of competition entries with competition details
+ * Get competitions hosted by a user
  */
-export async function getCompetitionHistory(userId) {
-  if (!supabase || !userId) {
-    return [];
-  }
+export async function getHostedCompetitions(userId) {
+  if (!supabase || !userId) return [];
 
   try {
     const { data, error } = await supabase
-      .from('contestants')
-      .select(`
-        id,
-        name,
-        votes,
-        avatar_url,
-        status,
-        created_at,
-        competition_id,
-        competitions (
-          id,
-          name,
-          city,
-          season,
-          status,
-          winners,
-          phase
-        )
-      `)
-      .eq('user_id', userId)
+      .from('competitions')
+      .select('*')
+      .eq('host_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching competition history:', error);
+      console.error('Error fetching hosted competitions:', error);
       return [];
     }
-
-    // Process the data to add rank and winner status
-    return (data || []).map(entry => {
-      const competition = entry.competitions;
-      const isWinner = competition?.winners?.includes(userId) || false;
-
-      // Calculate placement (if competition has winners array)
-      let placement = null;
-      if (competition?.winners && Array.isArray(competition.winners)) {
-        const winnerIndex = competition.winners.indexOf(userId);
-        if (winnerIndex !== -1) {
-          placement = winnerIndex + 1; // 1st place, 2nd place, etc.
-        }
-      }
-
-      return {
-        id: entry.id,
-        name: entry.name,
-        votes: entry.votes || 0,
-        avatarUrl: entry.avatar_url,
-        status: entry.status,
-        createdAt: entry.created_at,
-        isWinner,
-        placement,
-        competition: competition ? {
-          id: competition.id,
-          name: competition.name,
-          city: competition.city,
-          season: competition.season,
-          status: competition.status,
-          phase: competition.phase,
-        } : null,
-      };
-    });
+    return data || [];
   } catch (err) {
-    console.error('Error in getCompetitionHistory:', err);
+    console.error('Error in getHostedCompetitions:', err);
     return [];
   }
 }
 
 /**
- * Get aggregated stats for a user's competition history
- * @param {string} userId - The user's profile ID
- * @returns {Promise<Object>} - Aggregated stats
+ * Get competitions where user was a contestant
  */
-export async function getCompetitionStats(userId) {
-  if (!supabase || !userId) {
-    return {
-      totalCompetitions: 0,
-      totalVotes: 0,
-      wins: 0,
-      bestPlacement: null,
-    };
-  }
+export async function getContestantCompetitions(userId) {
+  if (!supabase || !userId) return [];
 
   try {
-    // Get from profile if stats are already calculated
-    const { data: profile, error: profileError } = await supabase
+    // Get contestant entries
+    const { data: contestants, error: contestantsError } = await supabase
+      .from('contestants')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (contestantsError || !contestants?.length) {
+      if (contestantsError) console.error('Error fetching contestants:', contestantsError);
+      return [];
+    }
+
+    // Get competition details
+    const competitionIds = [...new Set(contestants.map(c => c.competition_id).filter(Boolean))];
+    if (!competitionIds.length) return [];
+
+    const { data: competitions, error: competitionsError } = await supabase
+      .from('competitions')
+      .select('*')
+      .in('id', competitionIds);
+
+    if (competitionsError) {
+      console.error('Error fetching competitions:', competitionsError);
+      return [];
+    }
+
+    // Merge contestant data with competition data
+    const competitionMap = new Map((competitions || []).map(c => [c.id, c]));
+
+    return contestants.map(contestant => ({
+      ...contestant,
+      competition: competitionMap.get(contestant.competition_id) || null,
+    }));
+  } catch (err) {
+    console.error('Error in getContestantCompetitions:', err);
+    return [];
+  }
+}
+
+/**
+ * Get aggregated stats for a user (reads from profile)
+ */
+export async function getCompetitionStats(userId) {
+  const defaultStats = { totalCompetitions: 0, totalVotes: 0, wins: 0, bestPlacement: null };
+
+  if (!supabase || !userId) return defaultStats;
+
+  try {
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('total_votes_received, total_competitions, wins, best_placement')
       .eq('id', userId)
       .single();
 
-    if (!profileError && profile) {
-      return {
-        totalCompetitions: profile.total_competitions || 0,
-        totalVotes: profile.total_votes_received || 0,
-        wins: profile.wins || 0,
-        bestPlacement: profile.best_placement,
-      };
-    }
-
-    // Fallback: Calculate from contestants table
-    const history = await getCompetitionHistory(userId);
-
-    const totalVotes = history.reduce((sum, entry) => sum + (entry.votes || 0), 0);
-    const wins = history.filter(entry => entry.isWinner).length;
-    const placements = history.filter(entry => entry.placement).map(entry => entry.placement);
-    const bestPlacement = placements.length > 0 ? Math.min(...placements) : null;
+    if (error || !profile) return defaultStats;
 
     return {
-      totalCompetitions: history.length,
-      totalVotes,
-      wins,
-      bestPlacement,
+      totalCompetitions: profile.total_competitions || 0,
+      totalVotes: profile.total_votes_received || 0,
+      wins: profile.wins || 0,
+      bestPlacement: profile.best_placement,
     };
   } catch (err) {
     console.error('Error in getCompetitionStats:', err);
-    return {
-      totalCompetitions: 0,
-      totalVotes: 0,
-      wins: 0,
-      bestPlacement: null,
-    };
-  }
-}
-
-/**
- * Sync profile stats from contestants table (admin/maintenance function)
- * @param {string} userId - The user's profile ID
- */
-export async function syncProfileStats(userId) {
-  if (!supabase || !userId) {
-    return { success: false, error: 'Invalid parameters' };
-  }
-
-  try {
-    const history = await getCompetitionHistory(userId);
-
-    const totalVotes = history.reduce((sum, entry) => sum + (entry.votes || 0), 0);
-    const wins = history.filter(entry => entry.placement === 1).length;
-    const placements = history.filter(entry => entry.placement).map(entry => entry.placement);
-    const bestPlacement = placements.length > 0 ? Math.min(...placements) : null;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        total_votes_received: totalVotes,
-        total_competitions: history.length,
-        wins,
-        best_placement: bestPlacement,
-      })
-      .eq('id', userId);
-
-    if (error) {
-      console.error('Error syncing profile stats:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.error('Error in syncProfileStats:', err);
-    return { success: false, error: err.message };
+    return defaultStats;
   }
 }

@@ -427,6 +427,7 @@ export default function App() {
     if (!profile) return DEFAULT_HOST_PROFILE;
 
     return {
+      id: profile.id,
       firstName: profile.first_name || '',
       lastName: profile.last_name || '',
       bio: profile.bio || '',
@@ -439,6 +440,8 @@ export default function App() {
       avatarUrl: profile.avatar_url || '',
       coverImage: profile.cover_image || '',
       gallery: Array.isArray(profile.gallery) ? profile.gallery : [],
+      wins: profile.wins || 0,
+      total_competitions: profile.total_competitions || 0,
     };
   }, [profile]);
 
