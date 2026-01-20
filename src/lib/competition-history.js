@@ -1,6 +1,112 @@
 import { supabase } from './supabase';
 
 /**
+ * Get competitions hosted by a user
+ * @param {string} userId - The user's profile ID
+ * @returns {Promise<Array>} - Array of hosted competitions
+ */
+export async function getHostedCompetitions(userId) {
+  if (!supabase || !userId) {
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('competitions')
+      .select(`
+        id,
+        name,
+        city,
+        season,
+        status,
+        phase,
+        created_at,
+        organization:organizations(id, name, slug)
+      `)
+      .eq('host_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching hosted competitions:', error);
+      return [];
+    }
+
+    return (data || []).map(comp => ({
+      id: comp.id,
+      name: comp.name || `${comp.city} ${comp.season}`,
+      city: comp.city,
+      season: comp.season,
+      status: comp.status,
+      phase: comp.phase,
+      createdAt: comp.created_at,
+      role: 'host',
+      organization: comp.organization,
+    }));
+  } catch (err) {
+    console.error('Error in getHostedCompetitions:', err);
+    return [];
+  }
+}
+
+/**
+ * Get all competitions a user is involved in (as contestant or host)
+ * @param {string} userId - The user's profile ID
+ * @returns {Promise<Array>} - Combined array of competitions with role indicator
+ */
+export async function getAllUserCompetitions(userId) {
+  if (!supabase || !userId) {
+    return [];
+  }
+
+  try {
+    const [contestantHistory, hostedCompetitions] = await Promise.all([
+      getCompetitionHistory(userId),
+      getHostedCompetitions(userId),
+    ]);
+
+    // Mark contestant entries with role
+    const contestantEntries = contestantHistory.map(entry => ({
+      ...entry,
+      role: 'contestant',
+      competitionId: entry.competition?.id,
+    }));
+
+    // Combine and sort by date (most recent first)
+    const all = [...contestantEntries, ...hostedCompetitions];
+
+    // Remove duplicates (in case user is both host and contestant in same competition)
+    const seen = new Map();
+    const unique = all.filter(entry => {
+      const compId = entry.competitionId || entry.id;
+      if (seen.has(compId)) {
+        // If we already have this competition, keep the one with 'host' role
+        const existing = seen.get(compId);
+        if (entry.role === 'host' && existing.role !== 'host') {
+          seen.set(compId, { ...entry, alsoContestant: true });
+          return false;
+        }
+        if (existing.role === 'host' && entry.role === 'contestant') {
+          seen.set(compId, { ...existing, alsoContestant: true });
+        }
+        return false;
+      }
+      seen.set(compId, entry);
+      return true;
+    });
+
+    // Return unique entries with updated data from seen map
+    return Array.from(seen.values()).sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA;
+    });
+  } catch (err) {
+    console.error('Error in getAllUserCompetitions:', err);
+    return [];
+  }
+}
+
+/**
  * Get competition history for a user
  * @param {string} userId - The user's profile ID
  * @returns {Promise<Array>} - Array of competition entries with competition details

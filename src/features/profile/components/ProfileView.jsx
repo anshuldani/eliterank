@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Edit, MapPin, Star, FileText, Heart, Camera, Globe, Trophy, User, Award, TrendingUp } from 'lucide-react';
 import { Panel, Button, Badge, InterestTag } from '../../../components/ui';
 import { colors, spacing, borderRadius, typography, gradients } from '../../../styles/theme';
-import { getCompetitionHistory, getCompetitionStats } from '../../../lib/competition-history';
+import { getCompetitionStats } from '../../../lib/competition-history';
 import { useResponsive } from '../../../hooks/useResponsive';
+import ProfileCompetitions from './ProfileCompetitions';
 
 // Human-readable status labels
 const STATUS_LABELS = {
@@ -47,32 +48,27 @@ const ROLE_CONFIG = {
 
 export default function ProfileView({ hostProfile, onEdit, hostCompetition, userRole = 'fan', isHost = false }) {
   const { isMobile, isSmall } = useResponsive();
-  const [competitionHistory, setCompetitionHistory] = useState([]);
   const [competitionStats, setCompetitionStats] = useState(null);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  // Fetch competition history
+  // Fetch competition stats
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchStats = async () => {
       if (!hostProfile?.id) {
-        setLoadingHistory(false);
+        setLoadingStats(false);
         return;
       }
 
       try {
-        const [history, stats] = await Promise.all([
-          getCompetitionHistory(hostProfile.id),
-          getCompetitionStats(hostProfile.id),
-        ]);
-        setCompetitionHistory(history);
+        const stats = await getCompetitionStats(hostProfile.id);
         setCompetitionStats(stats);
       } catch (err) {
-        console.error('Error fetching competition history:', err);
+        console.error('Error fetching competition stats:', err);
       }
-      setLoadingHistory(false);
+      setLoadingStats(false);
     };
 
-    fetchHistory();
+    fetchStats();
   }, [hostProfile?.id]);
 
   if (!hostProfile) return null;
@@ -107,9 +103,6 @@ export default function ProfileView({ hostProfile, onEdit, hostCompetition, user
     { platform: 'LinkedIn', handle: hostProfile.linkedin, icon: 'in', background: '#0A66C2' },
     { platform: 'TikTok', handle: hostProfile.tiktok, icon: '♪', gradient: 'linear-gradient(135deg, #00f2ea, #ff0050)' },
   ].filter(link => link.handle);
-
-  // Only show hosting section if user is a host
-  const showHostingSection = isHost || userRole === 'host';
 
   return (
     <div>
@@ -374,51 +367,8 @@ export default function ProfileView({ hostProfile, onEdit, hostCompetition, user
             </Panel>
           )}
 
-          {/* Current Competition - Only shown for hosts */}
-          {showHostingSection && (
-            <Panel style={{ marginBottom: isMobile ? spacing.md : spacing.xl }}>
-              <div style={{ padding: isMobile ? spacing.lg : spacing.xxl }}>
-                <h3 style={{
-                  fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
-                  fontWeight: typography.fontWeight.semibold,
-                  marginBottom: spacing.lg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.md
-                }}>
-                  <Trophy size={isMobile ? 18 : 20} style={{ color: colors.gold.primary }} /> Currently Hosting
-                </h3>
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))',
-                    border: `1px solid rgba(212,175,55,0.2)`,
-                    borderRadius: borderRadius.lg,
-                    padding: isMobile ? spacing.md : spacing.lg,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-                    <MapPin size={14} style={{ color: colors.gold.primary }} />
-                    <span style={{
-                      fontWeight: typography.fontWeight.semibold,
-                      fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.md
-                    }}>
-                      {hostCompetition?.name || 'No Competition Assigned'}
-                    </span>
-                  </div>
-                  <p style={{
-                    fontSize: isMobile ? typography.fontSize.xs : typography.fontSize.base,
-                    color: colors.text.secondary,
-                    marginBottom: spacing.sm
-                  }}>
-                    {hostCompetition ? `Season ${hostCompetition.season || '2025'} • ${STATUS_LABELS[hostCompetition.status] || 'Upcoming'}` : 'Contact admin to be assigned'}
-                  </p>
-                  <Badge variant={hostCompetition ? (STATUS_VARIANTS[hostCompetition.status] || 'success') : 'warning'} size="sm" pill>
-                    ● {hostCompetition ? (STATUS_LABELS[hostCompetition.status] || hostCompetition.status)?.toUpperCase() : 'PENDING'}
-                  </Badge>
-                </div>
-              </div>
-            </Panel>
-          )}
+          {/* Competitions Section - Shows all competitions user is part of */}
+          <ProfileCompetitions userId={hostProfile?.id} />
 
           {/* Competition Stats */}
           {competitionStats && (competitionStats.totalCompetitions > 0 || competitionStats.totalVotes > 0) && (
@@ -505,72 +455,6 @@ export default function ProfileView({ hostProfile, onEdit, hostCompetition, user
             </Panel>
           )}
 
-          {/* Competition History */}
-          {competitionHistory.length > 0 && (
-            <Panel>
-              <div style={{ padding: isMobile ? spacing.lg : spacing.xxl }}>
-                <h3 style={{
-                  fontSize: isMobile ? typography.fontSize.lg : typography.fontSize.xl,
-                  fontWeight: typography.fontWeight.semibold,
-                  marginBottom: spacing.lg,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.md
-                }}>
-                  <Award size={isMobile ? 18 : 20} style={{ color: colors.gold.primary }} /> Competition History
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
-                  {competitionHistory.map((entry) => (
-                    <div
-                      key={entry.id}
-                      style={{
-                        background: entry.isWinner
-                          ? 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))'
-                          : 'rgba(255,255,255,0.03)',
-                        border: entry.isWinner ? '1px solid rgba(212,175,55,0.3)' : '1px solid rgba(255,255,255,0.05)',
-                        borderRadius: borderRadius.lg,
-                        padding: isMobile ? spacing.md : spacing.lg,
-                      }}
-                    >
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: spacing.sm,
-                        marginBottom: spacing.xs
-                      }}>
-                        <div style={{ minWidth: 0 }}>
-                          <p style={{
-                            fontWeight: typography.fontWeight.semibold,
-                            color: colors.text.primary,
-                            fontSize: isMobile ? typography.fontSize.sm : typography.fontSize.md
-                          }}>
-                            {entry.competition?.city || 'Unknown'} {entry.competition?.season || ''}
-                          </p>
-                          <p style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
-                            {entry.votes?.toLocaleString() || 0} votes
-                          </p>
-                        </div>
-                        {entry.isWinner ? (
-                          <Badge variant="gold" size="sm">
-                            <Trophy size={12} /> Winner
-                          </Badge>
-                        ) : entry.placement ? (
-                          <Badge variant="info" size="sm">
-                            #{entry.placement}
-                          </Badge>
-                        ) : (
-                          <Badge variant="default" size="sm">
-                            {STATUS_LABELS[entry.competition?.status] || entry.competition?.status || 'Competed'}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Panel>
-          )}
         </div>
       </div>
     </div>
